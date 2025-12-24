@@ -160,8 +160,10 @@
 /* Filter sekcija */
 .shop-filters {
   margin-bottom: 3rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 2rem;
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
 }
 
 .filters-row {
@@ -174,23 +176,43 @@
 .filter-group {
   flex: 1;
   min-width: 200px;
+  position: relative;
+}
+
+.filter-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #666666;
+  margin-bottom: 0.5rem;
 }
 
 .search-input {
   width: 100%;
-  padding: 1rem;
-  border: 1px solid #d0d0d0;
+  padding: 1rem 1.2rem;
+  border: 2px solid #e0e0e0;
   background-color: #ffffff;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
   color: #000000;
+  font-weight: 400;
   transition: all 0.3s ease;
   outline: none;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.search-input:hover {
+  border-color: #000000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .search-input:focus {
   border-color: #000000;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: #fafafa;
 }
 
 .search-input::placeholder {
@@ -200,25 +222,45 @@
 
 .filter-select {
   width: 100%;
-  padding: 1rem;
-  border: 1px solid #d0d0d0;
+  padding: 1rem 3rem 1rem 1.2rem;
+  border: 2px solid #e0e0e0;
   background-color: #ffffff;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
   color: #000000;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.3s ease;
   outline: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
-  padding-right: 3rem;
+  background-size: 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.filter-select:hover {
+  border-color: #000000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .filter-select:focus {
   border-color: #000000;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: #fafafa;
+}
+
+.filter-select option {
+  padding: 0.8rem;
+  background-color: #ffffff;
+  color: #000000;
+  font-weight: 400;
+}
+
+.filter-select option:hover {
+  background-color: #f5f5f5;
 }
 
 /* Proizvodi sekcija */

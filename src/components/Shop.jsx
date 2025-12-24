@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import CustomSelect from './CustomSelect'
 import './Shop.css'
 
 const Shop = () => {
@@ -17,12 +18,12 @@ const Shop = () => {
     setSearchTerm(e.target.value)
   }
 
-  const handleCategoryChange = (e) => {
-    setSelectedCategory(e.target.value)
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value)
   }
 
-  const handleSortChange = (e) => {
-    setSortBy(e.target.value)
+  const handleSortChange = (value) => {
+    setSortBy(value)
   }
 
   const handlePageChange = (page) => {
@@ -85,34 +86,41 @@ const Shop = () => {
 
               {/* Kategorije */}
               <div className="filter-group">
-                <select
-                  className="filter-select"
+                <CustomSelect
+                  options={[
+                    { value: 'all', label: 'Sve Kategorije' },
+                    { value: 'jakne-kaputi', label: 'Jakne i Kaputi' },
+                    { value: 'farmerke', label: 'Farmerke' },
+                    { value: 'pantalone', label: 'Pantalone' },
+                    { value: 'dzemperi-kardigani', label: 'Džemperi i Kardigani' },
+                    { value: 'dukserice', label: 'Dukserice' },
+                    { value: 'topovi-bodiji', label: 'Topovi i Bodiji' },
+                    { value: 'majice', label: 'Majice' },
+                    { value: 'kosulje-bluze', label: 'Košulje i Bluze' },
+                    { value: 'haljine-kombinezoni', label: 'Haljine i Kombinezoni' },
+                    { value: 'suknje-sortsevi', label: 'Suknje i Šortsevi' }
+                  ]}
                   value={selectedCategory}
                   onChange={handleCategoryChange}
-                >
-                  <option value="all">Sve Kategorije</option>
-                  <option value="dresses">Haljine</option>
-                  <option value="tops">Gornji Delovi</option>
-                  <option value="bottoms">Donji Delovi</option>
-                  <option value="outerwear">Jakne</option>
-                  <option value="accessories">Aksesoari</option>
-                </select>
+                  placeholder="Sve Kategorije"
+                />
               </div>
 
               {/* Sortiranje */}
               <div className="filter-group">
-                <select
-                  className="filter-select"
+                <CustomSelect
+                  options={[
+                    { value: 'default', label: 'Podrazumevano' },
+                    { value: 'price-low', label: 'Cena: Niska → Visoka' },
+                    { value: 'price-high', label: 'Cena: Visoka → Niska' },
+                    { value: 'name-asc', label: 'Naziv: A → Z' },
+                    { value: 'name-desc', label: 'Naziv: Z → A' },
+                    { value: 'newest', label: 'Najnovije' }
+                  ]}
                   value={sortBy}
                   onChange={handleSortChange}
-                >
-                  <option value="default">Podrazumevano</option>
-                  <option value="price-low">Cena: Niska → Visoka</option>
-                  <option value="price-high">Cena: Visoka → Niska</option>
-                  <option value="name-asc">Naziv: A → Z</option>
-                  <option value="name-desc">Naziv: Z → A</option>
-                  <option value="newest">Najnovije</option>
-                </select>
+                  placeholder="Podrazumevano"
+                />
               </div>
             </div>
           </div>
