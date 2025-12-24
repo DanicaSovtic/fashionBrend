@@ -9,23 +9,23 @@ const Home = () => {
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-logo">
-            <Link to="/">NOIR</Link>
+            <Link to="/">MyDivinaStyle</Link>
           </div>
           <ul className="navbar-menu">
             <li className="navbar-item">
-              <Link to="/" className="navbar-link">Home</Link>
+              <Link to="/" className="navbar-link">Početna</Link>
             </li>
             <li className="navbar-item">
-              <a href="#shop" className="navbar-link">Shop</a>
+              <a href="#shop" className="navbar-link">Prodavnica</a>
             </li>
             <li className="navbar-item">
-              <Link to="/collection" className="navbar-link">Collection</Link>
+              <Link to="/collection" className="navbar-link">Kolekcije</Link>
             </li>
             <li className="navbar-item">
-              <Link to="/about" className="navbar-link">About</Link>
+              <Link to="/about" className="navbar-link">O nama</Link>
             </li>
             <li className="navbar-item">
-              <Link to="/contact" className="navbar-link">Contact</Link>
+              <Link to="/contact" className="navbar-link">Kontakt</Link>
             </li>
           </ul>
         </div>
@@ -35,10 +35,10 @@ const Home = () => {
       <section className="hero">
         <div className="hero-overlay"></div>
         <div className="hero-content">
-          <h1 className="hero-headline">New Winter Collection 2025</h1>
-          <p className="hero-slogan">Elegance redefined. Style elevated.</p>
+          <h1 className="hero-headline">Nova Zimska Kolekcija 2025</h1>
+          <p className="hero-slogan">Elegantnost redefinisana. Stil uzdignut.</p>
           <a href="#shop" className="hero-cta">
-            Shop Now
+            Kupi Sada
           </a>
         </div>
       </section>

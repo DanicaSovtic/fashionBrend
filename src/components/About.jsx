@@ -9,23 +9,23 @@ const About = () => {
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-logo">
-            <Link to="/">NOIR</Link>
+            <Link to="/">MyDivinaStyle</Link>
           </div>
           <ul className="navbar-menu">
             <li className="navbar-item">
-              <Link to="/" className="navbar-link">Home</Link>
+              <Link to="/" className="navbar-link">Početna</Link>
             </li>
             <li className="navbar-item">
-              <a href="#shop" className="navbar-link">Shop</a>
+              <a href="#shop" className="navbar-link">Prodavnica</a>
             </li>
             <li className="navbar-item">
-              <Link to="/collection" className="navbar-link">Collection</Link>
+              <Link to="/collection" className="navbar-link">Kolekcije</Link>
             </li>
             <li className="navbar-item">
-              <Link to="/about" className="navbar-link active">About</Link>
+              <Link to="/about" className="navbar-link active">O nama</Link>
             </li>
             <li className="navbar-item">
-              <Link to="/contact" className="navbar-link">Contact</Link>
+              <Link to="/contact" className="navbar-link">Kontakt</Link>
             </li>
           </ul>
         </div>
@@ -35,8 +35,8 @@ const About = () => {
       <section className="about-hero">
         <div className="about-hero-overlay"></div>
         <div className="about-hero-content">
-          <h1 className="about-hero-title">About NOIR</h1>
-          <p className="about-hero-subtitle">Where elegance meets innovation</p>
+          <h1 className="about-hero-title">O MyDivinaStyle</h1>
+          <p className="about-hero-subtitle">Gde se elegantnost susreće sa inovacijom</p>
         </div>
       </section>
 
@@ -46,21 +46,21 @@ const About = () => {
         <section className="about-section">
           <div className="about-container">
             <div className="about-text-block">
-              <h2 className="about-heading">Our Story</h2>
+              <h2 className="about-heading">Naša Priča</h2>
               <p className="about-text">
-                NOIR was born from a vision to redefine modern fashion. Founded in 2020, 
-                we have dedicated ourselves to creating timeless pieces that blend 
-                contemporary design with classic elegance.
+                MyDivinaStyle je rođen iz vizije da redefinišemo modernu modu. Osnovan 2022. godine, 
+                posvetili smo se stvaranju bezvremenskih komada koji spajaju 
+                savremeni dizajn sa klasičnom elegantnošću.
               </p>
               <p className="about-text">
-                Our commitment to quality, sustainability, and innovation has made us 
-                a trusted name in the fashion industry. Every collection tells a story, 
-                every piece is crafted with care, and every detail matters.
+                Naša posvećenost kvalitetu, održivosti i inovacijama učinila nas je 
+                pouzdanim imenom u modnoj industriji. Svaka kolekcija priča priču, 
+                svaki komad je pažljivo izrađen, i svaki detalj je važan.
               </p>
             </div>
             <div className="about-image-block">
               <div className="about-image-placeholder">
-                <span>Our Story</span>
+                <span>Naša Priča</span>
               </div>
             </div>
           </div>
@@ -71,21 +71,21 @@ const About = () => {
           <div className="about-container">
             <div className="about-image-block">
               <div className="about-image-placeholder">
-                <span>Our Mission</span>
+                <span>Naša Misija</span>
               </div>
             </div>
             <div className="about-text-block">
-              <h2 className="about-heading">Our Mission</h2>
+              <h2 className="about-heading">Naša Misija</h2>
               <p className="about-text">
-                To empower individuals to express their unique style through 
-                thoughtfully designed, high-quality fashion pieces that stand 
-                the test of time.
+                Da osnažimo pojedince da izraze svoj jedinstveni stil kroz 
+                pažljivo dizajnirane, visokokvalitetne modne komade koji 
+                izdržavaju test vremena.
               </p>
               <p className="about-text">
-                We believe that fashion should be accessible, sustainable, and 
-                inspiring. Our mission extends beyond clothing—we're building 
-                a community of style-conscious individuals who value quality 
-                over quantity.
+                Verujemo da moda treba da bude pristupačna, održiva i 
+                inspirišuća. Naša misija seže dalje od odeće—gradimo 
+                zajednicu svesti o stilu pojedinaca koji vrednuju kvalitet 
+                preko količine.
               </p>
             </div>
           </div>
@@ -94,38 +94,38 @@ const About = () => {
         {/* Values sekcija */}
         <section className="about-section">
           <div className="about-container about-container-column">
-            <h2 className="about-heading about-heading-center">Our Values</h2>
+            <h2 className="about-heading about-heading-center">Naše Vrednosti</h2>
             <div className="values-grid">
               <div className="value-card">
                 <div className="value-icon">✨</div>
-                <h3 className="value-title">Quality</h3>
+                <h3 className="value-title">Kvalitet</h3>
                 <p className="value-text">
-                  We source only the finest materials and work with skilled 
-                  artisans to ensure every piece meets our high standards.
+                  Koristimo samo najfinije materijale i radimo sa veštim 
+                  zanatlijama kako bismo osigurali da svaki komad ispunjava naše visoke standarde.
                 </p>
               </div>
               <div className="value-card">
                 <div className="value-icon">🌱</div>
-                <h3 className="value-title">Sustainability</h3>
+                <h3 className="value-title">Održivost</h3>
                 <p className="value-text">
-                  Committed to ethical practices and environmental responsibility 
-                  in every aspect of our production process.
+                  Posvećeni etičkim praksama i ekološkoj odgovornosti 
+                  u svakom aspektu našeg procesa proizvodnje.
                 </p>
               </div>
               <div className="value-card">
                 <div className="value-icon">🎨</div>
-                <h3 className="value-title">Innovation</h3>
+                <h3 className="value-title">Inovacija</h3>
                 <p className="value-text">
-                  Constantly pushing boundaries to create fresh, modern designs 
-                  that inspire and captivate.
+                  Stalno pomeramo granice kako bismo stvorili sveže, moderne dizajne 
+                  koji inspirišu i očaravaju.
                 </p>
               </div>
               <div className="value-card">
                 <div className="value-icon">❤️</div>
-                <h3 className="value-title">Authenticity</h3>
+                <h3 className="value-title">Autentičnost</h3>
                 <p className="value-text">
-                  Staying true to our vision and values while building genuine 
-                  connections with our community.
+                  Ostanemo verni našoj viziji i vrednostima dok gradimo iskrene 
+                  veze sa našom zajednicom.
                 </p>
               </div>
             </div>
@@ -135,11 +135,11 @@ const About = () => {
         {/* CTA sekcija */}
         <section className="about-cta">
           <div className="about-cta-content">
-            <h2 className="about-cta-title">Join Our Journey</h2>
+            <h2 className="about-cta-title">Pridružite Nam Se</h2>
             <p className="about-cta-text">
-              Discover our latest collections and be part of the NOIR community.
+              Otkrijte naše najnovije kolekcije i budite deo MyDivinaStyle zajednice.
             </p>
-            <Link to="/" className="about-cta-button">Explore Collections</Link>
+            <Link to="/" className="about-cta-button">Istraži Kolekcije</Link>
           </div>
         </section>
       </div>
