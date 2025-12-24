@@ -19,13 +19,13 @@ const About = () => {
               <a href="#shop" className="navbar-link">Shop</a>
             </li>
             <li className="navbar-item">
-              <a href="#collection" className="navbar-link">Collection</a>
+              <Link to="/collection" className="navbar-link">Collection</Link>
             </li>
             <li className="navbar-item">
               <Link to="/about" className="navbar-link active">About</Link>
             </li>
             <li className="navbar-item">
-              <a href="#contact" className="navbar-link">Contact</a>
+              <Link to="/contact" className="navbar-link">Contact</Link>
             </li>
           </ul>
         </div>
