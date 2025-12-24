@@ -48,7 +48,7 @@ const Contact = () => {
               <Link to="/" className="navbar-link">Početna</Link>
             </li>
             <li className="navbar-item">
-              <a href="#shop" className="navbar-link">Prodavnica</a>
+              <Link to="/shop" className="navbar-link">Prodavnica</Link>
             </li>
             <li className="navbar-item">
               <Link to="/collection" className="navbar-link">Kolekcije</Link>

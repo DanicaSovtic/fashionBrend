@@ -16,7 +16,7 @@ const Home = () => {
               <Link to="/" className="navbar-link">Početna</Link>
             </li>
             <li className="navbar-item">
-              <a href="#shop" className="navbar-link">Prodavnica</a>
+              <Link to="/shop" className="navbar-link">Prodavnica</Link>
             </li>
             <li className="navbar-item">
               <Link to="/collection" className="navbar-link">Kolekcije</Link>
@@ -35,7 +35,7 @@ const Home = () => {
       <section className="hero">
         <div className="hero-overlay"></div>
         <div className="hero-content">
-          <h1 className="hero-headline">Nova Zimska Kolekcija 2025</h1>
+          <h1 className="hero-headline">Nova Zimska Kolekcija 2026</h1>
           <p className="hero-slogan">Elegantnost redefinisana. Stil uzdignut.</p>
           <a href="#shop" className="hero-cta">
             Kupi Sada

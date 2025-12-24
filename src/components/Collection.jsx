@@ -7,9 +7,9 @@ const Collection = () => {
   const collections = [
     {
       id: 1,
-      name: 'Zimska Kolekcija 2025',
+      name: 'Zimska Kolekcija 2026',
       season: 'Zima',
-      year: '2025',
+      year: '2026',
       description: 'Elegantni komadi dizajnirani za modernu zimsku garderobu. Udobno, a ipak sofisticirano.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
       items: '45+ komada',
@@ -80,7 +80,7 @@ const Collection = () => {
               <Link to="/" className="navbar-link">Početna</Link>
             </li>
             <li className="navbar-item">
-              <a href="#shop" className="navbar-link">Prodavnica</a>
+              <Link to="/shop" className="navbar-link">Prodavnica</Link>
             </li>
             <li className="navbar-item">
               <Link to="/collection" className="navbar-link active">Kolekcije</Link>

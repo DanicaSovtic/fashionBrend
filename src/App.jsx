@@ -4,6 +4,7 @@ import Home from './components/Home'
 import About from './components/About'
 import Contact from './components/Contact'
 import Collection from './components/Collection'
+import Shop from './components/Shop'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/collection" element={<Collection />} />
+        <Route path="/shop" element={<Shop />} />
       </Routes>
     </Router>
   )
