@@ -48,19 +48,27 @@ const About = () => {
             <div className="about-text-block">
               <h2 className="about-heading">Naša Priča</h2>
               <p className="about-text">
-                MyDivinaStyle je rođen iz vizije da redefinišemo modernu modu. Osnovan 2022. godine, 
-                posvetili smo se stvaranju bezvremenskih komada koji spajaju 
-                savremeni dizajn sa klasičnom elegantnošću.
+                MyDivinaStyle je nastao 2022. godine kao rezultat zajedničke vizije i saradnje profesorke Aleksandre Labus i dve studentkinje – Aleksandre Trpkov i Danice Sovtić. Upravo tada se prvi put razvila ideja o pokretanju modnog brenda koji neće pratiti isključivo estetske trendove, već će kroz primenu blokčejn tehnologije ponuditi novo, inovativno iskustvo kupcima i redefinisati odnos između mode, tehnologije i poverenja.
+
+
+
+
+     </p>
+              <p className="about-text">
+               Brend je od samog početka zamišljen kao deo šireg digitalnog ekosistema, u kojem su transparentnost, autentičnost i inovacije ključne vrednosti. Ova vizija je dodatno potvrđena 2023. godine, kada je projekat „Blockchain ecosystem for the fashion industry“ osvojio drugo mesto na takmičenju W3 Algorand Hackathon 2023, čime je MyDivinaStyle prepoznat kao pionirska ideja na preseku modne industrije i Web3 tehnologija.
+
               </p>
               <p className="about-text">
-                Naša posvećenost kvalitetu, održivosti i inovacijama učinila nas je 
-                pouzdanim imenom u modnoj industriji. Svaka kolekcija priča priču, 
-                svaki komad je pažljivo izrađen, i svaki detalj je važan.
+              Danas, MyDivinaStyle predstavlja više od modnog brenda. To je platforma koja spaja kreativnu saradnju, savremeni dizajn i napredne tehnologije, sa ciljem da ponudi bezvremenske komade i istovremeno gradi budućnost mode zasnovanu na inovacijama, transparentnosti i novim digitalnim vrednostima.
               </p>
             </div>
             <div className="about-image-block">
-              <div className="about-image-placeholder">
-                <span>Naša Priča</span>
+              <div className="about-image-wrapper">
+                <img 
+                  src="/img/team-photo.jpg" 
+                  alt="MyDivinaStyle tim"
+                  className="about-story-image"
+                />
               </div>
             </div>
           </div>
@@ -70,23 +78,22 @@ const About = () => {
         <section className="about-section about-section-dark">
           <div className="about-container">
             <div className="about-image-block">
-              <div className="about-image-placeholder">
-                <span>Naša Misija</span>
+              <div className="about-image-wrapper">
+                <img 
+                  src="/img/mision.jpeg" 
+                  alt="MyDivinaStyle misija"
+                  className="about-story-image"
+                />
               </div>
             </div>
             <div className="about-text-block">
               <h2 className="about-heading">Naša Misija</h2>
               <p className="about-text">
-                Da osnažimo pojedince da izraze svoj jedinstveni stil kroz 
-                pažljivo dizajnirane, visokokvalitetne modne komade koji 
-                izdržavaju test vremena.
+                Naša misija je da redefinišemo savremenu modnu industriju kroz spoj dizajna, tehnologije i inovacija. MyDivinaStyle teži stvaranju modnog ekosistema koji prevazilazi klasičnu kupovinu, nudeći kupcima transparentnost, autentičnost i novo digitalno iskustvo zasnovano na blokčejn tehnologiji. Kroz svaki komad i svaku kolekciju gradimo poverenje, ističemo vrednost originalnosti i postavljamo nove standarde u načinu na koji moda komunicira sa svojim korisnicima.
               </p>
-              <p className="about-text">
-                Verujemo da moda treba da bude pristupačna, održiva i 
-                inspirišuća. Naša misija seže dalje od odeće—gradimo 
-                zajednicu svesti o stilu pojedinaca koji vrednuju kvalitet 
-                preko količine.
-              </p>
+              {/* <p className="about-text">
+                Istovremeno, naša misija je da podstaknemo saradnju između kreativne i tehnološke zajednice, osnažimo mlade talente i doprinesemo razvoju inovativnih rešenja u modnoj industriji. Verujemo u znanje, mentorski rad i kontinuirano učenje kao pokretače promena. MyDivinaStyle vidi modu kao platformu za ideje, gde se estetika susreće sa tehnologijom, a vizija budućnosti pretvara u održivu i smisleno dizajniranu stvarnost.
+              </p> */}
             </div>
           </div>
         </section>
