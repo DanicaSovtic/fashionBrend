@@ -9,7 +9,7 @@ const About = () => {
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-logo">
-            <Link to="/">MyDivinaStyle</Link>
+            <Link to="/">Piccola</Link>
           </div>
           <ul className="navbar-menu">
             <li className="navbar-item">
@@ -35,7 +35,7 @@ const About = () => {
       <section className="about-hero">
         <div className="about-hero-overlay"></div>
         <div className="about-hero-content">
-          <h1 className="about-hero-title">O MyDivinaStyle</h1>
+          <h1 className="about-hero-title">O Piccola</h1>
           <p className="about-hero-subtitle">Gde se elegantnost susreće sa inovacijom</p>
         </div>
       </section>
@@ -48,25 +48,25 @@ const About = () => {
             <div className="about-text-block">
               <h2 className="about-heading">Naša Priča</h2>
               <p className="about-text">
-                MyDivinaStyle je nastao 2022. godine kao rezultat zajedničke vizije i saradnje profesorke Aleksandre Labus i dve studentkinje – Aleksandre Trpkov i Danice Sovtić. Upravo tada se prvi put razvila ideja o pokretanju modnog brenda koji neće pratiti isključivo estetske trendove, već će kroz primenu blokčejn tehnologije ponuditi novo, inovativno iskustvo kupcima i redefinisati odnos između mode, tehnologije i poverenja.
+                Piccola je nastao 2022. godine kao rezultat zajedničke vizije i saradnje profesorke Aleksandre Labus i dve studentkinje – Aleksandre Trpkov i Danice Sovtić. Upravo tada se prvi put razvila ideja o pokretanju modnog brenda koji neće pratiti isključivo estetske trendove, već će kroz primenu blokčejn tehnologije ponuditi novo, inovativno iskustvo kupcima i redefinisati odnos između mode, tehnologije i poverenja.
 
 
 
 
      </p>
               <p className="about-text">
-               Brend je od samog početka zamišljen kao deo šireg digitalnog ekosistema, u kojem su transparentnost, autentičnost i inovacije ključne vrednosti. Ova vizija je dodatno potvrđena 2023. godine, kada je projekat „Blockchain ecosystem for the fashion industry“ osvojio drugo mesto na takmičenju W3 Algorand Hackathon 2023, čime je MyDivinaStyle prepoznat kao pionirska ideja na preseku modne industrije i Web3 tehnologija.
+               Brend je od samog početka zamišljen kao deo šireg digitalnog ekosistema, u kojem su transparentnost, autentičnost i inovacije ključne vrednosti. Ova vizija je dodatno potvrđena 2023. godine, kada je projekat „Blockchain ecosystem for the fashion industry“ osvojio drugo mesto na takmičenju W3 Algorand Hackathon 2023, čime je Piccola prepoznat kao pionirska ideja na preseku modne industrije i Web3 tehnologija.
 
               </p>
               <p className="about-text">
-              Danas, MyDivinaStyle predstavlja više od modnog brenda. To je platforma koja spaja kreativnu saradnju, savremeni dizajn i napredne tehnologije, sa ciljem da ponudi bezvremenske komade i istovremeno gradi budućnost mode zasnovanu na inovacijama, transparentnosti i novim digitalnim vrednostima.
+              Danas, Piccola predstavlja više od modnog brenda. To je platforma koja spaja kreativnu saradnju, savremeni dizajn i napredne tehnologije, sa ciljem da ponudi bezvremenske komade i istovremeno gradi budućnost mode zasnovanu na inovacijama, transparentnosti i novim digitalnim vrednostima.
               </p>
             </div>
             <div className="about-image-block">
               <div className="about-image-wrapper">
                 <img 
                   src="/img/team-photo.jpg" 
-                  alt="MyDivinaStyle tim"
+                  alt="Piccola tim"
                   className="about-story-image"
                 />
               </div>
@@ -81,7 +81,7 @@ const About = () => {
               <div className="about-image-wrapper">
                 <img 
                   src="/img/mision.jpeg" 
-                  alt="MyDivinaStyle misija"
+                  alt="Piccola misija"
                   className="about-story-image"
                 />
               </div>
@@ -89,10 +89,10 @@ const About = () => {
             <div className="about-text-block">
               <h2 className="about-heading">Naša Misija</h2>
               <p className="about-text">
-                Naša misija je da redefinišemo savremenu modnu industriju kroz spoj dizajna, tehnologije i inovacija. MyDivinaStyle teži stvaranju modnog ekosistema koji prevazilazi klasičnu kupovinu, nudeći kupcima transparentnost, autentičnost i novo digitalno iskustvo zasnovano na blokčejn tehnologiji. Kroz svaki komad i svaku kolekciju gradimo poverenje, ističemo vrednost originalnosti i postavljamo nove standarde u načinu na koji moda komunicira sa svojim korisnicima.
+                Naša misija je da redefinišemo savremenu modnu industriju kroz spoj dizajna, tehnologije i inovacija. Piccola teži stvaranju modnog ekosistema koji prevazilazi klasičnu kupovinu, nudeći kupcima transparentnost, autentičnost i novo digitalno iskustvo zasnovano na blokčejn tehnologiji. Kroz svaki komad i svaku kolekciju gradimo poverenje, ističemo vrednost originalnosti i postavljamo nove standarde u načinu na koji moda komunicira sa svojim korisnicima.
               </p>
               {/* <p className="about-text">
-                Istovremeno, naša misija je da podstaknemo saradnju između kreativne i tehnološke zajednice, osnažimo mlade talente i doprinesemo razvoju inovativnih rešenja u modnoj industriji. Verujemo u znanje, mentorski rad i kontinuirano učenje kao pokretače promena. MyDivinaStyle vidi modu kao platformu za ideje, gde se estetika susreće sa tehnologijom, a vizija budućnosti pretvara u održivu i smisleno dizajniranu stvarnost.
+                Istovremeno, naša misija je da podstaknemo saradnju između kreativne i tehnološke zajednice, osnažimo mlade talente i doprinesemo razvoju inovativnih rešenja u modnoj industriji. Verujemo u znanje, mentorski rad i kontinuirano učenje kao pokretače promena. Piccola vidi modu kao platformu za ideje, gde se estetika susreće sa tehnologijom, a vizija budućnosti pretvara u održivu i smisleno dizajniranu stvarnost.
               </p> */}
             </div>
           </div>
@@ -144,7 +144,7 @@ const About = () => {
           <div className="about-cta-content">
             <h2 className="about-cta-title">Pridružite Nam Se</h2>
             <p className="about-cta-text">
-              Otkrijte naše najnovije kolekcije i budite deo MyDivinaStyle zajednice.
+              Otkrijte naše najnovije kolekcije i budite deo Piccola zajednice.
             </p>
             <Link to="/" className="about-cta-button">Istraži Kolekcije</Link>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CustomSelect from './CustomSelect'
 import './Shop.css'
@@ -10,8 +10,76 @@ const Shop = () => {
   const [sortBy, setSortBy] = useState('default')
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Placeholder za proizvode (biće zamenjeno podacima iz baze)
-  const products = [] // Prazan niz - biće popunjen iz baze
+  const [products, setProducts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true)
+        setErrorMessage('')
+        const response = await fetch('/api/products')
+        if (!response.ok) {
+          throw new Error('Greška prilikom učitavanja proizvoda.')
+        }
+        const data = await response.json()
+        setProducts(data)
+      } catch (error) {
+        setErrorMessage(error.message || 'Došlo je do greške.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProducts()
+  }, [])
+
+  const filteredProducts = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    const filtered = products.filter((product) => {
+      const matchesSearch = normalizedSearch
+        ? product.title?.toLowerCase().includes(normalizedSearch)
+        : true
+      const matchesCategory =
+        selectedCategory === 'all'
+          ? true
+          : product.category === selectedCategory
+      return matchesSearch && matchesCategory
+    })
+
+    const sorted = [...filtered]
+    switch (sortBy) {
+      case 'price-low':
+        sorted.sort((a, b) => a.price - b.price)
+        break
+      case 'price-high':
+        sorted.sort((a, b) => b.price - a.price)
+        break
+      case 'name-asc':
+        sorted.sort((a, b) => a.title.localeCompare(b.title))
+        break
+      case 'name-desc':
+        sorted.sort((a, b) => b.title.localeCompare(a.title))
+        break
+      case 'newest':
+        sorted.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        break
+      default:
+        break
+    }
+
+    return sorted
+  }, [products, searchTerm, selectedCategory, sortBy])
+
+  const formatPrice = (price) =>
+    new Intl.NumberFormat('sr-RS', {
+      style: 'currency',
+      currency: 'RSD',
+      minimumFractionDigits: 0
+    }).format(price)
 
   // Handleri za filtere (za buduću integraciju)
   const handleSearchChange = (e) => {
@@ -36,7 +104,7 @@ const Shop = () => {
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-logo">
-            <Link to="/">MyDivinaStyle</Link>
+            <Link to="/">Piccola</Link>
           </div>
           <ul className="navbar-menu">
             <li className="navbar-item">
@@ -89,16 +157,12 @@ const Shop = () => {
                 <CustomSelect
                   options={[
                     { value: 'all', label: 'Sve Kategorije' },
-                    { value: 'jakne-kaputi', label: 'Jakne i Kaputi' },
-                    { value: 'farmerke', label: 'Farmerke' },
+                    { value: 'kosulje', label: 'Košulje' },
                     { value: 'pantalone', label: 'Pantalone' },
-                    { value: 'dzemperi-kardigani', label: 'Džemperi i Kardigani' },
-                    { value: 'dukserice', label: 'Dukserice' },
-                    { value: 'topovi-bodiji', label: 'Topovi i Bodiji' },
-                    { value: 'majice', label: 'Majice' },
-                    { value: 'kosulje-bluze', label: 'Košulje i Bluze' },
-                    { value: 'haljine-kombinezoni', label: 'Haljine i Kombinezoni' },
-                    { value: 'suknje-sortsevi', label: 'Suknje i Šortsevi' }
+                    { value: 'suknje', label: 'Suknje' },
+                    { value: 'haljine', label: 'Haljine' },
+                    { value: 'jakne', label: 'Jakne' },
+                    { value: 'obuca', label: 'Obuća' }
                   ]}
                   value={selectedCategory}
                   onChange={handleCategoryChange}
@@ -127,28 +191,36 @@ const Shop = () => {
 
           {/* Grid sa proizvodima */}
           <div className="products-section">
-            {products.length === 0 ? (
+            {isLoading ? (
+              <div className="loading-state">
+                <p className="loading-state-text">Učitavanje proizvoda...</p>
+              </div>
+            ) : errorMessage ? (
+              <div className="error-state">
+                <p className="error-state-text">{errorMessage}</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="empty-state">
                 <p className="empty-state-text">
-                  Proizvodi će biti prikazani ovde kada se povežu sa bazom podataka.
+                  Nema proizvoda za prikaz.
                 </p>
               </div>
             ) : (
               <div className="products-grid">
                 {/* Proizvodi će biti mapirani ovde kada se povežu sa bazom */}
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <div key={product.id} className="product-card">
                     {/* Struktura kartice proizvoda */}
                     <div className="product-image-wrapper">
                       <img 
-                        src={product.image} 
-                        alt={product.name}
+                        src={product.image_url} 
+                        alt={product.title}
                         className="product-image"
                       />
                     </div>
                     <div className="product-info">
-                      <h3 className="product-name">{product.name}</h3>
-                      <p className="product-price">{product.price}</p>
+                      <h3 className="product-name">{product.title}</h3>
+                      <p className="product-price">{formatPrice(product.price)}</p>
                     </div>
                   </div>
                 ))}
@@ -157,7 +229,7 @@ const Shop = () => {
           </div>
 
           {/* Paginacija (placeholder) */}
-          {products.length > 0 && (
+          {filteredProducts.length > 0 && (
             <div className="pagination">
               <button 
                 className="pagination-button"

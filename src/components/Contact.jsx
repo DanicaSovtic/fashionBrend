@@ -41,7 +41,7 @@ const Contact = () => {
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-logo">
-            <Link to="/">MyDivinaStyle</Link>
+            <Link to="/">Piccola</Link>
           </div>
           <ul className="navbar-menu">
             <li className="navbar-item">
@@ -99,7 +99,7 @@ const Contact = () => {
                 <div className="contact-detail-content">
                   <h3 className="contact-detail-title">Email</h3>
                   <p className="contact-detail-text">
-                    <a href="mailto:info@mydivinastyle.com">info@mydivinastyle.com</a>
+                    <a href="mailto:info@piccola.com">info@piccola.com</a>
                   </p>
                 </div>
               </div>

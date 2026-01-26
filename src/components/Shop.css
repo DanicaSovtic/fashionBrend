@@ -280,6 +280,20 @@
   line-height: 1.8;
 }
 
+.loading-state,
+.error-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #666666;
+}
+
+.loading-state-text,
+.error-state-text {
+  font-size: 1rem;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
 .products-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

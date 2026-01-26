@@ -9,7 +9,7 @@ const Home = () => {
       <nav className="navbar">
         <div className="navbar-container">
           <div className="navbar-logo">
-            <Link to="/">MyDivinaStyle</Link>
+            <Link to="/">Piccola</Link>
           </div>
           <ul className="navbar-menu">
             <li className="navbar-item">

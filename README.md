@@ -13,6 +13,14 @@ Modern landing stranica za modni brend, napravljena u React-u sa čistim i minim
 
 ```
 brend/
+├── backend/
+│   ├── routes/
+│   ├── services/
+│   ├── package.json
+│   ├── server.js
+│   └── .env.example
+├── supabase/
+│   └── schema.sql
 ├── src/
 │   ├── components/
 │   │   ├── Home.jsx      # Glavna komponenta sa navbar-om i hero sekcijom
@@ -28,20 +36,48 @@ brend/
 
 ## Instalacija i pokretanje
 
-1. Instaliraj zavisnosti:
+1. Instaliraj frontend zavisnosti:
 ```bash
 npm install
 ```
 
-2. Pokreni development server:
+2. Instaliraj backend zavisnosti:
 ```bash
+cd backend
+npm install
+```
+
+3. Podesi Supabase env varijable:
+```bash
+cd backend
+cp .env.example .env
+```
+Popuni `SUPABASE_URL` i `SUPABASE_ANON_KEY` iz Supabase projekta.
+
+4. Kreiraj tabele u Supabase:
+- Otvori SQL editor u Supabase i pokreni `supabase/schema.sql`
+
+5. Pokreni backend:
+```bash
+cd backend
 npm run dev
 ```
 
-3. Build za produkciju:
+6. Pokreni frontend:
+```bash
+cd ..
+npm run dev
+```
+
+7. Build za produkciju:
 ```bash
 npm run build
 ```
+
+## API endpoinit
+
+- `GET /api/products` - vraća proizvode iz Supabase
+- `POST /api/seed-products` - uvozi proizvode iz Fake Store API
 
 ## Funkcionalnosti
 
