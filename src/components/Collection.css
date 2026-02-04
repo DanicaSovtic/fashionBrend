@@ -10,7 +10,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background-color: #000000;
+  background-color: var(--color-olive);
   color: #ffffff;
   padding: 1rem 0;
   z-index: 1000;
@@ -171,7 +171,7 @@
   font-weight: 300;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-olive-dark);
   margin-bottom: 1.5rem;
 }
 
@@ -202,7 +202,7 @@
 .collection-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border-color: #000000;
+  border-color: var(--color-olive);
 }
 
 .collection-card-image-wrapper {
@@ -244,7 +244,7 @@
 }
 
 .collection-status {
-  background-color: #000000;
+  background-color: var(--color-olive);
   color: #ffffff;
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
@@ -273,7 +273,7 @@
 }
 
 .collection-season {
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 500;
 }
 
@@ -286,7 +286,7 @@
   font-weight: 300;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-olive-dark);
   margin: 0;
 }
 
@@ -300,9 +300,9 @@
 
 .collection-card-button {
   padding: 0.9rem 2rem;
-  background-color: #000000;
-  color: #ffffff;
-  border: 2px solid #000000;
+  background-color: var(--color-pink);
+  color: var(--color-olive-dark);
+  border: 2px solid var(--color-pink);
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 2px;
@@ -315,8 +315,8 @@
 }
 
 .collection-card-button:hover {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: var(--color-pink-dark);
+  color: var(--color-olive-dark);
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }

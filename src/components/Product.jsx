@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
+import { useFavorites } from '../context/FavoritesContext'
 import './Product.css'
 
 const Product = () => {
@@ -8,6 +10,12 @@ const Product = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [isShippingOpen, setIsShippingOpen] = useState(false)
+  const [addedMessage, setAddedMessage] = useState('')
+  const [sizeMessage, setSizeMessage] = useState('')
+  const [selectedSize, setSelectedSize] = useState('')
+  const addMessageTimeoutRef = useRef(null)
+  const { addItem, openCart } = useCart()
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites()
 
   const resolvedId = useMemo(() => {
     if (!productId) {
@@ -79,6 +87,41 @@ const Product = () => {
     [odrzavanjeText]
   )
 
+  const handleAddToCart = () => {
+    if (!product) {
+      return
+    }
+    if (!selectedSize) {
+      setSizeMessage('Izaberite veličinu pre dodavanja u korpu.')
+      return
+    }
+    setSizeMessage('')
+    addItem(product, selectedSize)
+    openCart()
+    setAddedMessage('Proizvod je dodat u korpu.')
+    if (addMessageTimeoutRef.current) {
+      clearTimeout(addMessageTimeoutRef.current)
+    }
+    addMessageTimeoutRef.current = setTimeout(() => {
+      setAddedMessage('')
+    }, 2000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (addMessageTimeoutRef.current) {
+        clearTimeout(addMessageTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const sizes = ['XS', 'S', 'M', 'L', 'XL']
+
+  useEffect(() => {
+    setSelectedSize('')
+    setSizeMessage('')
+  }, [product?.id])
+
   return (
     <div className="product-page">
       <nav className="navbar">
@@ -132,6 +175,61 @@ const Product = () => {
               <div className="product-summary">
                 <h1 className="product-title">{product.title}</h1>
                 <p className="product-price">{formatPrice(product.price)}</p>
+                <div className="product-size">
+                  <p className="product-size-label">Veličina</p>
+                  <div className="product-size-options">
+                    {sizes.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        className={`product-size-button ${
+                          selectedSize === size ? 'active' : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedSize(size)
+                          setSizeMessage('')
+                        }}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                  {sizeMessage && (
+                    <span className="product-size-message">{sizeMessage}</span>
+                  )}
+                </div>
+                <div className="product-cart-actions">
+                  <button
+                    type="button"
+                    className="product-cart-button"
+                    onClick={handleAddToCart}
+                  >
+                    Dodaj u korpu
+                  </button>
+                  <Link
+                    to="/favorites"
+                    className="product-favorites-link"
+                    aria-label="Otvori favorite"
+                  >
+                    ❤
+                  </Link>
+                </div>
+                {addedMessage && (
+                  <span className="product-cart-message">{addedMessage}</span>
+                )}
+                <button
+                  type="button"
+                  className={`product-favorite-toggle ${
+                    isFavorite(product.id) ? 'active' : ''
+                  }`}
+                  onClick={() =>
+                    isFavorite(product.id)
+                      ? removeFavorite(product.id)
+                      : addFavorite(product)
+                  }
+                >
+                  {isFavorite(product.id) ? 'Ukloni iz favorita' : 'Dodaj u favorite'}
+                </button>
                 <p className="product-description">
                   {product.description || 'Opis nije dostupan.'}
                 </p>

@@ -10,7 +10,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background-color: #000000;
+  background-color: var(--color-olive);
   color: #ffffff;
   padding: 1rem 0;
   z-index: 1000;
@@ -102,12 +102,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image: url('https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80');
+  /* background-image: url(''); */
   background-size: cover;
-  background-position: center;
+  background-position: center 10%;
   background-repeat: no-repeat;
   text-align: center;
-  margin-top: 70px;
+  margin-top: 60px;
 }
 
 .contact-hero-overlay {
@@ -122,10 +122,11 @@
 
 .contact-hero-content {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   color: #ffffff;
   max-width: 800px;
   padding: 0 2rem;
+  transform: translateY(100px);
 }
 
 .contact-hero-title {
@@ -173,7 +174,7 @@
   font-weight: 300;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-olive-dark);
   margin-bottom: 1rem;
 }
 
@@ -213,7 +214,7 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 0.5rem;
-  color: #000000;
+  color: var(--color-olive-dark);
 }
 
 .contact-detail-text {
@@ -224,7 +225,7 @@
 }
 
 .contact-detail-text a {
-  color: #000000;
+  color: var(--color-olive-dark);
   text-decoration: none;
   transition: opacity 0.3s ease;
 }
@@ -246,7 +247,7 @@
   font-weight: 300;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-olive-dark);
   margin-bottom: 2rem;
 }
 
@@ -267,7 +268,7 @@
   font-weight: 500;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-olive-dark);
 }
 
 .form-input,
@@ -277,14 +278,14 @@
   background-color: #ffffff;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
-  color: #000000;
+  color: var(--color-olive-dark);
   transition: all 0.3s ease;
   outline: none;
 }
 
 .form-input:focus,
 .form-textarea:focus {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
@@ -301,9 +302,9 @@
 
 .form-submit-button {
   padding: 1rem 3rem;
-  background-color: #000000;
-  color: #ffffff;
-  border: 2px solid #000000;
+  background-color: var(--color-pink);
+  color: var(--color-olive-dark);
+  border: 2px solid var(--color-pink);
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 2px;
@@ -315,8 +316,8 @@
 }
 
 .form-submit-button:hover {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: var(--color-pink-dark);
+  color: var(--color-olive-dark);
   transform: translateY(-2px);
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
 }

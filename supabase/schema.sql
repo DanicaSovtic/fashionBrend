@@ -29,3 +29,28 @@ create table if not exists order_items (
   product_id uuid not null references products(id) on delete restrict,
   quantity int not null
 );
+
+create table if not exists carts (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists cart_items (
+  id uuid primary key default gen_random_uuid(),
+  cart_id uuid not null references carts(id) on delete cascade,
+  product_id uuid not null references products(id) on delete restrict,
+  quantity int not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists favorites (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists favorite_items (
+  id uuid primary key default gen_random_uuid(),
+  favorite_id uuid not null references favorites(id) on delete cascade,
+  product_id uuid not null references products(id) on delete restrict,
+  created_at timestamp with time zone default now()
+);

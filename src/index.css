@@ -1,4 +1,14 @@
 /* Globalni stilovi i reset */
+:root {
+  --color-olive: #3D4127;
+  --color-olive-dark: #5a6431;
+  --color-olive-light: #8f9a55;
+  --color-pink: #f2b6c9;
+  --color-pink-dark: #e79db5;
+  --color-text: #2a2a2a;
+  --color-border: #d8d8d8;
+}
+
 * {
   margin: 0;
   padding: 0;

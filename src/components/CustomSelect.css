@@ -11,7 +11,7 @@
   background-color: #ffffff;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 400;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -24,12 +24,12 @@
 }
 
 .custom-select-trigger:hover {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .custom-select.open .custom-select-trigger {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
   background-color: #fafafa;
 }
@@ -44,7 +44,7 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.3s ease;
-  color: #000000;
+  color: var(--color-olive-dark);
 }
 
 .custom-select.open .custom-select-arrow {
@@ -58,7 +58,7 @@
   left: 0;
   right: 0;
   background-color: #ffffff;
-  border: 2px solid #000000;
+  border: 2px solid var(--color-olive);
   border-radius: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   z-index: 1000;
@@ -106,7 +106,7 @@
   padding: 0.9rem 1.2rem;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -120,18 +120,18 @@
 
 .custom-select-option:hover {
   background-color: #f8f8f8;
-  color: #000000;
+  color: var(--color-olive-dark);
   padding-left: 1.5rem;
 }
 
 .custom-select-option.selected {
-  background-color: #000000;
+  background-color: var(--color-olive);
   color: #ffffff;
   font-weight: 500;
 }
 
 .custom-select-option.selected:hover {
-  background-color: #1a1a1a;
+  background-color: var(--color-olive-dark);
   padding-left: 1.2rem;
 }
 

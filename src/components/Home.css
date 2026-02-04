@@ -10,7 +10,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background-color: #000000;
+  background-color: var(--color-olive);
   color: #ffffff;
   padding: 1rem 0;
   z-index: 1000;
@@ -140,21 +140,21 @@
 .hero-cta {
   display: inline-block;
   padding: 1rem 3rem;
-  background-color: transparent;
-  color: #ffffff;
+  background-color: var(--color-pink);
+  color: var(--color-olive-dark);
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 2px;
   text-transform: uppercase;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--color-pink);
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .hero-cta:hover {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: var(--color-pink-dark);
+  color: var(--color-olive-dark);
   transform: translateY(-2px);
   box-shadow: 0 5px 20px rgba(255, 255, 255, 0.3);
 }

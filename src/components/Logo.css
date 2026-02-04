@@ -41,7 +41,7 @@
 }
 
 .logo-divina-style {
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 400;
 }
 
@@ -58,7 +58,7 @@
   font-weight: 400;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-olive-dark);
   font-family: 'Inter', sans-serif;
 }
 

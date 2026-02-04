@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import './Contact.css'
 
+
+
 const Contact = () => {
   // State za formu
   const [formData, setFormData] = useState({
@@ -64,7 +66,8 @@ const Contact = () => {
       </nav>
 
       {/* Hero sekcija */}
-      <section className="contact-hero">
+      <section className="contact-hero"
+      style={{ backgroundImage: "url('/img/hero-section.jpeg')" }}>
         <div className="contact-hero-overlay"></div>
         <div className="contact-hero-content">
           <h1 className="contact-hero-title">Kontaktirajte Nas</h1>
@@ -99,7 +102,10 @@ const Contact = () => {
                 <div className="contact-detail-content">
                   <h3 className="contact-detail-title">Email</h3>
                   <p className="contact-detail-text">
-                    <a href="mailto:info@piccola.com">info@piccola.com</a>
+                    <a href="mailto:info@piccola.com">danica.sovtic@gmail.com</a>
+                  </p>
+                    <p className="contact-detail-text">
+                    <a href="mailto:info@piccola.com">aleksandratrpkov1@gmail.com</a>
                   </p>
                 </div>
               </div>

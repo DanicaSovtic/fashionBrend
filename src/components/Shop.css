@@ -10,7 +10,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background-color: #000000;
+  background-color: var(--color-olive);
   color: #ffffff;
   padding: 1rem 0;
   z-index: 1000;
@@ -196,7 +196,7 @@
   background-color: #ffffff;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 400;
   transition: all 0.3s ease;
   outline: none;
@@ -205,12 +205,12 @@
 }
 
 .search-input:hover {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .search-input:focus {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
   background-color: #fafafa;
 }
@@ -227,7 +227,7 @@
   background-color: #ffffff;
   font-size: 1rem;
   font-family: 'Inter', sans-serif;
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 400;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -242,12 +242,12 @@
 }
 
 .filter-select:hover {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
 .filter-select:focus {
-  border-color: #000000;
+  border-color: var(--color-olive);
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.1);
   background-color: #fafafa;
 }
@@ -255,7 +255,7 @@
 .filter-select option {
   padding: 0.8rem;
   background-color: #ffffff;
-  color: #000000;
+  color: var(--color-olive-dark);
   font-weight: 400;
 }
 
@@ -316,11 +316,11 @@
 .product-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border-color: #000000;
+  border-color: var(--color-olive);
 }
 
 .product-card:focus-visible {
-  outline: 2px solid #000000;
+  outline: 2px solid var(--color-olive);
   outline-offset: 4px;
 }
 
@@ -354,7 +354,7 @@
   font-size: 1.1rem;
   font-weight: 400;
   letter-spacing: 0.5px;
-  color: #000000;
+  color: var(--color-olive-dark);
   margin: 0;
 }
 
@@ -378,9 +378,9 @@
 
 .pagination-button {
   padding: 0.8rem 2rem;
-  background-color: #000000;
-  color: #ffffff;
-  border: 2px solid #000000;
+  background-color: var(--color-pink);
+  color: var(--color-olive-dark);
+  border: 2px solid var(--color-pink);
   font-size: 0.9rem;
   font-weight: 500;
   letter-spacing: 1px;
@@ -391,8 +391,8 @@
 }
 
 .pagination-button:hover:not(:disabled) {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: var(--color-pink-dark);
+  color: var(--color-olive-dark);
 }
 
 .pagination-button:disabled {
