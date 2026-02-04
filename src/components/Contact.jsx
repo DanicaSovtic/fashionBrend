@@ -109,7 +109,7 @@ const Contact = () => {
                 <div className="contact-detail-content">
                   <h3 className="contact-detail-title">Telefon</h3>
                   <p className="contact-detail-text">
-                    <a href="tel:+381123456789">+381 12 345 6789</a>
+                    <a href="tel:+381123456789">+381 666341596</a>
                   </p>
                 </div>
               </div>
@@ -119,9 +119,9 @@ const Contact = () => {
                 <div className="contact-detail-content">
                   <h3 className="contact-detail-title">Radno Vreme</h3>
                   <p className="contact-detail-text">
-                    Ponedeljak - Petak: 9:00 - 18:00<br />
-                    Subota: 10:00 - 16:00<br />
-                    Nedelja: Zatvoreno
+                    Prodaja se vrši isključivo putem online prodavnice.  <br />
+                    Online prodaja dostupna 24/7
+
                   </p>
                 </div>
               </div>

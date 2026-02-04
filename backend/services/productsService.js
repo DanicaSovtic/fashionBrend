@@ -82,7 +82,11 @@ const buildSeedProducts = (sourceItems, countPerCategory = 10) => {
         description: category.description,
         price: priceToRsd(source.price || 59),
         category: category.key,
-        image_url: normalizeImage(source)
+        image_url: normalizeImage(source),
+        sastav: 'Pamuk 95%, Elastin 5%',
+        odrzavanje:
+          'Prati ručno do 30°C; Ne koristiti izbeljivač; Peglati na niskoj temperaturi',
+        poreklo: 'Proizvedeno u Kini'
       })
     }
   })
@@ -95,6 +99,20 @@ export const getProducts = async () => {
     .from('products')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export const getProductById = async (id) => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
 
   if (error) {
     throw error

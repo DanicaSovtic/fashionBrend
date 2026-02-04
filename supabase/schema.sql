@@ -7,8 +7,15 @@ create table if not exists products (
   price numeric not null,
   category text,
   image_url text,
+  sastav text,
+  odrzavanje text,
+  poreklo text,
   created_at timestamp with time zone default now()
 );
+
+alter table products add column if not exists sastav text;
+alter table products add column if not exists odrzavanje text;
+alter table products add column if not exists poreklo text;
 
 create table if not exists orders (
   id uuid primary key default gen_random_uuid(),

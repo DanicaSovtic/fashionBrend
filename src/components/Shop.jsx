@@ -9,6 +9,7 @@ const Shop = () => {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('default')
   const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -41,10 +42,13 @@ const Shop = () => {
       const matchesSearch = normalizedSearch
         ? product.title?.toLowerCase().includes(normalizedSearch)
         : true
+      const normalizedCategory = String(product.category || '')
+        .trim()
+        .toLowerCase()
       const matchesCategory =
         selectedCategory === 'all'
           ? true
-          : product.category === selectedCategory
+          : normalizedCategory === selectedCategory
       return matchesSearch && matchesCategory
     })
 
@@ -74,12 +78,38 @@ const Shop = () => {
     return sorted
   }, [products, searchTerm, selectedCategory, sortBy])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedCategory, sortBy])
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / itemsPerPage)
+  )
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredProducts.slice(start, start + itemsPerPage)
+  }, [currentPage, filteredProducts])
+
   const formatPrice = (price) =>
     new Intl.NumberFormat('sr-RS', {
       style: 'currency',
       currency: 'RSD',
       minimumFractionDigits: 0
     }).format(price)
+
+  const slugify = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '')
+
+  const getProductPath = (product) => {
+    const slug = slugify(product.title) || 'proizvod'
+    return `/product/${product.id}--${slug}`
+  }
 
   // Handleri za filtere (za buduću integraciju)
   const handleSearchChange = (e) => {
@@ -208,8 +238,12 @@ const Shop = () => {
             ) : (
               <div className="products-grid">
                 {/* Proizvodi će biti mapirani ovde kada se povežu sa bazom */}
-                {filteredProducts.map((product) => (
-                  <div key={product.id} className="product-card">
+                {paginatedProducts.map((product) => (
+                  <Link
+                    key={product.id}
+                    to={getProductPath(product)}
+                    className="product-card"
+                  >
                     {/* Struktura kartice proizvoda */}
                     <div className="product-image-wrapper">
                       <img 
@@ -222,7 +256,7 @@ const Shop = () => {
                       <h3 className="product-name">{product.title}</h3>
                       <p className="product-price">{formatPrice(product.price)}</p>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -239,10 +273,11 @@ const Shop = () => {
                 Prethodna
               </button>
               <span className="pagination-info">
-                Stranica {currentPage}
+                Stranica {currentPage} / {totalPages}
               </span>
               <button 
                 className="pagination-button"
+                disabled={currentPage >= totalPages}
                 onClick={() => handlePageChange(currentPage + 1)}
               >
                 Sledeća

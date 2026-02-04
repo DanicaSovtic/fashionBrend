@@ -5,6 +5,7 @@ import About from './components/About'
 import Contact from './components/Contact'
 import Collection from './components/Collection'
 import Shop from './components/Shop'
+import Product from './components/Product'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/collection" element={<Collection />} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/product/:productId" element={<Product />} />
       </Routes>
     </Router>
   )

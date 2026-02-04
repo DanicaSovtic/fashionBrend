@@ -37,9 +37,9 @@ const Home = () => {
         <div className="hero-content">
           <h1 className="hero-headline">Nova Zimska Kolekcija 2026</h1>
           <p className="hero-slogan">Elegantnost redefinisana. Stil uzdignut.</p>
-          <a href="#shop" className="hero-cta">
+          <Link to="/shop" className="hero-cta">
             Kupi Sada
-          </a>
+          </Link>
         </div>
       </section>
     </div>
