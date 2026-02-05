@@ -66,6 +66,50 @@ create table if not exists returns (
   created_at timestamp with time zone default now()
 );
 
+create table if not exists delivery_issues (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  issue_type text not null,
+  status text not null default 'open',
+  occurred_at timestamp with time zone default now(),
+  note text,
+  resolution_action text,
+  resolved_at timestamp with time zone,
+  last_updated_by text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+create table if not exists delivery_issue_comments (
+  id uuid primary key default gen_random_uuid(),
+  issue_id uuid not null references delivery_issues(id) on delete cascade,
+  author text,
+  body text not null,
+  created_at timestamp with time zone default now()
+);
+
+alter table delivery_issues
+  drop constraint if exists delivery_issues_status_check;
+
+alter table delivery_issues
+  add constraint delivery_issues_status_check check (
+    status in ('open', 'in_progress', 'resolved')
+  );
+
+alter table delivery_issues
+  drop constraint if exists delivery_issues_type_check;
+
+alter table delivery_issues
+  add constraint delivery_issues_type_check check (
+    issue_type in (
+      'customer_unavailable',
+      'wrong_address',
+      'package_damaged',
+      'returned_shipment',
+      'other'
+    )
+  );
+
 create table if not exists carts (
   id uuid primary key default gen_random_uuid(),
   created_at timestamp with time zone default now()
@@ -134,3 +178,180 @@ create policy "Profiles can be updated by owner without role change"
     auth.uid() = user_id
     and role = (select p.role from profiles p where p.user_id = auth.uid())
   );
+
+create table if not exists collections (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  season text,
+  status text not null default 'active',
+  start_date date,
+  end_date date,
+  description text,
+  created_at timestamp with time zone default now()
+);
+
+alter table collections
+  drop constraint if exists collections_status_check;
+
+alter table collections
+  add constraint collections_status_check check (
+    status in ('planned', 'active', 'archived')
+  );
+
+create table if not exists product_models (
+  id uuid primary key default gen_random_uuid(),
+  collection_id uuid references collections(id) on delete set null,
+  name text not null,
+  sku text,
+  category text,
+  development_stage text not null default 'idea',
+  concept text,
+  inspiration text,
+  color_palette text,
+  variants text,
+  pattern_notes text,
+  materials text,
+  size_table text,
+  tech_notes text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table product_models
+  drop constraint if exists product_models_stage_check;
+
+alter table product_models
+  add constraint product_models_stage_check check (
+    development_stage in ('idea', 'prototype', 'testing', 'approved')
+  );
+
+create table if not exists product_model_versions (
+  id uuid primary key default gen_random_uuid(),
+  model_id uuid not null references product_models(id) on delete cascade,
+  version_number int not null,
+  change_summary text,
+  payload jsonb,
+  created_at timestamp with time zone default now(),
+  created_by uuid references profiles(user_id) on delete set null
+);
+
+create table if not exists product_model_comments (
+  id uuid primary key default gen_random_uuid(),
+  model_id uuid not null references product_models(id) on delete cascade,
+  author_id uuid references profiles(user_id) on delete set null,
+  author_name text,
+  role text,
+  body text not null,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists product_model_approvals (
+  id uuid primary key default gen_random_uuid(),
+  model_id uuid not null references product_models(id) on delete cascade,
+  approval_item text not null,
+  status text not null default 'pending',
+  note text,
+  approved_by uuid references profiles(user_id) on delete set null,
+  updated_at timestamp with time zone default now()
+);
+
+alter table product_model_approvals
+  drop constraint if exists product_model_approvals_status_check;
+
+alter table product_model_approvals
+  add constraint product_model_approvals_status_check check (
+    status in ('pending', 'in_progress', 'approved', 'changes_required')
+  );
+
+create table if not exists product_model_media (
+  id uuid primary key default gen_random_uuid(),
+  model_id uuid not null references product_models(id) on delete cascade,
+  image_url text not null,
+  label text,
+  is_primary boolean default false,
+  created_at timestamp with time zone default now()
+);
+
+-- Sample inserts for designer workflow (collections + product models)
+insert into collections (id, name, season, status, start_date, end_date, description)
+values
+  ('11111111-1111-1111-1111-111111111111', 'Aurora SS26', 'SS26', 'active', '2026-03-01', '2026-06-30',
+   'Lagane siluete inspirisane jutarnjim svetlom i refleksijama.'),
+  ('22222222-2222-2222-2222-222222222222', 'Noir Atelier FW26', 'FW26', 'planned', '2026-08-01', '2026-11-30',
+   'Struktura i tekstura u tamnijoj paleti za gradsku eleganciju.'),
+  ('33333333-3333-3333-3333-333333333333', 'Essenza Resort 25', 'Resort 25', 'archived', '2025-01-01', '2025-04-30',
+   'Arhivirana kolekcija sa fokusom na resort komade.');
+
+insert into product_models (
+  id, collection_id, name, sku, category, development_stage,
+  concept, inspiration, color_palette, variants, pattern_notes, materials, size_table, tech_notes
+)
+values
+  (
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    '11111111-1111-1111-1111-111111111111',
+    'Silk Drape Dress',
+    'MD-SS26-014',
+    'Haljine',
+    'prototype',
+    'Fluidna silueta inspirisana pokretom svetlosti.',
+    'Skandinavska arhitektura, minimalizam.',
+    'pearl, misty rose, soft lilac',
+    'Midi; Maxi; Sleeveless',
+    'Asimetricno drapiranje sa skrivenim savovima.',
+    'Svila 22 momme; Viskoza postava; Metalne kopce',
+    'XS-XL standard, korekcije duzine +2cm',
+    'Ojcanje ramena, skriveni zip na levom boku.'
+  ),
+  (
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    '11111111-1111-1111-1111-111111111111',
+    'Structured Linen Blazer',
+    'MD-SS26-021',
+    'Sakoi',
+    'testing',
+    'Balans izmedju kroja i lezerne siluete.',
+    'Vintage tailoring, city garden.',
+    'sand, olive, chalk',
+    'Cropped; Regular',
+    'Dvostruko postavljen rever, rucno oblikovan.',
+    'Lan 280g; Pamuk podstava',
+    'S-XXL, korekcije u ramenima',
+    'Testirati dugmad i opterecenje na sramenima.'
+  );
+
+insert into product_model_versions (id, model_id, version_number, change_summary, payload)
+values
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1,
+   'Pocetni koncept i izbor materijala',
+   '{"palette":["pearl","misty rose","soft lilac"],"materials":["Svila 22 momme","Viskoza postava"]}'),
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 1,
+   'Dodate varijante i korekcije kroja',
+   '{"variants":["Cropped","Regular"],"pattern":"Dvostruko postavljen rever"}');
+
+insert into product_model_comments (id, model_id, author_name, role, body)
+values
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'Mila Petrovic', 'proizvodjac',
+   'Predlog: ojacati savove na ramenom delu zbog tezine materijala.'),
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+   'Nikola Ilic', 'tester_kvaliteta',
+   'Fit test pokazuje potrebu za +1cm u struku za velicinu M.');
+
+insert into product_model_approvals (id, model_id, approval_item, status, note)
+values
+  ('99999999-9999-9999-9999-999999999999', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'Materijali', 'in_progress', 'Ceka se potvrda dobavljaca.'),
+  ('88888888-8888-8888-8888-888888888888', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'Krojevi', 'approved', 'Odobreno nakon druge probe.'),
+  ('77777777-7777-7777-7777-777777777777', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+   'Fit test', 'changes_required', 'Potrebne korekcije u struku.');
+
+insert into product_model_media (id, model_id, image_url, label, is_primary)
+values
+  ('66666666-6666-6666-6666-666666666666', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+   'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80',
+   'Glavna fotografija', true),
+  ('55555555-5555-5555-5555-555555555555', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+   'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=800&q=80',
+   'Lookbook', true);

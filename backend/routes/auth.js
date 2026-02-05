@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import {
   createUserByAdmin,
+  exchangeCodeForSession,
   getMe,
   login,
   logout,
@@ -99,6 +100,16 @@ router.post('/auth/reset-password', async (req, res, next) => {
   try {
     const { accessToken, password } = req.body
     const result = await resetPassword(accessToken, password)
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/auth/exchange-code', async (req, res, next) => {
+  try {
+    const { code } = req.body
+    const result = await exchangeCodeForSession(code)
     res.json(result)
   } catch (error) {
     next(error)

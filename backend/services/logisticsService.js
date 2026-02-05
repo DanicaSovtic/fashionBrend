@@ -124,3 +124,111 @@ export const getLogisticsDashboard = async (supabase) => {
     metrics: buildMetrics(orders || [], returns || [])
   }
 }
+
+export const getLogisticsIssues = async (supabase, filters = {}) => {
+  let query = supabase
+    .from('delivery_issues')
+    .select(
+      `
+        id,
+        order_id,
+        issue_type,
+        status,
+        occurred_at,
+        note,
+        resolution_action,
+        resolved_at,
+        last_updated_by,
+        created_at,
+        updated_at,
+        order:orders (
+          id,
+          created_at,
+          status,
+          recipient_name,
+          recipient_city,
+          recipient_postal_code,
+          recipient_country,
+          recipient_phone,
+          courier_name,
+          tracking_number,
+          planned_delivery,
+          last_status_at,
+          last_status_by,
+          last_status_note,
+          shipment_events (
+            id,
+            status,
+            occurred_at,
+            actor,
+            note
+          )
+        ),
+        comments:delivery_issue_comments (
+          id,
+          author,
+          body,
+          created_at
+        )
+      `
+    )
+    .order('occurred_at', { ascending: false })
+
+  if (filters.issue_type) {
+    query = query.eq('issue_type', filters.issue_type)
+  }
+  if (filters.status) {
+    query = query.eq('status', filters.status)
+  }
+  if (filters.from) {
+    query = query.gte('occurred_at', filters.from)
+  }
+  if (filters.to) {
+    query = query.lte('occurred_at', filters.to)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    throw error
+  }
+
+  return data || []
+}
+
+export const updateLogisticsIssue = async (supabase, issueId, payload = {}) => {
+  const updatePayload = {
+    ...payload,
+    updated_at: new Date().toISOString()
+  }
+
+  const { data, error } = await supabase
+    .from('delivery_issues')
+    .update(updatePayload)
+    .eq('id', issueId)
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+export const addLogisticsIssueComment = async (supabase, issueId, comment) => {
+  const { data, error } = await supabase
+    .from('delivery_issue_comments')
+    .insert({
+      issue_id: issueId,
+      author: comment.author || 'distributer',
+      body: comment.body
+    })
+    .select('*')
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}

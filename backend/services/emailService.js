@@ -46,7 +46,7 @@ Uloga: ${roleDisplay}
 
 Da biste zavrsili podesavanje naloga, potrebno je da postavite svoju lozinku putem sledeceg linka (jednokratan je i vazi ${tokenValidHours} sati):
 
-👉 Postavite lozinku: ${setPasswordLink}
+Postavite novu lozinku: ${setPasswordLink}
 
 Ako vi niste trazili kreiranje naloga, samo ignorisite ovaj mejl.
 

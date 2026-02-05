@@ -7,6 +7,7 @@ const Navbar = ({ activePath }) => {
   const navigate = useNavigate()
   const { user, profile, logout } = useAuth()
   const isDistributor = profile?.role === 'distributer'
+  const isDesigner = profile?.role === 'modni_dizajner'
 
   const currentPath = activePath || location.pathname
   const isActive = (path) => currentPath === path
@@ -25,17 +26,37 @@ const Navbar = ({ activePath }) => {
         </div>
         <ul className="navbar-menu">
           {isDistributor ? (
-            <li className="navbar-item">
-              <Link to="/logistics" className={`navbar-link ${isActive('/logistics') ? 'active' : ''}`}>
-                Logistika
-              </Link>
-            </li>
+            <>
+              <li className="navbar-item">
+                <Link to="/logistics" className={`navbar-link ${isActive('/logistics') ? 'active' : ''}`}>
+                  Logistika
+                </Link>
+              </li>
+              <li className="navbar-item">
+                <Link
+                  to="/logistics/issues"
+                  className={`navbar-link ${isActive('/logistics/issues') ? 'active' : ''}`}
+                >
+                  Problemi u isporuci
+                </Link>
+              </li>
+            </>
           ) : (
             <>
-              {profile?.role !== 'superadmin' && (
+              {profile?.role !== 'superadmin' && !isDesigner && (
                 <li className="navbar-item">
                   <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`}>
                     Početna
+                  </Link>
+                </li>
+              )}
+              {isDesigner && (
+                <li className="navbar-item">
+                  <Link
+                    to="/designer/collections"
+                    className={`navbar-link ${isActive('/designer/collections') ? 'active' : ''}`}
+                  >
+                    Razvoj kolekcija
                   </Link>
                 </li>
               )}
@@ -52,14 +73,14 @@ const Navbar = ({ activePath }) => {
                   Kolekcije
                 </Link>
               </li>
-              {profile?.role !== 'superadmin' && (
+              {profile?.role !== 'superadmin' && !isDesigner && (
                 <li className="navbar-item">
                   <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
                     O nama
                   </Link>
                 </li>
               )}
-              {profile?.role !== 'superadmin' && (
+              {profile?.role !== 'superadmin' && !isDesigner && (
                 <li className="navbar-item">
                   <Link
                     to="/contact"

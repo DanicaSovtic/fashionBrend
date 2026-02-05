@@ -18,12 +18,15 @@ import AuthPage from './components/AuthPage'
 import UsersPage from './components/UsersPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
 import LogisticsDashboard from './components/LogisticsDashboard'
+import LogisticsIssuesPage from './components/LogisticsIssuesPage'
+import DesignerCollectionsPage from './components/DesignerCollectionsPage'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
 const AppRoutes = () => {
   const { profile } = useAuth()
   const isDistributor = profile?.role === 'distributer'
+  const isDesigner = profile?.role === 'modni_dizajner'
 
   return (
     <Routes>
@@ -38,11 +41,16 @@ const AppRoutes = () => {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route
+            path="/designer/collections"
+            element={isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}
+          />
         </>
       )}
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/logistics" element={<LogisticsDashboard />} />
+      <Route path="/logistics/issues" element={<LogisticsIssuesPage />} />
       {isDistributor && <Route path="*" element={<Navigate to="/logistics" replace />} />}
     </Routes>
   )

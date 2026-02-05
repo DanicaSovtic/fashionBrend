@@ -1,9 +1,24 @@
 .logistics-page {
   min-height: 100vh;
+  position: relative;
   background: #f5f5f5;
+  background-image: url('https://retail-merchandiser.com/wp-content/uploads/sites/8/2024/01/product-distribution-image-800x445.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.logistics-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(212, 232, 232, 0.655);
+  pointer-events: none;
 }
 
 .logistics-content {
+  position: relative;
+  z-index: 1;
   max-width: 1200px;
   margin: 0 auto;
   padding: 120px 24px 48px;

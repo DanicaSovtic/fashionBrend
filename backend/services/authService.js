@@ -221,6 +221,19 @@ export const resetPassword = async (accessToken, newPassword) => {
   return { user: data.user }
 }
 
+export const exchangeCodeForSession = async (code) => {
+  if (!code) {
+    throw new Error('Missing code')
+  }
+
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+  if (error) {
+    throw error
+  }
+
+  return { session: data.session }
+}
+
 export const listUsersByAdmin = async ({ page = 1, perPage = 200 } = {}) => {
   const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
