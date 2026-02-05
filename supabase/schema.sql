@@ -23,11 +23,47 @@ create table if not exists orders (
   created_at timestamp with time zone default now()
 );
 
+alter table orders add column if not exists status text default 'ready_for_shipping';
+alter table orders add column if not exists recipient_name text;
+alter table orders add column if not exists recipient_city text;
+alter table orders add column if not exists recipient_postal_code text;
+alter table orders add column if not exists recipient_country text;
+alter table orders add column if not exists recipient_phone text;
+alter table orders add column if not exists courier_name text;
+alter table orders add column if not exists tracking_number text;
+alter table orders add column if not exists planned_delivery timestamp with time zone;
+alter table orders add column if not exists last_status_at timestamp with time zone;
+alter table orders add column if not exists last_status_by text;
+alter table orders add column if not exists last_status_note text;
+
 create table if not exists order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references orders(id) on delete cascade,
   product_id uuid not null references products(id) on delete restrict,
   quantity int not null
+);
+
+alter table order_items add column if not exists product_sku text;
+alter table order_items add column if not exists product_name text;
+alter table order_items add column if not exists size text;
+alter table order_items add column if not exists color text;
+
+create table if not exists shipment_events (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  status text not null,
+  occurred_at timestamp with time zone default now(),
+  actor text,
+  note text
+);
+
+create table if not exists returns (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id) on delete set null,
+  reason text,
+  status text not null,
+  received_at timestamp with time zone,
+  created_at timestamp with time zone default now()
 );
 
 create table if not exists carts (

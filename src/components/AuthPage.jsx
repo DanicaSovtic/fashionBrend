@@ -16,9 +16,13 @@ const AuthPage = () => {
     setError('')
     setInfo('')
     try {
-      await login(loginEmail.trim(), loginPassword)
+      const result = await login(loginEmail.trim(), loginPassword)
       setLoginPassword('')
-      navigate('/shop')
+      if (result?.profile?.role === 'distributer') {
+        navigate('/logistics')
+      } else {
+        navigate('/shop')
+      }
     } catch (err) {
       setError(err.message)
     }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Home from './components/Home'
 import About from './components/About'
 import Contact from './components/Contact'
@@ -17,7 +17,36 @@ import FavoritesFloatingButton from './components/FavoritesFloatingButton'
 import AuthPage from './components/AuthPage'
 import UsersPage from './components/UsersPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
+import LogisticsDashboard from './components/LogisticsDashboard'
 import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './context/AuthContext'
+
+const AppRoutes = () => {
+  const { profile } = useAuth()
+  const isDistributor = profile?.role === 'distributer'
+
+  return (
+    <Routes>
+      {!isDistributor && (
+        <>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/collection" element={<Collection />} />
+          <Route path="/shop" element={<Shop />} />
+          <Route path="/product/:productId" element={<Product />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/users" element={<UsersPage />} />
+        </>
+      )}
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/logistics" element={<LogisticsDashboard />} />
+      {isDistributor && <Route path="*" element={<Navigate to="/logistics" replace />} />}
+    </Routes>
+  )
+}
 
 function App() {
   return (
@@ -25,19 +54,7 @@ function App() {
       <FavoritesProvider>
         <CartProvider>
           <Router>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/collection" element={<Collection />} />
-              <Route path="/shop" element={<Shop />} />
-              <Route path="/product/:productId" element={<Product />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-            </Routes>
+            <AppRoutes />
             <CartDrawer />
             <CartFloatingButton />
             <FavoritesFloatingButton />

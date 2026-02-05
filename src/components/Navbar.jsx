@@ -6,6 +6,7 @@ const Navbar = ({ activePath }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, profile, logout } = useAuth()
+  const isDistributor = profile?.role === 'distributer'
 
   const currentPath = activePath || location.pathname
   const isActive = (path) => currentPath === path
@@ -20,59 +21,72 @@ const Navbar = ({ activePath }) => {
     <nav className="navbar">
       <div className="navbar-container">
         <div className="navbar-logo">
-          <Link to="/">Piccola</Link>
+          <Link to={isDistributor ? '/logistics' : '/'}>Piccola</Link>
         </div>
         <ul className="navbar-menu">
-          {profile?.role !== 'superadmin' && (
+          {isDistributor ? (
             <li className="navbar-item">
-              <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`}>
-                Početna
+              <Link to="/logistics" className={`navbar-link ${isActive('/logistics') ? 'active' : ''}`}>
+                Logistika
               </Link>
             </li>
-          )}
-          <li className="navbar-item">
-            <Link to="/shop" className={`navbar-link ${isActive('/shop') ? 'active' : ''}`}>
-              Prodavnica
-            </Link>
-          </li>
-          <li className="navbar-item">
-            <Link
-              to="/collection"
-              className={`navbar-link ${isActive('/collection') ? 'active' : ''}`}
-            >
-              Kolekcije
-            </Link>
-          </li>
-          {profile?.role !== 'superadmin' && (
-            <li className="navbar-item">
-              <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
-                O nama
-              </Link>
-            </li>
-          )}
-          {profile?.role !== 'superadmin' && (
-            <li className="navbar-item">
-              <Link to="/contact" className={`navbar-link ${isActive('/contact') ? 'active' : ''}`}>
-                Kontakt
-              </Link>
-            </li>
-          )}
-          {profile?.role === 'superadmin' && (
-            <li className="navbar-item navbar-dropdown">
-              <span
-                className={`navbar-link navbar-dropdown-toggle ${isUsersActive ? 'active' : ''}`}
-              >
-                Korisnici
-              </span>
-              <div className="navbar-dropdown-menu">
-                <Link to="/users?view=create" className="navbar-dropdown-item">
-                  Kreiraj korisnika
+          ) : (
+            <>
+              {profile?.role !== 'superadmin' && (
+                <li className="navbar-item">
+                  <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`}>
+                    Početna
+                  </Link>
+                </li>
+              )}
+              <li className="navbar-item">
+                <Link to="/shop" className={`navbar-link ${isActive('/shop') ? 'active' : ''}`}>
+                  Prodavnica
                 </Link>
-                <Link to="/users?view=list" className="navbar-dropdown-item">
-                  Pregled korisnika
+              </li>
+              <li className="navbar-item">
+                <Link
+                  to="/collection"
+                  className={`navbar-link ${isActive('/collection') ? 'active' : ''}`}
+                >
+                  Kolekcije
                 </Link>
-              </div>
-            </li>
+              </li>
+              {profile?.role !== 'superadmin' && (
+                <li className="navbar-item">
+                  <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
+                    O nama
+                  </Link>
+                </li>
+              )}
+              {profile?.role !== 'superadmin' && (
+                <li className="navbar-item">
+                  <Link
+                    to="/contact"
+                    className={`navbar-link ${isActive('/contact') ? 'active' : ''}`}
+                  >
+                    Kontakt
+                  </Link>
+                </li>
+              )}
+              {profile?.role === 'superadmin' && (
+                <li className="navbar-item navbar-dropdown">
+                  <span
+                    className={`navbar-link navbar-dropdown-toggle ${isUsersActive ? 'active' : ''}`}
+                  >
+                    Korisnici
+                  </span>
+                  <div className="navbar-dropdown-menu">
+                    <Link to="/users?view=create" className="navbar-dropdown-item">
+                      Kreiraj korisnika
+                    </Link>
+                    <Link to="/users?view=list" className="navbar-dropdown-item">
+                      Pregled korisnika
+                    </Link>
+                  </div>
+                </li>
+              )}
+            </>
           )}
         </ul>
         <div className="navbar-auth">
