@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useFavorites } from '../context/FavoritesContext'
+import Navbar from './Navbar'
 import './Product.css'
 
 const Product = () => {
@@ -124,30 +125,7 @@ const Product = () => {
 
   return (
     <div className="product-page">
-      <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-logo">
-            <Link to="/">Piccola</Link>
-          </div>
-          <ul className="navbar-menu">
-            <li className="navbar-item">
-              <Link to="/" className="navbar-link">Početna</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/shop" className="navbar-link">Prodavnica</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/collection" className="navbar-link">Kolekcije</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/about" className="navbar-link">O nama</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/contact" className="navbar-link">Kontakt</Link>
-            </li>
-          </ul>
-        </div>
-      </nav>
+      <Navbar activePath="/shop" />
 
       <div className="product-content">
         <div className="product-container">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CustomSelect from './CustomSelect'
+import Navbar from './Navbar'
 import './Shop.css'
 
 const Shop = () => {
@@ -130,31 +131,7 @@ const Shop = () => {
 
   return (
     <div className="shop-page">
-      {/* Navigacioni meni */}
-      <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-logo">
-            <Link to="/">Piccola</Link>
-          </div>
-          <ul className="navbar-menu">
-            <li className="navbar-item">
-              <Link to="/" className="navbar-link">Početna</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/shop" className="navbar-link active">Prodavnica</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/collection" className="navbar-link">Kolekcije</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/about" className="navbar-link">O nama</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/contact" className="navbar-link">Kontakt</Link>
-            </li>
-          </ul>
-        </div>
-      </nav>
+      <Navbar activePath="/shop" />
 
       {/* Hero sekcija */}
       <section className="shop-hero">

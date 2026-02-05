@@ -54,3 +54,47 @@ create table if not exists favorite_items (
   product_id uuid not null references products(id) on delete restrict,
   created_at timestamp with time zone default now()
 );
+
+create table if not exists profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null,
+  role text not null,
+  created_at timestamp with time zone default now()
+);
+
+alter table profiles
+  drop constraint if exists profiles_role_check;
+
+alter table profiles
+  add constraint profiles_role_check check (
+    role in (
+      'superadmin',
+      'modni_dizajner',
+      'dobavljac',
+      'proizvodjac',
+      'tester_kvaliteta',
+      'distributer',
+      'krajnji_korisnik'
+    )
+  );
+
+alter table profiles enable row level security;
+
+drop policy if exists "Profiles are viewable by owner" on profiles;
+create policy "Profiles are viewable by owner"
+  on profiles for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Profiles can be inserted by owner" on profiles;
+create policy "Profiles can be inserted by owner"
+  on profiles for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Profiles can be updated by owner without role change" on profiles;
+create policy "Profiles can be updated by owner without role change"
+  on profiles for update
+  using (auth.uid() = user_id)
+  with check (
+    auth.uid() = user_id
+    and role = (select p.role from profiles p where p.user_id = auth.uid())
+  );

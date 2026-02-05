@@ -1,0 +1,149 @@
+.users-page {
+  min-height: 100vh;
+  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)),
+    url('https://images.unsplash.com/photo-1517502166878-35c93a0072f0?auto=format&fit=crop&w=2070&q=80');
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+}
+
+.users-content {
+  padding: 140px 16px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.users-card {
+  width: min(1200px, 100%);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.users-card h2 {
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+
+.users-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.users-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #333;
+}
+
+.users-form input,
+.users-form select {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #d0d0d0;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.users-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.users-actions button {
+  height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-olive);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 16px;
+}
+
+.users-actions button:last-child {
+  background: var(--color-pink);
+  color: var(--color-olive-dark);
+}
+
+.users-error {
+  margin-top: 12px;
+  color: #b00020;
+}
+
+.users-info {
+  margin-top: 12px;
+  color: #0b6b2b;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.users-table {
+  display: grid;
+  gap: 8px;
+}
+
+.users-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.6fr 1fr 1.2fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f7f7f9;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.users-row--head {
+  font-weight: 600;
+  background: #eef0f3;
+}
+
+.users-row input,
+.users-row select {
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d0d0d0;
+  padding: 0 8px;
+}
+
+.users-actions-inline {
+  display: flex;
+  gap: 8px;
+}
+
+.users-actions-inline button {
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-olive);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.users-actions-inline button:last-child {
+  background: #b00020;
+}
+
+@media (max-width: 860px) {
+  .users-row {
+    grid-template-columns: 1fr;
+  }
+
+  .users-row--head {
+    display: none;
+  }
+}
+

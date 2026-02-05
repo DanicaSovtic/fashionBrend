@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import Navbar from './Navbar'
 import './Collection.css'
 
 const Collection = () => {
@@ -69,31 +69,7 @@ const Collection = () => {
 
   return (
     <div className="collection-page">
-      {/* Navigacioni meni */}
-      <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-logo">
-            <Link to="/">Piccola</Link>
-          </div>
-          <ul className="navbar-menu">
-            <li className="navbar-item">
-              <Link to="/" className="navbar-link">Početna</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/shop" className="navbar-link">Prodavnica</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/collection" className="navbar-link active">Kolekcije</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/about" className="navbar-link">O nama</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/contact" className="navbar-link">Kontakt</Link>
-            </li>
-          </ul>
-        </div>
-      </nav>
+      <Navbar activePath="/collection" />
 
       {/* Hero sekcija */}
       <section className="collection-hero">

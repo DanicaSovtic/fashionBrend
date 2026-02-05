@@ -9,32 +9,43 @@ import Product from './components/Product'
 import CartPage from './components/CartPage'
 import CartDrawer from './components/CartDrawer'
 import CartFloatingButton from './components/CartFloatingButton'
+import ChatBotWidget from './components/ChatBotWidget'
 import { CartProvider } from './context/CartContext'
 import FavoritesPage from './components/FavoritesPage'
 import { FavoritesProvider } from './context/FavoritesContext'
 import FavoritesFloatingButton from './components/FavoritesFloatingButton'
+import AuthPage from './components/AuthPage'
+import UsersPage from './components/UsersPage'
+import ResetPasswordPage from './components/ResetPasswordPage'
+import { AuthProvider } from './context/AuthContext'
 
 function App() {
   return (
-    <FavoritesProvider>
-      <CartProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/collection" element={<Collection />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/product/:productId" element={<Product />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/favorites" element={<FavoritesPage />} />
-          </Routes>
-          <CartDrawer />
-          <CartFloatingButton />
-          <FavoritesFloatingButton />
-        </Router>
-      </CartProvider>
-    </FavoritesProvider>
+    <AuthProvider>
+      <FavoritesProvider>
+        <CartProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/collection" element={<Collection />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/product/:productId" element={<Product />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/favorites" element={<FavoritesPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+            </Routes>
+            <CartDrawer />
+            <CartFloatingButton />
+            <FavoritesFloatingButton />
+            <ChatBotWidget />
+          </Router>
+        </CartProvider>
+      </FavoritesProvider>
+    </AuthProvider>
   )
 }
 

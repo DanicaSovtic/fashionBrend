@@ -1,35 +1,12 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import Navbar from './Navbar'
 import './About.css'
 
 const About = () => {
   return (
     <div className="about-page">
-      {/* Navigacioni meni - isti kao na Home stranici */}
-      <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-logo">
-            <Link to="/">Piccola</Link>
-          </div>
-          <ul className="navbar-menu">
-            <li className="navbar-item">
-              <Link to="/" className="navbar-link">Početna</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/shop" className="navbar-link">Prodavnica</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/collection" className="navbar-link">Kolekcije</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/about" className="navbar-link active">O nama</Link>
-            </li>
-            <li className="navbar-item">
-              <Link to="/contact" className="navbar-link">Kontakt</Link>
-            </li>
-          </ul>
-        </div>
-      </nav>
+      <Navbar activePath="/about" />
 
       {/* Hero sekcija za About */}
       <section className="about-hero">
