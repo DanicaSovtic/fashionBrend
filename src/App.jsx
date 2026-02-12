@@ -21,6 +21,9 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import LogisticsDashboard from './components/LogisticsDashboard'
 import LogisticsIssuesPage from './components/LogisticsIssuesPage'
 import DesignerCollectionsPage from './components/DesignerCollectionsPage'
+import Blog from './components/Blog'
+import BlogDetail from './components/BlogDetail'
+import AdminBlog from './components/AdminBlog'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
@@ -50,9 +53,15 @@ const AppRoutes = () => {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slugOrId" element={<BlogDetail />} />
           <Route
             path="/designer/collections"
             element={isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/admin/blog"
+            element={profile?.role === 'superadmin' ? <AdminBlog /> : <Navigate to="/" replace />}
           />
         </>
       )}

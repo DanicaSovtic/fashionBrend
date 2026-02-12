@@ -65,6 +65,11 @@ const Navbar = ({ activePath }) => {
                   Prodavnica
                 </Link>
               </li>
+              <li className="navbar-item">
+                <Link to="/blog" className={`navbar-link ${isActive('/blog') ? 'active' : ''}`}>
+                  Blog
+                </Link>
+              </li>
               {profile?.role !== 'krajnji_korisnik' && (
                 <li className="navbar-item">
                   <Link
@@ -93,21 +98,31 @@ const Navbar = ({ activePath }) => {
                 </li>
               )}
               {profile?.role === 'superadmin' && (
-                <li className="navbar-item navbar-dropdown">
-                  <span
-                    className={`navbar-link navbar-dropdown-toggle ${isUsersActive ? 'active' : ''}`}
-                  >
-                    Korisnici
-                  </span>
-                  <div className="navbar-dropdown-menu">
-                    <Link to="/users?view=create" className="navbar-dropdown-item">
-                      Kreiraj korisnika
+                <>
+                  <li className="navbar-item navbar-dropdown">
+                    <span
+                      className={`navbar-link navbar-dropdown-toggle ${isUsersActive ? 'active' : ''}`}
+                    >
+                      Korisnici
+                    </span>
+                    <div className="navbar-dropdown-menu">
+                      <Link to="/users?view=create" className="navbar-dropdown-item">
+                        Kreiraj korisnika
+                      </Link>
+                      <Link to="/users?view=list" className="navbar-dropdown-item">
+                        Pregled korisnika
+                      </Link>
+                    </div>
+                  </li>
+                  <li className="navbar-item">
+                    <Link
+                      to="/admin/blog"
+                      className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
+                    >
+                      Upravljanje Blogom
                     </Link>
-                    <Link to="/users?view=list" className="navbar-dropdown-item">
-                      Pregled korisnika
-                    </Link>
-                  </div>
-                </li>
+                  </li>
+                </>
               )}
             </>
           )}

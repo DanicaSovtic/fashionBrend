@@ -10,9 +10,11 @@ const getAccessToken = (req) => {
 
 export const requireAuth = async (req, res, next) => {
   try {
+    console.log('[AuthMiddleware] requireAuth called for:', req.method, req.path, req.originalUrl)
     const accessToken = getAccessToken(req)
     
     if (!accessToken) {
+      console.log('[AuthMiddleware] No access token found, returning 401')
       res.status(401).json({ error: 'Missing or invalid access token' })
       return
     }

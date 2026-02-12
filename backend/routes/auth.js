@@ -15,6 +15,14 @@ import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const router = Router()
 
+// Logging middleware za debug
+router.use('*', (req, res, next) => {
+  if (req.path.startsWith('/blog')) {
+    console.log('[AuthRouter] Request intercepted:', req.method, req.path)
+  }
+  next()
+})
+
 router.post('/auth/register', requireAuth, requireRole(['superadmin']), async (req, res, next) => {
   try {
     const { email, password, fullName, role } = req.body

@@ -14,6 +14,13 @@ import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const router = Router()
 
+// Logging middleware za debug
+router.use('*', (req, res, next) => {
+  if (req.path.startsWith('/blog')) {
+    console.log('[CollectionsRouter] Request intercepted:', req.method, req.path)
+  }
+  next()
+})
 
 // Javna ruta za sve korisnike - prikazuje samo finalne proizvode
 router.get('/collections', async (req, res, next) => {

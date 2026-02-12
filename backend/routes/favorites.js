@@ -11,8 +11,29 @@ import {
 const router = Router()
 
 // All routes require authentication and krajnji_korisnik role
-router.use(requireAuth)
-router.use(requireRole(['krajnji_korisnik']))
+router.use((req, res, next) => {
+  console.log('[FavoritesRouter] Middleware called for:', req.method, req.path)
+  // Ne presreći blog rute
+  if (req.path.startsWith('/blog')) {
+    console.log('[FavoritesRouter] Skipping blog route, passing to next router')
+    return next()
+  }
+  next()
+})
+router.use((req, res, next) => {
+  // Ne presreći blog rute
+  if (req.path.startsWith('/blog')) {
+    return next()
+  }
+  requireAuth(req, res, next)
+})
+router.use((req, res, next) => {
+  // Ne presreći blog rute
+  if (req.path.startsWith('/blog')) {
+    return next()
+  }
+  requireRole(['krajnji_korisnik'])(req, res, next)
+})
 
 // Use admin client to bypass RLS (we already check auth/role in middleware)
 const adminSupabase = createAdminClient()
