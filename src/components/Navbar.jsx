@@ -70,7 +70,7 @@ const Navbar = ({ activePath }) => {
                   Blog
                 </Link>
               </li>
-              {profile?.role !== 'krajnji_korisnik' && (
+              {user && profile?.role !== 'krajnji_korisnik' && (
                 <li className="navbar-item">
                   <Link
                     to="/collection"
