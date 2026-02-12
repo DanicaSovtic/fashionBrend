@@ -4,6 +4,7 @@ import Home from './components/Home'
 import About from './components/About'
 import Contact from './components/Contact'
 import Collection from './components/Collection'
+import CollectionDetail from './components/CollectionDetail'
 import Shop from './components/Shop'
 import Product from './components/Product'
 import CartPage from './components/CartPage'
@@ -36,6 +37,7 @@ const AppRoutes = () => {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/collection" element={<Collection />} />
+          <Route path="/collection/:id" element={<CollectionDetail />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/product/:productId" element={<Product />} />
           <Route path="/cart" element={<CartPage />} />

@@ -257,13 +257,62 @@ create table if not exists collections (
   created_at timestamp with time zone default now()
 );
 
-alter table collections
-  drop constraint if exists collections_status_check;
+-- Dodaj kolone ako ne postoje
+alter table collections add column if not exists collection_type text not null default 'outfit';
+alter table collections add column if not exists outfit_style text;
+alter table collections add column if not exists image_url text;
+alter table collections add column if not exists event_date date;
+alter table collections add column if not exists created_by uuid references profiles(user_id) on delete set null;
 
+-- Drop postojeće constraint-e ako postoje (koristi DO blok za sigurno izvršavanje)
+DO $$
+BEGIN
+  -- Drop collections_status_check ako postoji
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'collections_status_check' 
+    AND conrelid = 'collections'::regclass
+  ) THEN
+    ALTER TABLE collections DROP CONSTRAINT collections_status_check;
+  END IF;
+
+  -- Drop collections_type_check ako postoji
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'collections_type_check' 
+    AND conrelid = 'collections'::regclass
+  ) THEN
+    ALTER TABLE collections DROP CONSTRAINT collections_type_check;
+  END IF;
+
+  -- Drop collections_outfit_style_check ako postoji
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'collections_outfit_style_check' 
+    AND conrelid = 'collections'::regclass
+  ) THEN
+    ALTER TABLE collections DROP CONSTRAINT collections_outfit_style_check;
+  END IF;
+END $$;
+
+-- Kreiraj constraint-e
 alter table collections
   add constraint collections_status_check check (
     status in ('planned', 'active', 'archived')
   );
+
+alter table collections
+  add constraint collections_type_check check (
+    collection_type in ('outfit', 'blog')
+  );
+
+alter table collections
+  add constraint collections_outfit_style_check check (
+    outfit_style is null or outfit_style in ('TRENDY', 'VIRAL', 'TAILORING', 'CASUAL')
+  );
+
+-- Napomena: Proizvodi se povezuju sa kolekcijama kroz product_models.collection_id
+-- Ne koristimo collection_products tabelu jer modni dizajner radi sa product_models
 
 create table if not exists product_models (
   id uuid primary key default gen_random_uuid(),
@@ -340,14 +389,47 @@ create table if not exists product_model_media (
 );
 
 -- Sample inserts for designer workflow (collections + product models)
-insert into collections (id, name, season, status, start_date, end_date, description)
+-- Napomena: created_by će biti automatski postavljen kada modni dizajner kreira kolekciju kroz aplikaciju
+-- Za testiranje, možete ručno postaviti created_by na user_id modnog dizajnera
+insert into collections (id, name, season, status, start_date, end_date, description, collection_type, outfit_style, image_url, created_by)
 values
   ('11111111-1111-1111-1111-111111111111', 'Aurora SS26', 'SS26', 'active', '2026-03-01', '2026-06-30',
-   'Lagane siluete inspirisane jutarnjim svetlom i refleksijama.'),
+   'Lagane siluete inspirisane jutarnjim svetlom i refleksijama.', 'outfit', null,
+   'https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', null),
   ('22222222-2222-2222-2222-222222222222', 'Noir Atelier FW26', 'FW26', 'planned', '2026-08-01', '2026-11-30',
-   'Struktura i tekstura u tamnijoj paleti za gradsku eleganciju.'),
+   'Struktura i tekstura u tamnijoj paleti za gradsku eleganciju.', 'outfit', null,
+   'https://images.unsplash.com/photo-1445205170230-053b83016050?ixlib=rb-4.0.3&auto=format&fit=crop&w=2071&q=80', null),
   ('33333333-3333-3333-3333-333333333333', 'Essenza Resort 25', 'Resort 25', 'archived', '2025-01-01', '2025-04-30',
-   'Arhivirana kolekcija sa fokusom na resort komade.')
+   'Arhivirana kolekcija sa fokusom na resort komade.', 'outfit', null,
+   'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', null)
+on conflict (id) do nothing;
+
+-- Outfit kolekcije (TRENDY, VIRAL, TAILORING)
+insert into collections (id, name, season, status, start_date, end_date, description, collection_type, outfit_style, image_url, created_by)
+values
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Trendy Collection', 'SS26', 'active', '2026-03-01', '2026-06-30',
+   'Moderne i trendovske kombinacije za svakodnevni stil.', 'outfit', 'TRENDY',
+   'https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', null),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Viral Collection', 'SS26', 'active', '2026-03-01', '2026-06-30',
+   'Viralni komadi koji su osvojili društvene mreže.', 'outfit', 'VIRAL',
+   'https://images.unsplash.com/photo-1445205170230-053b83016050?ixlib=rb-4.0.3&auto=format&fit=crop&w=2071&q=80', null),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Tailoring Collection', 'SS26', 'active', '2026-03-01', '2026-06-30',
+   'Precizni krojevi i struktura za sofisticiran izgled.', 'outfit', 'TAILORING',
+   'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', null)
+on conflict (id) do nothing;
+
+-- Blog kolekcije (o popularnim događajima)
+insert into collections (id, name, season, status, start_date, end_date, description, collection_type, event_date, image_url, created_by)
+values
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Belgrade Fashion Week 2026', 'FW26', 'active', '2026-09-15', '2026-09-20',
+   'Posebna kolekcija inspirisana najvećim modnim događajem u regionu.', 'blog', '2026-09-15',
+   'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1926&q=80', null),
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Milan Fashion Week Highlights', 'SS27', 'planned', '2027-02-20', '2027-02-27',
+   'Najbolji trenutci iz Milana - trendovi koji će oblikovati sezonu.', 'blog', '2027-02-20',
+   'https://images.unsplash.com/photo-1469334031218-e382a71b716b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80', null),
+  ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'Paris Couture Week 2026', 'FW26', 'active', '2026-07-01', '2026-07-07',
+   'Ekskluzivni pregled haute couture kolekcija iz Pariza.', 'blog', '2026-07-01',
+   'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80', null)
 on conflict (id) do nothing;
 
 insert into product_models (

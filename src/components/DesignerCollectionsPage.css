@@ -105,6 +105,18 @@
   flex-direction: column;
   gap: 14px;
   background: #fbfbff;
+  transition: all 0.2s ease;
+}
+
+.designer-collection-card:hover {
+  border-color: #5a3fb7;
+  box-shadow: 0 4px 12px rgba(90, 63, 183, 0.1);
+}
+
+.designer-collection-card.active {
+  border-color: #5a3fb7;
+  background: #f8f6ff;
+  box-shadow: 0 4px 12px rgba(90, 63, 183, 0.15);
 }
 
 .designer-collection-meta {

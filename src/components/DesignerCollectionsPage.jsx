@@ -1,147 +1,364 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
 import './DesignerCollectionsPage.css'
 
-const COLLECTIONS = [
-  {
-    id: 'col-ss26',
-    name: 'Aurora SS26',
-    season: 'SS26',
-    period: 'mart - jun 2026',
-    modelsCount: 12,
-    status: 'Aktivna',
-    phaseSummary: {
-      idea: 3,
-      prototype: 4,
-      testing: 3,
-      approved: 2
-    }
-  },
-  {
-    id: 'col-f26',
-    name: 'Noir Atelier FW26',
-    season: 'FW26',
-    period: 'avgust - novembar 2026',
-    modelsCount: 8,
-    status: 'Planiranje',
-    phaseSummary: {
-      idea: 5,
-      prototype: 2,
-      testing: 1,
-      approved: 0
-    }
-  },
-  {
-    id: 'col-archive',
-    name: 'Essenza Resort 25',
-    season: 'Resort 25',
-    period: 'januar - april 2025',
-    modelsCount: 16,
-    status: 'Arhivirana',
-    phaseSummary: {
-      idea: 0,
-      prototype: 0,
-      testing: 0,
-      approved: 16
-    }
+// Helper funkcije za mapiranje podataka
+const mapStatus = (status) => {
+  const statusMap = {
+    'active': 'Aktivna',
+    'planned': 'Planiranje',
+    'archived': 'Arhivirana'
   }
-]
+  return statusMap[status] || status
+}
 
-const MODELS = [
-  {
-    id: 'mdl-001',
-    name: 'Silk Drape Dress',
-    code: 'MD-SS26-014',
-    stage: 'Prototip',
-    collection: 'Aurora SS26',
-    concept: 'Fluidna silueta inspirisana pokretom svetlosti i refleksijom na vodi.',
-    inspiration: 'Skandinavska arhitektura, minimalizam, jutarnja svetlost.',
-    palette: ['pearl', 'misty rose', 'soft lilac'],
-    variants: ['Midi', 'Maxi', 'Sleeveless'],
-    pattern: 'Asimetrično drapiranje sa skrivenim šavovima.',
-    materials: ['Svila 22 momme', 'Lagana postava - viskoza', 'Metalne kopče'],
-    sizeTable: 'XS-XL standard, korekcije za dužinu +2cm',
-    techNotes: 'Ojačati ramena, skriveni zip na levom boku.',
-    lastUpdate: '05.02.2026'
-  },
-  {
-    id: 'mdl-002',
-    name: 'Structured Linen Blazer',
-    code: 'MD-SS26-021',
-    stage: 'Testiranje',
-    collection: 'Aurora SS26',
-    concept: 'Balans između kroja i ležernog feel-a.',
-    inspiration: 'Vintage tailoring, city garden.',
-    palette: ['sand', 'olive', 'chalk'],
-    variants: ['Cropped', 'Regular'],
-    pattern: 'Dvostruko postavljen rever, ručno oblikovan.',
-    materials: ['Lan 280g', 'Pamuk - podstava'],
-    sizeTable: 'S-XXL, dodatne korekcije u ramenima',
-    techNotes: 'Uraditi probu za dugmad i utezanje.',
-    lastUpdate: '02.02.2026'
-  },
-  {
-    id: 'mdl-003',
-    name: 'Sheer Layered Top',
-    code: 'MD-SS26-032',
-    stage: 'Ideja',
-    collection: 'Aurora SS26',
-    concept: 'Slojevita transparentnost za dnevne i večernje look-ove.',
-    inspiration: 'Contemporary art, layered textures.',
-    palette: ['ivory', 'sky blue'],
-    variants: ['Long sleeve', 'Sleeveless'],
-    pattern: 'Slojevita organza sa nevidljivim šavovima.',
-    materials: ['Organza', 'Mrežasti uložak'],
-    sizeTable: 'XS-L',
-    techNotes: 'Testirati stabilnost šavova u pranju.',
-    lastUpdate: '01.02.2026'
+const mapStage = (stage) => {
+  const stageMap = {
+    'idea': 'Ideja',
+    'prototype': 'Prototip',
+    'testing': 'Testiranje',
+    'approved': 'Odobreno'
   }
-]
+  return stageMap[stage] || stage
+}
 
-const APPROVALS = [
-  { label: 'Materijali', status: 'U toku', owner: 'Dobavljač' },
-  { label: 'Krojevi', status: 'Odobreno', owner: 'Proizvođač' },
-  { label: 'Fit test', status: 'Potrebne korekcije', owner: 'QA tim' },
-  { label: 'Vizuelni identitet', status: 'Odobreno', owner: 'Brand tim' }
-]
-
-const COMMENTS = [
-  {
-    id: 'c-01',
-    author: 'Mila Petrović',
-    role: 'Proizvođač',
-    message: 'Predlog: ojačati šavove na ramenom delu zbog težine materijala.',
-    date: '04.02.2026'
-  },
-  {
-    id: 'c-02',
-    author: 'Nikola Ilić',
-    role: 'QA tim',
-    message: 'Fit test pokazuje potrebu za +1cm u struku za veličinu M.',
-    date: '03.02.2026'
-  },
-  {
-    id: 'c-03',
-    author: 'Ivana Marković',
-    role: 'Brand tim',
-    message: 'Fotografije proizvoda za webshop zahtevaju dodatnu teksturu u opisu.',
-    date: '02.02.2026'
+const mapApprovalStatus = (status) => {
+  const statusMap = {
+    'pending': 'Na čekanju',
+    'in_progress': 'U toku',
+    'approved': 'Odobreno',
+    'changes_required': 'Potrebne korekcije'
   }
-]
+  return statusMap[status] || status
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+const formatPeriod = (startDate, endDate) => {
+  if (!startDate || !endDate) return ''
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const months = ['januar', 'februar', 'mart', 'april', 'maj', 'jun', 'jul', 'avgust', 'septembar', 'oktobar', 'novembar', 'decembar']
+  return `${months[start.getMonth()]} - ${months[end.getMonth()]} ${start.getFullYear()}`
+}
 
 const DesignerCollectionsPage = () => {
   const navigate = useNavigate()
   const { user, profile, loading } = useAuth()
-  const [selectedModelId, setSelectedModelId] = useState(MODELS[0]?.id)
+  const [collections, setCollections] = useState([])
+  const [models, setModels] = useState([])
+  const [approvals, setApprovals] = useState([])
+  const [comments, setComments] = useState([])
+  const [selectedCollectionId, setSelectedCollectionId] = useState(null)
+  const [selectedModelId, setSelectedModelId] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [newComment, setNewComment] = useState('')
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+
+  // Učitaj kolekcije sa statistikom
+  useEffect(() => {
+    const fetchCollections = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const token = localStorage.getItem('auth_access_token')
+        
+        const response = await fetch('/api/designer/collections', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        })
+        
+        if (!response.ok) {
+          let errorMessage = `Greška pri učitavanju kolekcija: ${response.status}`
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorData.message || errorMessage
+          } catch (e) {
+            const errorText = await response.text()
+            errorMessage = errorText || errorMessage
+          }
+          
+          if (response.status === 401) {
+            errorMessage = 'Niste autentifikovani. Molimo ulogujte se ponovo.'
+          } else if (response.status === 403) {
+            errorMessage = 'Nemate dozvolu za pristup ovim podacima.'
+          }
+          
+          throw new Error(errorMessage)
+        }
+        
+        const collectionsData = await response.json()
+        
+        if (!collectionsData || collectionsData.length === 0) {
+          setCollections([])
+          setIsLoading(false)
+          return
+        }
+        
+        // Učitaj statistiku za svaku kolekciju
+        const collectionsWithStats = await Promise.all(
+          collectionsData.map(async (collection) => {
+            try {
+              const statsResponse = await fetch(`/api/collections/${collection.id}/stats`)
+              const stats = statsResponse.ok ? await statsResponse.json() : { idea: 0, prototype: 0, testing: 0, approved: 0, total: 0 }
+              return {
+                ...collection,
+                phaseSummary: {
+                  idea: stats.idea || 0,
+                  prototype: stats.prototype || 0,
+                  testing: stats.testing || 0,
+                  approved: stats.approved || 0
+                },
+                modelsCount: stats.total || 0
+              }
+            } catch (err) {
+              console.error('Error fetching stats for collection:', collection.id, err)
+              return {
+                ...collection,
+                phaseSummary: { idea: 0, prototype: 0, testing: 0, approved: 0 },
+                modelsCount: 0
+              }
+            }
+          })
+        )
+        
+        setCollections(collectionsWithStats)
+        
+        // Postavi prvu kolekciju kao selektovanu samo ako još nije selektovana
+        if (collectionsWithStats.length > 0 && !selectedCollectionId) {
+          setSelectedCollectionId(collectionsWithStats[0].id)
+        }
+      } catch (err) {
+        console.error('[DesignerCollectionsPage] Error fetching collections:', err)
+        setError(err.message || 'Greška pri učitavanju kolekcija')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    if (user && profile?.role === 'modni_dizajner') {
+      fetchCollections()
+    } else {
+      setIsLoading(false)
+    }
+  }, [user, profile]) // Uklonjen selectedCollectionId iz dependency array-a
+
+  // Učitaj modele za selektovanu kolekciju
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (!selectedCollectionId) return
+      
+      try {
+        const response = await fetch(`/api/collections/${selectedCollectionId}/products`)
+        
+        if (!response.ok) {
+          throw new Error('Greška pri učitavanju modela')
+        }
+        
+        const data = await response.json()
+        const modelsData = data.productModels || []
+        
+        setModels(modelsData)
+        
+        // Postavi prvi model kao selektovani
+        if (modelsData.length > 0 && !selectedModelId) {
+          setSelectedModelId(modelsData[0].id)
+        }
+      } catch (err) {
+        console.error('Error fetching models:', err)
+      }
+    }
+    
+    fetchModels()
+  }, [selectedCollectionId, selectedModelId])
+
+  // Učitaj odobrenja i komentare za selektovani model
+  useEffect(() => {
+    const fetchModelDetails = async () => {
+      if (!selectedModelId) return
+      
+      try {
+        const token = localStorage.getItem('auth_access_token')
+        const [approvalsResponse, commentsResponse] = await Promise.all([
+          fetch(`/api/product-models/${selectedModelId}/approvals`, {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+          }),
+          fetch(`/api/product-models/${selectedModelId}/comments`, {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+          })
+        ])
+        
+        if (approvalsResponse.ok) {
+          const approvalsData = await approvalsResponse.json()
+          setApprovals(approvalsData)
+        }
+        
+        if (commentsResponse.ok) {
+          const commentsData = await commentsResponse.json()
+          setComments(commentsData)
+        }
+      } catch (err) {
+        console.error('Error fetching model details:', err)
+      }
+    }
+    
+    fetchModelDetails()
+  }, [selectedModelId])
 
   const selectedModel = useMemo(
-    () => MODELS.find((model) => model.id === selectedModelId) || MODELS[0],
-    [selectedModelId]
+    () => models.find((model) => model.id === selectedModelId) || models[0],
+    [models, selectedModelId]
   )
 
-  if (loading) {
+  const selectedCollection = useMemo(
+    () => collections.find((col) => col.id === selectedCollectionId),
+    [collections, selectedCollectionId]
+  )
+
+  // Funkcija za promenu statusa kolekcije
+  const handleStatusChange = async (newStatus) => {
+    if (!selectedCollectionId) return
+
+    try {
+      setIsUpdatingStatus(true)
+      const token = localStorage.getItem('auth_access_token')
+      
+      const response = await fetch(`/api/collections/${selectedCollectionId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Greška pri ažuriranju statusa')
+      }
+
+      const updatedCollection = await response.json()
+      
+      // Ažuriraj kolekciju u listi
+      setCollections(prev => 
+        prev.map(col => 
+          col.id === selectedCollectionId 
+            ? { ...col, ...updatedCollection }
+            : col
+        )
+      )
+
+      // Pošalji custom event da javna stranica osveži podatke
+      window.dispatchEvent(new CustomEvent('collectionStatusChanged', {
+        detail: { collectionId: selectedCollectionId, newStatus: newStatus }
+      }))
+    } catch (err) {
+      console.error('[DesignerCollectionsPage] Error updating status:', err)
+      alert(`Greška pri ažuriranju statusa: ${err.message}`)
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  // Funkcija za dodavanje komentara
+  const handleAddComment = async (e) => {
+    e.preventDefault()
+    
+    if (!selectedModelId || !newComment.trim()) {
+      return
+    }
+
+    try {
+      setIsSubmittingComment(true)
+      const token = localStorage.getItem('auth_access_token')
+      
+      const response = await fetch(`/api/product-models/${selectedModelId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          body: newComment.trim(),
+          author_name: profile?.full_name || user?.email || 'Korisnik',
+          role: profile?.role || 'korisnik'
+        })
+      })
+
+      if (!response.ok) {
+        let errorMessage = 'Greška pri dodavanju komentara'
+        try {
+          const errorData = await response.json()
+          console.error('[DesignerCollectionsPage] Comment error response:', errorData)
+          errorMessage = errorData.error || errorData.message || errorMessage
+          
+          if (response.status === 403) {
+            errorMessage = `Nemate dozvolu za dodavanje komentara. ${errorData.message || 'Vaša uloga: ' + (profile?.role || 'nepoznata')}`
+          } else if (response.status === 401) {
+            errorMessage = 'Niste autentifikovani. Molimo ulogujte se ponovo.'
+          }
+        } catch (e) {
+          const errorText = await response.text()
+          console.error('[DesignerCollectionsPage] Comment error text:', errorText)
+        }
+        throw new Error(errorMessage)
+      }
+
+      const newCommentData = await response.json()
+      
+      // Dodaj novi komentar na početak liste
+      setComments(prev => [newCommentData, ...prev])
+      
+      // Očisti formu
+      setNewComment('')
+    } catch (err) {
+      console.error('[DesignerCollectionsPage] Error adding comment:', err)
+      console.error('[DesignerCollectionsPage] User profile:', { 
+        role: profile?.role, 
+        full_name: profile?.full_name,
+        user_id: user?.id 
+      })
+      alert(`Greška pri dodavanju komentara: ${err.message}`)
+    } finally {
+      setIsSubmittingComment(false)
+    }
+  }
+
+  // Izračunaj metrike za selektovanu kolekciju
+  const collectionMetrics = useMemo(() => {
+    if (!selectedCollection) {
+      return {
+        totalModels: 0,
+        prototypeModels: 0,
+        approvedModels: 0,
+        totalComments: 0
+      }
+    }
+    
+    return {
+      totalModels: selectedCollection.modelsCount || 0,
+      prototypeModels: selectedCollection.phaseSummary?.prototype || 0,
+      approvedModels: selectedCollection.phaseSummary?.approved || 0,
+      totalComments: comments.length
+    }
+  }, [selectedCollection, comments])
+
+  if (loading || isLoading) {
     return (
       <div className="designer-page">
         <Navbar />
@@ -179,217 +396,379 @@ const DesignerCollectionsPage = () => {
               Centralni radni prostor za planiranje, praćenje i validaciju modnih proizvoda.
             </p>
           </div>
-          <div className="designer-metrics">
-            <div className="designer-metric">
-              <span>Aktivne kolekcije</span>
-              <strong>2</strong>
-            </div>
-            <div className="designer-metric">
-              <span>Modeli u prototipu</span>
-              <strong>6</strong>
-            </div>
-            <div className="designer-metric">
-              <span>Odobreno za proizvodnju</span>
-              <strong>2</strong>
-            </div>
-            <div className="designer-metric">
-              <span>Otvoreni komentari</span>
-              <strong>4</strong>
-            </div>
+          <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+            <label htmlFor="collection-select" style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#5a5463' }}>
+              Izaberite kolekciju za pregled:
+            </label>
+            <select
+              id="collection-select"
+              value={selectedCollectionId || ''}
+              onChange={(e) => {
+                const collectionId = e.target.value
+                setSelectedCollectionId(collectionId)
+                setSelectedModelId(null) // Resetuj selektovani model kada se promeni kolekcija
+              }}
+              disabled={isLoading || collections.length === 0}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '16px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                backgroundColor: isLoading || collections.length === 0 ? '#f5f5f5' : '#fff',
+                cursor: isLoading || collections.length === 0 ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              <option value="">
+                {isLoading ? 'Učitavanje...' : collections.length === 0 ? 'Nema dostupnih kolekcija' : '-- Izaberite kolekciju --'}
+              </option>
+              {collections.map((collection) => (
+                <option key={collection.id} value={collection.id}>
+                  {collection.name} ({collection.season}) - {mapStatus(collection.status)}
+                </option>
+              ))}
+            </select>
+            {error && (
+              <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#ffe6e6', borderRadius: '8px', color: '#d32f2f' }}>
+                <strong>Greška:</strong> {error}
+              </div>
+            )}
+            {!isLoading && collections.length === 0 && !error && (
+              <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#fff3cd', borderRadius: '8px', color: '#856404' }}>
+                Nema kolekcija u bazi podataka. Molimo kreirajte kolekciju.
+              </div>
+            )}
           </div>
+          {selectedCollection && (
+            <div className="designer-metrics">
+              <div className="designer-metric">
+                <span>Ukupno modela</span>
+                <strong>{collectionMetrics.totalModels}</strong>
+              </div>
+              <div className="designer-metric">
+                <span>Modeli u prototipu</span>
+                <strong>{collectionMetrics.prototypeModels}</strong>
+              </div>
+              <div className="designer-metric">
+                <span>Odobreno za proizvodnju</span>
+                <strong>{collectionMetrics.approvedModels}</strong>
+              </div>
+              <div className="designer-metric">
+                <span>Komentari</span>
+                <strong>{collectionMetrics.totalComments}</strong>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="designer-card">
-          <div className="designer-section-header">
-            <div>
-              <h3>Aktivne i arhivirane kolekcije</h3>
-              <p className="designer-muted">
-                Pregled po sezoni, statusu i fazi razvoja modela.
-              </p>
+        {selectedCollection && (
+          <div className="designer-card">
+            <div className="designer-section-header">
+              <div>
+                <h3>Selektovana kolekcija: {selectedCollection.name}</h3>
+                <p className="designer-muted">
+                  {selectedCollection.season} • {formatPeriod(selectedCollection.start_date, selectedCollection.end_date)} • Status: {mapStatus(selectedCollection.status)}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <label htmlFor="status-select" style={{ fontWeight: '500', color: '#5a5463' }}>
+                  Promeni status:
+                </label>
+                <select
+                  id="status-select"
+                  value={selectedCollection.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  disabled={isUpdatingStatus}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    backgroundColor: isUpdatingStatus ? '#f5f5f5' : '#fff',
+                    cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                    minWidth: '150px'
+                  }}
+                >
+                  <option value="planned">Planiranje</option>
+                  <option value="active">Aktivna</option>
+                  <option value="archived">Arhivirana</option>
+                </select>
+                {isUpdatingStatus && (
+                  <span style={{ fontSize: '14px', color: '#5a5463' }}>Čuvanje...</span>
+                )}
+              </div>
             </div>
-            <button type="button" className="designer-primary-button">
-              + Nova kolekcija
-            </button>
-          </div>
-          <div className="designer-collections">
-            {COLLECTIONS.map((collection) => (
-              <div key={collection.id} className="designer-collection-card">
+            {error && (
+              <div style={{ color: 'red', marginBottom: '1rem', padding: '12px', backgroundColor: '#ffe6e6', borderRadius: '8px' }}>
+                Greška: {error}
+              </div>
+            )}
+            <div className="designer-collection-card" style={{ marginTop: '16px' }}>
+              <div>
+                <h4>{selectedCollection.name}</h4>
+                <p className="designer-muted">
+                  {selectedCollection.description || 'Nema opisa'}
+                </p>
+              </div>
+              <div className="designer-collection-meta">
+                <span>Status: {mapStatus(selectedCollection.status)}</span>
+                <span>Modela: {selectedCollection.modelsCount || 0}</span>
+              </div>
+              <div className="designer-phase-grid">
                 <div>
-                  <h4>{collection.name}</h4>
-                  <p className="designer-muted">
-                    {collection.season} • {collection.period}
-                  </p>
+                  <strong>{selectedCollection.phaseSummary?.idea || 0}</strong>
+                  <span>Ideja</span>
                 </div>
-                <div className="designer-collection-meta">
-                  <span>Status: {collection.status}</span>
-                  <span>Modela: {collection.modelsCount}</span>
+                <div>
+                  <strong>{selectedCollection.phaseSummary?.prototype || 0}</strong>
+                  <span>Prototip</span>
                 </div>
-                <div className="designer-phase-grid">
-                  <div>
-                    <strong>{collection.phaseSummary.idea}</strong>
-                    <span>Ideja</span>
-                  </div>
-                  <div>
-                    <strong>{collection.phaseSummary.prototype}</strong>
-                    <span>Prototip</span>
-                  </div>
-                  <div>
-                    <strong>{collection.phaseSummary.testing}</strong>
-                    <span>Test</span>
-                  </div>
-                  <div>
-                    <strong>{collection.phaseSummary.approved}</strong>
-                    <span>Odobreno</span>
-                  </div>
+                <div>
+                  <strong>{selectedCollection.phaseSummary?.testing || 0}</strong>
+                  <span>Test</span>
+                </div>
+                <div>
+                  <strong>{selectedCollection.phaseSummary?.approved || 0}</strong>
+                  <span>Odobreno</span>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="designer-grid">
+        {!selectedCollection && collections.length > 0 && (
           <div className="designer-card">
-            <h3>Razvoj modela</h3>
+            <p className="designer-muted" style={{ textAlign: 'center', padding: '2rem' }}>
+              Molimo izaberite kolekciju iz padajućeg menija iznad da biste videli detalje.
+            </p>
+          </div>
+        )}
+
+        {selectedCollection && (
+          <div className="designer-grid">
+            <div className="designer-card">
+              <h3>Razvoj modela - {selectedCollection.name}</h3>
             <div className="designer-models">
               <div className="designer-model-list">
-                {MODELS.map((model) => (
-                  <button
-                    key={model.id}
-                    type="button"
-                    className={`designer-model-item ${model.id === selectedModel?.id ? 'active' : ''}`}
-                    onClick={() => setSelectedModelId(model.id)}
-                  >
+                {models.length === 0 ? (
+                  <div className="designer-muted" style={{ padding: '1rem' }}>
+                    Nema modela za ovu kolekciju
+                  </div>
+                ) : (
+                  models.map((model) => (
+                    <button
+                      key={model.id}
+                      type="button"
+                      className={`designer-model-item ${model.id === selectedModel?.id ? 'active' : ''}`}
+                      onClick={() => setSelectedModelId(model.id)}
+                    >
+                      <div>
+                        <strong>{model.name}</strong>
+                        <span className="designer-muted">{model.sku}</span>
+                      </div>
+                      <span className="designer-status">{mapStage(model.development_stage)}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+              {selectedModel && (
+                <div className="designer-model-detail">
+                  <div className="designer-model-header">
                     <div>
-                      <strong>{model.name}</strong>
-                      <span className="designer-muted">{model.code}</span>
+                      <h4>{selectedModel.name}</h4>
+                      <p className="designer-muted">
+                        {selectedModel.sku} • {selectedCollection?.name || ''}
+                      </p>
                     </div>
-                    <span className="designer-status">{model.stage}</span>
-                  </button>
-                ))}
-              </div>
-              <div className="designer-model-detail">
-                <div className="designer-model-header">
-                  <div>
-                    <h4>{selectedModel?.name}</h4>
-                    <p className="designer-muted">
-                      {selectedModel?.code} • {selectedModel?.collection}
-                    </p>
+                    <span className="designer-status-chip">{mapStage(selectedModel.development_stage)}</span>
                   </div>
-                  <span className="designer-status-chip">{selectedModel?.stage}</span>
-                </div>
-                <div className="designer-model-section">
-                  <h5>Koncept i inspiracija</h5>
-                  <p>{selectedModel?.concept}</p>
-                  <p className="designer-muted">Inspiracija: {selectedModel?.inspiration}</p>
-                </div>
-                <div className="designer-model-section">
-                  <h5>Paleta i varijante</h5>
-                  <div className="designer-tags">
-                    {selectedModel?.palette?.map((tone) => (
-                      <span key={tone} className="designer-tag">
-                        {tone}
-                      </span>
-                    ))}
+                  <div className="designer-model-section">
+                    <h5>Koncept i inspiracija</h5>
+                    <p>{selectedModel.concept || 'Nema opisa koncepta'}</p>
+                    <p className="designer-muted">Inspiracija: {selectedModel.inspiration || 'Nema informacija'}</p>
                   </div>
-                  <p className="designer-muted">Varijante: {selectedModel?.variants?.join(', ')}</p>
+                  <div className="designer-model-section">
+                    <h5>Paleta i varijante</h5>
+                    <div className="designer-tags">
+                      {selectedModel.color_palette ? (
+                        selectedModel.color_palette.split(',').map((tone, idx) => (
+                          <span key={idx} className="designer-tag">
+                            {tone.trim()}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="designer-muted">Nema palete</span>
+                      )}
+                    </div>
+                    <p className="designer-muted">Varijante: {selectedModel.variants || 'Nema varijanti'}</p>
+                  </div>
+                  <div className="designer-model-section">
+                    <h5>Tehnički podaci</h5>
+                    <p>Materijali: {selectedModel.materials || 'Nema informacija'}</p>
+                    <p>Krojevi: {selectedModel.pattern_notes || 'Nema informacija'}</p>
+                    <p>Tabela veličina: {selectedModel.size_table || 'Nema informacija'}</p>
+                    <p>Napomene: {selectedModel.tech_notes || 'Nema napomena'}</p>
+                  </div>
+                  <div className="designer-model-footer">
+                    <span>Poslednja izmena: {formatDate(selectedModel.updated_at || selectedModel.created_at)}</span>
+                    <button type="button" className="designer-secondary-button">
+                      Sačuvaj verziju
+                    </button>
+                  </div>
                 </div>
-                <div className="designer-model-section">
-                  <h5>Tehnički podaci</h5>
-                  <p>Materijali: {selectedModel?.materials?.join(', ')}</p>
-                  <p>Krojevi: {selectedModel?.pattern}</p>
-                  <p>Tabela veličina: {selectedModel?.sizeTable}</p>
-                  <p>Napomene: {selectedModel?.techNotes}</p>
-                </div>
-                <div className="designer-model-footer">
-                  <span>Poslednja izmena: {selectedModel?.lastUpdate}</span>
-                  <button type="button" className="designer-secondary-button">
-                    Sačuvaj verziju
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
-          <div className="designer-card">
-            <h3>Saradnja i odobrenja</h3>
+            <div className="designer-card">
+              <h3>Saradnja i odobrenja</h3>
             <div className="designer-approvals">
-              {APPROVALS.map((approval) => (
-                <div key={approval.label} className="designer-approval-item">
-                  <div>
-                    <strong>{approval.label}</strong>
-                    <span className="designer-muted">{approval.owner}</span>
-                  </div>
-                  <span className="designer-status">{approval.status}</span>
+              {approvals.length === 0 ? (
+                <div className="designer-muted" style={{ padding: '1rem' }}>
+                  Nema odobrenja za ovaj model
                 </div>
-              ))}
+              ) : (
+                approvals.map((approval) => (
+                  <div key={approval.id} className="designer-approval-item">
+                    <div>
+                      <strong>{approval.approval_item}</strong>
+                      <span className="designer-muted">{approval.note || 'Nema napomene'}</span>
+                    </div>
+                    <span className="designer-status">{mapApprovalStatus(approval.status)}</span>
+                  </div>
+                ))
+              )}
             </div>
             <div className="designer-comments">
               <h4>Komentari tima</h4>
-              {COMMENTS.map((comment) => (
-                <div key={comment.id} className="designer-comment">
-                  <div className="designer-comment-header">
-                    <strong>{comment.author}</strong>
-                    <span className="designer-muted">
-                      {comment.role} • {comment.date}
-                    </span>
-                  </div>
-                  <p>{comment.message}</p>
+              
+              {/* Forma za dodavanje komentara */}
+              <form onSubmit={handleAddComment} style={{ marginBottom: '20px' }}>
+                <div style={{ marginBottom: '12px' }}>
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Unesite vaš komentar..."
+                    disabled={isSubmittingComment || !selectedModelId}
+                    required
+                    style={{
+                      width: '100%',
+                      minHeight: '100px',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      backgroundColor: isSubmittingComment || !selectedModelId ? '#f5f5f5' : '#fff'
+                    }}
+                  />
                 </div>
-              ))}
-              <button type="button" className="designer-secondary-button">
-                Dodaj komentar
+                <button 
+                  type="submit" 
+                  className="designer-secondary-button"
+                  disabled={isSubmittingComment || !selectedModelId || !newComment.trim()}
+                  style={{
+                    opacity: (isSubmittingComment || !selectedModelId || !newComment.trim()) ? 0.6 : 1,
+                    cursor: (isSubmittingComment || !selectedModelId || !newComment.trim()) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSubmittingComment ? 'Dodavanje...' : 'Dodaj komentar'}
+                </button>
+              </form>
+
+              {/* Lista komentara */}
+              {comments.length === 0 ? (
+                <div className="designer-muted" style={{ padding: '1rem', textAlign: 'center' }}>
+                  Nema komentara za ovaj model. Budite prvi koji će dodati komentar!
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="designer-comment">
+                      <div className="designer-comment-header">
+                        <strong>{comment.author_name || 'Anonimni korisnik'}</strong>
+                        <span className="designer-muted">
+                          {comment.role || 'Nepoznata uloga'} • {formatDate(comment.created_at)}
+                        </span>
+                      </div>
+                      <p>{comment.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            </div>
+          </div>
+        )}
+
+        {selectedCollection && (
+          <div className="designer-card">
+            <div className="designer-section-header">
+              <div>
+                <h3>Pregled webshop prikaza</h3>
+                <p className="designer-muted">
+                  Provera kako će proizvod biti predstavljen krajnjim kupcima.
+                </p>
+              </div>
+              <button type="button" className="designer-primary-button">
+                Ažuriraj listing
               </button>
             </div>
-          </div>
-        </div>
-
-        <div className="designer-card">
-          <div className="designer-section-header">
-            <div>
-              <h3>Pregled webshop prikaza</h3>
-              <p className="designer-muted">
-                Provera kako ce proizvod biti predstavljen krajnjim kupcima.
+            {selectedModel ? (
+              <div className="designer-webshop">
+                <div className="designer-webshop-preview">
+                  <div className="designer-webshop-image">
+                    {selectedModel.media && selectedModel.media.length > 0 ? (
+                      <img 
+                        src={selectedModel.media.find(m => m.is_primary)?.image_url || selectedModel.media[0].image_url} 
+                        alt={selectedModel.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      'Preview foto'
+                    )}
+                  </div>
+                  <div>
+                    <h4>{selectedModel.name}</h4>
+                    <p className="designer-muted">
+                      {selectedModel.concept || 'Elegantan komad sa fokusom na teksturu i fluidnost.'}
+                    </p>
+                    <ul>
+                      <li>Materijali: {selectedModel.materials || 'Nema informacija'}</li>
+                      <li>Varijante: {selectedModel.variants || 'Nema varijanti'}</li>
+                      <li>Paleta: {selectedModel.color_palette || 'Nema palete'}</li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="designer-webshop-meta">
+                  <div>
+                    <span className="designer-muted">Naziv proizvoda</span>
+                    <strong>{selectedModel.name}</strong>
+                  </div>
+                  <div>
+                    <span className="designer-muted">SKU</span>
+                    <strong>{selectedModel.sku}</strong>
+                  </div>
+                  <div>
+                    <span className="designer-muted">Istaknute karakteristike</span>
+                    <strong>Premium materijal, ručna obrada</strong>
+                  </div>
+                  <div>
+                    <span className="designer-muted">Priprema za online prodaju</span>
+                    <strong>{selectedModel.development_stage === 'approved' ? 'Spremno za prodaju' : 'U toku fotografisanje'}</strong>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="designer-muted" style={{ textAlign: 'center', padding: '2rem' }}>
+                Izaberite model iz liste da biste videli webshop pregled.
               </p>
-            </div>
-            <button type="button" className="designer-primary-button">
-              Ažuriraj listing
-            </button>
+            )}
           </div>
-          <div className="designer-webshop">
-            <div className="designer-webshop-preview">
-              <div className="designer-webshop-image">Preview foto</div>
-              <div>
-                <h4>{selectedModel?.name}</h4>
-                <p className="designer-muted">
-                  Elegantan komad sa fokusom na teksturu i fluidnost. {selectedModel?.concept}
-                </p>
-                <ul>
-                  <li>Materijali: {selectedModel?.materials?.join(', ')}</li>
-                  <li>Varijante: {selectedModel?.variants?.join(', ')}</li>
-                  <li>Paleta: {selectedModel?.palette?.join(', ')}</li>
-                </ul>
-              </div>
-            </div>
-            <div className="designer-webshop-meta">
-              <div>
-                <span className="designer-muted">Naziv proizvoda</span>
-                <strong>{selectedModel?.name}</strong>
-              </div>
-              <div>
-                <span className="designer-muted">SKU</span>
-                <strong>{selectedModel?.code}</strong>
-              </div>
-              <div>
-                <span className="designer-muted">Istaknute karakteristike</span>
-                <strong>Premium materijal, ručna obrada</strong>
-              </div>
-              <div>
-                <span className="designer-muted">Priprema za online prodaju</span>
-                <strong>U toku fotografisanje</strong>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )

@@ -232,11 +232,13 @@
   bottom: 0;
   background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
   padding: 1rem;
   opacity: 0;
   transition: opacity 0.3s ease;
+  gap: 0.5rem;
 }
 
 .collection-card:hover .collection-card-overlay {
@@ -251,6 +253,27 @@
   font-weight: 500;
   letter-spacing: 1px;
   text-transform: uppercase;
+  border-radius: 4px;
+}
+
+.collection-style-badge {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-radius: 4px;
+}
+
+.collection-event-date {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border-radius: 4px;
 }
 
 .collection-card-content {
@@ -279,6 +302,20 @@
 
 .collection-items {
   color: #999999;
+}
+
+/* Dodatni stilovi za CollectionDetail */
+.collection-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-olive);
+}
+
+.collection-card a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  height: 100%;
 }
 
 .collection-card-title {

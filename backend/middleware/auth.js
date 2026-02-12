@@ -11,6 +11,7 @@ const getAccessToken = (req) => {
 export const requireAuth = async (req, res, next) => {
   try {
     const accessToken = getAccessToken(req)
+    
     if (!accessToken) {
       res.status(401).json({ error: 'Missing or invalid access token' })
       return
@@ -18,8 +19,10 @@ export const requireAuth = async (req, res, next) => {
 
     const supabase = createAuthedClient(accessToken)
     const { data, error } = await supabase.auth.getUser()
+    
     if (error || !data?.user) {
-      res.status(401).json({ error: 'Invalid session' })
+      console.error('[AuthMiddleware] Invalid session:', error?.message)
+      res.status(401).json({ error: 'Invalid session', details: error?.message })
       return
     }
 
@@ -28,6 +31,7 @@ export const requireAuth = async (req, res, next) => {
     req.supabase = supabase
     next()
   } catch (error) {
+    console.error('[AuthMiddleware] Exception:', error)
     next(error)
   }
 }
@@ -48,7 +52,7 @@ export const requireRole = (allowedRoles = []) => {
           .single()
 
         if (error) {
-          res.status(403).json({ error: 'Profile not found' })
+          res.status(403).json({ error: 'Profile not found', details: error.message })
           return
         }
 
@@ -60,12 +64,16 @@ export const requireRole = (allowedRoles = []) => {
           next()
           return
         }
-        res.status(403).json({ error: 'Forbidden' })
+        res.status(403).json({ 
+          error: 'Forbidden',
+          message: `Access denied. Required role: ${allowedRoles.join(' or ')}, but user has role: ${req.profile.role}`
+        })
         return
       }
 
       next()
     } catch (error) {
+      console.error('[AuthMiddleware] requireRole exception:', error)
       next(error)
     }
   }

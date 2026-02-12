@@ -1,71 +1,125 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Navbar from './Navbar'
 import './Collection.css'
 
 const Collection = () => {
-  // Statički podaci o kolekcijama
-  const collections = [
-    {
-      id: 1,
-      name: 'Zimska Kolekcija 2026',
-      season: 'Zima',
-      year: '2026',
-      description: 'Elegantni komadi dizajnirani za modernu zimsku garderobu. Udobno, a ipak sofisticirano.',
-      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
-      items: '45+ komada',
-      status: 'Dostupno Sada'
-    },
-    {
-      id: 2,
-      name: 'Jesenji Osnovni Komadi',
-      season: 'Jesen',
-      year: '2024',
-      description: 'Bezvremenski jesenji komadi koji spajaju udobnost sa stilom. Savršeno za prelazno vreme.',
-      image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?ixlib=rb-4.0.3&auto=format&fit=crop&w=2071&q=80',
-      items: '38+ komada',
-      status: 'Dostupno Sada'
-    },
-    {
-      id: 3,
-      name: 'Letnji Povetarac',
-      season: 'Leto',
-      year: '2024',
-      description: 'Lagani, prozračni dizajni savršeni za tople dane. Sveža i živahna letnja kolekcija.',
-      image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
-      items: '52+ komada',
-      status: 'Dostupno Sada'
-    },
-    {
-      id: 4,
-      name: 'Prolećno Budenje',
-      season: 'Proleće',
-      year: '2024',
-      description: 'Sveže boje i tečne siluete. Proslavite novu sezonu u stilu.',
-      image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
-      items: '41+ komada',
-      status: 'Dostupno Sada'
-    },
-    {
-      id: 5,
-      name: 'Klasična Crno-Bela',
-      season: 'Sve Sezone',
-      year: '2024',
-      description: 'Bezvremenski monohromni komadi koji nikada ne izlaze iz mode. Osnovni garderobni komadi.',
-      image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2069&q=80',
-      items: '35+ komada',
-      status: 'Dostupno Sada'
-    },
-    {
-      id: 6,
-      name: 'Večernja Elegantnost',
-      season: 'Posebno',
-      year: '2024',
-      description: 'Sofisticirana večernja odeća za posebne prilike. Napravite izjavu gde god da idete.',
-      image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1926&q=80',
-      items: '28+ komada',
-      status: 'Dostupno Sada'
+  const [outfitCollections, setOutfitCollections] = useState([])
+  const [blogCollections, setBlogCollections] = useState([])
+  const [collectionStats, setCollectionStats] = useState({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const navigate = useNavigate()
+
+  const fetchCollections = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const outfitUrl = '/api/collections?type=outfit'
+      const blogUrl = '/api/collections?type=blog'
+
+      const [outfitResponse, blogResponse] = await Promise.all([
+        fetch(outfitUrl).catch(err => {
+          console.error('[Collection Component] Fetch error for outfit:', err)
+          throw err
+        }),
+        fetch(blogUrl).catch(err => {
+          console.error('[Collection Component] Fetch error for blog:', err)
+          throw err
+        })
+      ])
+
+      // Proveri greške sa detaljnim porukama
+      if (!outfitResponse.ok) {
+        const errorData = await outfitResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `Greška prilikom učitavanja outfit kolekcija (${outfitResponse.status})`)
+      }
+
+      if (!blogResponse.ok) {
+        const errorData = await blogResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `Greška prilikom učitavanja blog kolekcija (${blogResponse.status})`)
+      }
+
+      const outfitData = await outfitResponse.json()
+      const blogData = await blogResponse.json()
+
+      setOutfitCollections(outfitData || [])
+      setBlogCollections(blogData || [])
+
+      // Učitaj statistiku za sve kolekcije
+      const allCollections = [...(outfitData || []), ...(blogData || [])]
+      const statsPromises = allCollections.map(collection =>
+        fetch(`/api/collections/${collection.id}/stats`)
+          .then(res => res.ok ? res.json() : { total: 0 })
+          .then(stats => ({ [collection.id]: stats }))
+          .catch(() => ({ [collection.id]: { total: 0 } }))
+      )
+
+      const statsResults = await Promise.all(statsPromises)
+      const statsMap = Object.assign({}, ...statsResults)
+      setCollectionStats(statsMap)
+    } catch (err) {
+      console.error('[Collection Component] Error:', err)
+      setError(err.message || 'Došlo je do greške.')
+    } finally {
+      setIsLoading(false)
     }
-  ]
+  }
+
+  useEffect(() => {
+    fetchCollections()
+
+    // Slušaj promene statusa kolekcije
+    const handleStatusChange = () => {
+      fetchCollections()
+    }
+
+    window.addEventListener('collectionStatusChanged', handleStatusChange)
+
+    return () => {
+      window.removeEventListener('collectionStatusChanged', handleStatusChange)
+    }
+  }, [])
+
+  const formatStatus = (status) => {
+    const statusMap = {
+      active: 'Dostupno Sada',
+      planned: 'Uskoro',
+      archived: 'Arhivirano'
+    }
+    return statusMap[status] || status
+  }
+
+  const handleCollectionClick = (collectionId) => {
+    navigate(`/collection/${collectionId}`)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="collection-page">
+        <Navbar activePath="/collection" />
+        <div className="collection-content">
+          <div className="collection-container">
+            <div style={{ textAlign: 'center', padding: '2rem' }}>Učitavanje...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="collection-page">
+        <Navbar activePath="/collection" />
+        <div className="collection-content">
+          <div className="collection-container">
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>{error}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="collection-page">
@@ -93,34 +147,154 @@ const Collection = () => {
             </p>
           </div>
 
-          {/* Grid sa kolekcijama */}
-          <div className="collections-grid">
-            {collections.map((collection) => (
-              <div key={collection.id} className="collection-card">
-                <div className="collection-card-image-wrapper">
-                  <img 
-                    src={collection.image} 
-                    alt={collection.name}
-                    className="collection-card-image"
-                  />
-                  <div className="collection-card-overlay">
-                    <span className="collection-status">{collection.status}</span>
+          {/* Outfit kolekcije */}
+          {outfitCollections.length > 0 && (
+            <div style={{ marginBottom: '3rem' }}>
+              <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', fontWeight: '600' }}>
+                Outfit Kolekcije
+              </h2>
+              <div className="collections-grid">
+                {outfitCollections.map((collection) => (
+                  <div key={collection.id} className="collection-card">
+                    <div className="collection-card-image-wrapper">
+                      <img 
+                        src={collection.image_url || 'https://via.placeholder.com/400x500'} 
+                        alt={collection.name}
+                        className="collection-card-image"
+                      />
+                      <div className="collection-card-overlay">
+                        <span className="collection-status">{formatStatus(collection.status)}</span>
+                        {collection.outfit_style && (
+                          <span className="collection-style-badge">{collection.outfit_style}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="collection-card-content">
+                      <div className="collection-card-header">
+                        <span className="collection-season">{collection.season || 'N/A'}</span>
+                        {collectionStats[collection.id] && (
+                          <span className="collection-items">
+                            {collectionStats[collection.id].total} modela
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="collection-card-title">{collection.name}</h3>
+                      <p className="collection-card-description">{collection.description || ''}</p>
+                      {collectionStats[collection.id] && collectionStats[collection.id].total > 0 && (
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: '#666', 
+                          marginTop: '0.5rem',
+                          display: 'flex',
+                          gap: '0.5rem',
+                          flexWrap: 'wrap'
+                        }}>
+                          {collectionStats[collection.id].idea > 0 && (
+                            <span style={{ color: '#9ca3af' }}>Ideja: {collectionStats[collection.id].idea}</span>
+                          )}
+                          {collectionStats[collection.id].prototype > 0 && (
+                            <span style={{ color: '#3b82f6' }}>Prototip: {collectionStats[collection.id].prototype}</span>
+                          )}
+                          {collectionStats[collection.id].testing > 0 && (
+                            <span style={{ color: '#f59e0b' }}>Test: {collectionStats[collection.id].testing}</span>
+                          )}
+                          {collectionStats[collection.id].approved > 0 && (
+                            <span style={{ color: '#10b981' }}>Odobreno: {collectionStats[collection.id].approved}</span>
+                          )}
+                        </div>
+                      )}
+                      <button 
+                        className="collection-card-button"
+                        onClick={() => handleCollectionClick(collection.id)}
+                      >
+                        Pogledaj Kolekciju
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="collection-card-content">
-                  <div className="collection-card-header">
-                    <span className="collection-season">{collection.season} {collection.year}</span>
-                    <span className="collection-items">{collection.items}</span>
-                  </div>
-                  <h3 className="collection-card-title">{collection.name}</h3>
-                  <p className="collection-card-description">{collection.description}</p>
-                  <button className="collection-card-button">
-                    Pogledaj Kolekciju
-                  </button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* Blog kolekcije */}
+          {blogCollections.length > 0 && (
+            <div>
+              <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', fontWeight: '600' }}>
+                Blog Kolekcije
+              </h2>
+              <div className="collections-grid">
+                {blogCollections.map((collection) => (
+                  <div key={collection.id} className="collection-card">
+                    <div className="collection-card-image-wrapper">
+                      <img 
+                        src={collection.image_url || 'https://via.placeholder.com/400x500'} 
+                        alt={collection.name}
+                        className="collection-card-image"
+                      />
+                      <div className="collection-card-overlay">
+                        <span className="collection-status">{formatStatus(collection.status)}</span>
+                        {collection.event_date && (
+                          <span className="collection-event-date">
+                            {new Date(collection.event_date).toLocaleDateString('sr-RS')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="collection-card-content">
+                      <div className="collection-card-header">
+                        <span className="collection-season">{collection.season || 'N/A'}</span>
+                        {collectionStats[collection.id] && (
+                          <span className="collection-items">
+                            {collectionStats[collection.id].total} modela
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="collection-card-title">{collection.name}</h3>
+                      <p className="collection-card-description">{collection.description || ''}</p>
+                      {collection.event_date && (
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: '#666', 
+                          marginTop: '0.5rem'
+                        }}>
+                          Datum događaja: {new Date(collection.event_date).toLocaleDateString('sr-RS')}
+                        </div>
+                      )}
+                      {collectionStats[collection.id] && collectionStats[collection.id].total > 0 && (
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: '#666', 
+                          marginTop: '0.5rem',
+                          display: 'flex',
+                          gap: '0.5rem',
+                          flexWrap: 'wrap'
+                        }}>
+                          {collectionStats[collection.id].idea > 0 && (
+                            <span style={{ color: '#9ca3af' }}>Ideja: {collectionStats[collection.id].idea}</span>
+                          )}
+                          {collectionStats[collection.id].prototype > 0 && (
+                            <span style={{ color: '#3b82f6' }}>Prototip: {collectionStats[collection.id].prototype}</span>
+                          )}
+                          {collectionStats[collection.id].testing > 0 && (
+                            <span style={{ color: '#f59e0b' }}>Test: {collectionStats[collection.id].testing}</span>
+                          )}
+                          {collectionStats[collection.id].approved > 0 && (
+                            <span style={{ color: '#10b981' }}>Odobreno: {collectionStats[collection.id].approved}</span>
+                          )}
+                        </div>
+                      )}
+                      <button 
+                        className="collection-card-button"
+                        onClick={() => handleCollectionClick(collection.id)}
+                      >
+                        Pogledaj Kolekciju
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[SupabaseClient] ERROR: Missing required environment variables')
   throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables.')
 }
 
