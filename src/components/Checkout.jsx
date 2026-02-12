@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -12,6 +12,9 @@ const Checkout = () => {
 
   const [step, setStep] = useState(1) // 1 = delivery info, 2 = payment method
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [metamaskAccount, setMetamaskAccount] = useState(null)
+  const [isConnectingMetamask, setIsConnectingMetamask] = useState(false)
+  const [metamaskError, setMetamaskError] = useState('')
   const [formData, setFormData] = useState({
     firstName: profile?.full_name?.split(' ')[0] || '',
     lastName: profile?.full_name?.split(' ').slice(1).join(' ') || '',
@@ -24,6 +27,117 @@ const Checkout = () => {
   })
 
   const [errors, setErrors] = useState({})
+
+  // Provera da li je Metamask instaliran
+  const isMetamaskInstalled = () => {
+    if (typeof window === 'undefined') return false
+    return typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask
+  }
+
+  // Povezivanje sa Metamask novčanikom
+  const connectMetamask = async () => {
+    // Provera da li je Metamask instaliran pre nego što počnemo
+    if (!isMetamaskInstalled()) {
+      const shouldInstall = window.confirm(
+        'Metamask nije instaliran. Da li želite da otvorite stranicu za preuzimanje Metamask ekstenzije?'
+      )
+      if (shouldInstall) {
+        window.open('https://metamask.io/download/', '_blank')
+      }
+      return
+    }
+
+    setIsConnectingMetamask(true)
+    setMetamaskError('')
+
+    try {
+
+      // Zahtev za povezivanje sa Metamask-om
+      // Ovo će otvoriti Metamask prozor u pretraživaču (gore desno)
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts'
+      })
+
+      if (accounts && accounts.length > 0) {
+        setMetamaskAccount(accounts[0])
+        setPaymentMethod('metamask')
+        setMetamaskError('')
+      } else {
+        setMetamaskError('Nije moguće povezati se sa Metamask novčanikom.')
+      }
+    } catch (error) {
+      console.error('Metamask connection error:', error)
+      
+      // Različite greške za različite scenarije
+      if (error.code === 4001) {
+        setMetamaskError('Korisnik je odbio zahtev za povezivanje.')
+      } else if (error.code === -32002) {
+        setMetamaskError('Zahtev za povezivanje je već u toku. Proverite Metamask prozor.')
+      } else {
+        setMetamaskError('Greška prilikom povezivanja sa Metamask-om: ' + error.message)
+      }
+    } finally {
+      setIsConnectingMetamask(false)
+    }
+  }
+
+  // Provera trenutnog stanja Metamask konekcije
+  const checkMetamaskConnection = async () => {
+    if (!isMetamaskInstalled()) {
+      return
+    }
+
+    try {
+      const accounts = await window.ethereum.request({
+        method: 'eth_accounts'
+      })
+
+      if (accounts && accounts.length > 0) {
+        setMetamaskAccount(accounts[0])
+        if (paymentMethod === 'metamask') {
+          // Ako je već izabran Metamask, automatski ga postavi
+        }
+      }
+    } catch (error) {
+      console.error('Error checking Metamask connection:', error)
+    }
+  }
+
+  // Listener za promene Metamask naloga
+  useEffect(() => {
+    if (isMetamaskInstalled()) {
+      // Proveri konekciju kada se komponenta učita
+      checkMetamaskConnection()
+
+      // Dodaj listener za promene naloga
+      const handleAccountsChanged = (accounts) => {
+        if (accounts.length === 0) {
+          setMetamaskAccount(null)
+          if (paymentMethod === 'metamask') {
+            setPaymentMethod('')
+          }
+        } else {
+          setMetamaskAccount(accounts[0])
+          // Ako je Metamask već izabran, zadrži ga
+          if (paymentMethod === 'metamask') {
+            // Payment method je već postavljen
+          }
+        }
+      }
+
+      // Dodaj listener za promene naloga
+      if (window.ethereum.on) {
+        window.ethereum.on('accountsChanged', handleAccountsChanged)
+      }
+
+      // Cleanup
+      return () => {
+        if (window.ethereum && window.ethereum.removeListener) {
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+        }
+      }
+    }
+  }, [])
 
   const formatPrice = (price) =>
     new Intl.NumberFormat('sr-RS', {
@@ -93,10 +207,35 @@ const Checkout = () => {
       return
     }
 
+    // Za Metamask, proveri da li je povezan
+    if (paymentMethod === 'metamask' && !metamaskAccount) {
+      alert('Molimo povežite Metamask novčanik pre nastavka.')
+      await connectMetamask()
+      return
+    }
+
     try {
       const token = localStorage.getItem('auth_access_token')
       if (!token) {
         throw new Error('Niste autentifikovani')
+      }
+
+      // Za Metamask, možemo dodati wallet adresu u order data
+      const requestData = {
+        deliveryInfo: formData,
+        paymentMethod,
+        items: items.map(item => ({
+          product_id: item.product_id,
+          title: item.title,
+          price: item.price,
+          quantity: item.quantity,
+          size: item.size || null
+        }))
+      }
+
+      // Dodaj Metamask adresu ako je plaćanje preko Metamask-a
+      if (paymentMethod === 'metamask' && metamaskAccount) {
+        requestData.walletAddress = metamaskAccount
       }
 
       const response = await fetch('/api/orders', {
@@ -105,17 +244,7 @@ const Checkout = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          deliveryInfo: formData,
-          paymentMethod,
-          items: items.map(item => ({
-            product_id: item.product_id,
-            title: item.title,
-            price: item.price,
-            quantity: item.quantity,
-            size: item.size || null
-          }))
-        })
+        body: JSON.stringify(requestData)
       })
 
       if (!response.ok) {
@@ -123,8 +252,8 @@ const Checkout = () => {
         throw new Error(errorData.error || 'Greška prilikom kreiranja narudžbine')
       }
 
-      const orderData = await response.json()
-      console.log('Order created successfully:', orderData)
+      const orderResponse = await response.json()
+      console.log('Order created successfully:', orderResponse)
 
       // Clear cart after successful order
       try {
@@ -311,33 +440,63 @@ const Checkout = () => {
                 <h1>Odaberi način plaćanja</h1>
 
                 <div className="payment-info">
-                  {<p>
-                       { <p>
-                   Ovaj podatak se obrađuje isključivo radi eventualne zamene ili povrata i
-  čuva se u skladu sa važećim propisima o zaštiti podataka.
-                  </p> }
-                  </p> }
+                  <p>
+                    Prikupljanje broja Lične karte/Pasoša je novi zahtev od Poreske Uprave, te se eventualno obrađuje jedino u svrhu moguće zamene, i/ili povrata.
+                  </p>
                 </div>
+
+                {metamaskError && (
+                  <div className="metamask-error">
+                    <p>{metamaskError}</p>
+                    {!isMetamaskInstalled() && (
+                      <a 
+                        href="https://metamask.io/download/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="metamask-install-link"
+                      >
+                        Preuzmi Metamask
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 <div className="payment-methods">
                   <div
-                    className={`payment-method-card ${paymentMethod === 'metamask' ? 'selected' : ''}`}
-                    onClick={() => setPaymentMethod('metamask')}
+                    className={`payment-method-card ${paymentMethod === 'metamask' ? 'selected' : ''} ${isConnectingMetamask ? 'connecting' : ''}`}
+                    onClick={connectMetamask}
                   >
                     <div className="payment-method-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M21.5 2L12 8.5L2.5 2L12 0L21.5 2Z" fill="#F6851B"/>
-                        <path d="M2.5 2L12 8.5V24L2.5 18V2Z" fill="#E2761B"/>
-                        <path d="M21.5 2L12 8.5V24L21.5 18V2Z" fill="#CD6116"/>
-                        <path d="M12 8.5L2.5 2L7.5 6.5L12 8.5Z" fill="#E4751F"/>
-                        <path d="M21.5 2L12 8.5L16.5 6.5L21.5 2Z" fill="#F6851B"/>
-                        <path d="M2.5 18L12 24V8.5L2.5 18Z" fill="#C9AD63"/>
-                        <path d="M21.5 18L12 24V8.5L21.5 18Z" fill="#D7C1B3"/>
-                        <path d="M12 8.5L7.5 6.5L12 12.5V8.5Z" fill="#233447"/>
-                        <path d="M16.5 6.5L12 8.5V12.5L16.5 6.5Z" fill="#CD6116"/>
-                      </svg>
+                      {isConnectingMetamask ? (
+                        <div className="metamask-spinner"></div>
+                      ) : (
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M21.5 2L12 8.5L2.5 2L12 0L21.5 2Z" fill="#F6851B"/>
+                          <path d="M2.5 2L12 8.5V24L2.5 18V2Z" fill="#E2761B"/>
+                          <path d="M21.5 2L12 8.5V24L21.5 18V2Z" fill="#CD6116"/>
+                          <path d="M12 8.5L2.5 2L7.5 6.5L12 8.5Z" fill="#E4751F"/>
+                          <path d="M21.5 2L12 8.5L16.5 6.5L21.5 2Z" fill="#F6851B"/>
+                          <path d="M2.5 18L12 24V8.5L2.5 18Z" fill="#C9AD63"/>
+                          <path d="M21.5 18L12 24V8.5L21.5 18Z" fill="#D7C1B3"/>
+                          <path d="M12 8.5L7.5 6.5L12 12.5V8.5Z" fill="#233447"/>
+                          <path d="M16.5 6.5L12 8.5V12.5L16.5 6.5Z" fill="#CD6116"/>
+                        </svg>
+                      )}
                     </div>
-                    <span>Metamask novčanik</span>
+                    <span>
+                      {isConnectingMetamask 
+                        ? 'Povezivanje...' 
+                        : metamaskAccount 
+                          ? `Povezan: ${metamaskAccount.slice(0, 6)}...${metamaskAccount.slice(-4)}`
+                          : 'Metamask novčanik'
+                      }
+                    </span>
+                    {!isMetamaskInstalled() && !isConnectingMetamask && (
+                      <span className="metamask-install-hint">Klikni da instaliraš Metamask</span>
+                    )}
+                    {metamaskAccount && (
+                      <span className="metamask-connected-badge">✓ Povezan</span>
+                    )}
                   </div>
 
                   <div
