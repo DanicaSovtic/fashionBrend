@@ -8,6 +8,7 @@ import cartRouter from './routes/cart.js'
 import favoritesRouter from './routes/favorites.js'
 import collectionsRouter from './routes/collections.js'
 import blogRouter from './routes/blog.js'
+import ordersRouter from './routes/orders.js'
 
 dotenv.config()
 
@@ -60,6 +61,8 @@ app.use('/api', cartRouter)
 console.log('[Server] Cart router registered')
 app.use('/api', favoritesRouter)
 console.log('[Server] Favorites router registered')
+app.use('/api', ordersRouter)
+console.log('[Server] Orders router registered')
 
 // Catch-all za nepostojeće rute
 app.use('/api/*', (req, res, next) => {

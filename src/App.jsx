@@ -8,6 +8,7 @@ import CollectionDetail from './components/CollectionDetail'
 import Shop from './components/Shop'
 import Product from './components/Product'
 import CartPage from './components/CartPage'
+import Checkout from './components/Checkout'
 import CartDrawer from './components/CartDrawer'
 import CartFloatingButton from './components/CartFloatingButton'
 import ChatBotWidget from './components/ChatBotWidget'
@@ -51,6 +52,7 @@ const AppRoutes = () => {
           <Route path="/shop" element={<Shop />} />
           <Route path="/product/:productId" element={<Product />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<Checkout />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/blog" element={<Blog />} />

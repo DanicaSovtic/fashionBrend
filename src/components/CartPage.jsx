@@ -1,9 +1,11 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import Navbar from './Navbar'
 import './Cart.css'
 
 const CartPage = () => {
+  const navigate = useNavigate()
   const { items, total, updateQuantity, removeItem } = useCart()
 
   const formatPrice = (price) =>
@@ -87,6 +89,7 @@ const CartPage = () => {
               type="button"
               className="cart-checkout-button"
               disabled={items.length === 0}
+              onClick={() => navigate('/checkout')}
             >
               Nastavi na plaćanje
             </button>

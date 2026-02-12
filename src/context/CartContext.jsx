@@ -156,6 +156,25 @@ export const CartProvider = ({ children }) => {
     [items]
   )
 
+  const clearCart = async () => {
+    if (!user || !isKrajnjiKorisnik) {
+      return
+    }
+
+    try {
+      await apiFetch('/api/cart', {
+        method: 'DELETE'
+      })
+
+      // Refresh cart items (should be empty now)
+      const cartData = await apiFetch('/api/cart')
+      setItems(cartData || [])
+    } catch (error) {
+      console.error('Failed to clear cart', error)
+      throw error
+    }
+  }
+
   const value = useMemo(
     () => ({
       items,
@@ -166,6 +185,7 @@ export const CartProvider = ({ children }) => {
       addItem,
       removeItem,
       updateQuantity,
+      clearCart,
       openCart: () => setIsCartOpen(true),
       closeCart: () => setIsCartOpen(false),
       toggleCart: () => setIsCartOpen((prev) => !prev)
