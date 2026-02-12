@@ -66,74 +66,97 @@ create table if not exists returns (
   created_at timestamp with time zone default now()
 );
 
-create table if not exists delivery_issues (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references orders(id) on delete cascade,
-  issue_type text not null,
-  status text not null default 'open',
-  occurred_at timestamp with time zone default now(),
-  note text,
-  resolution_action text,
-  resolved_at timestamp with time zone,
-  last_updated_by text,
-  created_at timestamp with time zone default now(),
-  updated_at timestamp with time zone default now()
-);
-
-create table if not exists delivery_issue_comments (
-  id uuid primary key default gen_random_uuid(),
-  issue_id uuid not null references delivery_issues(id) on delete cascade,
-  author text,
-  body text not null,
-  created_at timestamp with time zone default now()
-);
-
-alter table delivery_issues
-  drop constraint if exists delivery_issues_status_check;
-
-alter table delivery_issues
-  add constraint delivery_issues_status_check check (
-    status in ('open', 'in_progress', 'resolved')
-  );
-
-alter table delivery_issues
-  drop constraint if exists delivery_issues_type_check;
-
-alter table delivery_issues
-  add constraint delivery_issues_type_check check (
-    issue_type in (
-      'customer_unavailable',
-      'wrong_address',
-      'package_damaged',
-      'returned_shipment',
-      'other'
-    )
-  );
-
-create table if not exists carts (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamp with time zone default now()
-);
-
+-- Cart items table - directly linked to users
+-- First, ensure the table exists (may have old structure)
 create table if not exists cart_items (
   id uuid primary key default gen_random_uuid(),
-  cart_id uuid not null references carts(id) on delete cascade,
+  cart_id uuid,
   product_id uuid not null references products(id) on delete restrict,
-  quantity int not null,
+  quantity int not null default 1,
   created_at timestamp with time zone default now()
 );
 
+-- Remove NOT NULL constraint from cart_id if it exists (we don't use it anymore)
+alter table cart_items alter column cart_id drop not null;
+
+-- Add missing columns if they don't exist
+alter table cart_items add column if not exists user_id uuid references profiles(user_id) on delete cascade;
+alter table cart_items add column if not exists size text;
+alter table cart_items add column if not exists updated_at timestamp with time zone default now();
+
+-- Optionally drop cart_id column completely (uncomment if you want to remove it)
+-- alter table cart_items drop column if exists cart_id;
+
+-- Drop old unique index if it exists (to avoid conflicts)
+drop index if exists cart_items_user_product_size_unique;
+
+-- Create unique index to prevent duplicate cart items (treats NULL size as empty string)
+-- Using a partial index that only applies when user_id is not null
+create unique index if not exists cart_items_user_product_size_unique 
+  on cart_items(user_id, product_id, coalesce(size, ''))
+  where user_id is not null;
+
+alter table cart_items enable row level security;
+
+drop policy if exists "Users can view their own cart items" on cart_items;
+create policy "Users can view their own cart items"
+  on cart_items for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own cart items" on cart_items;
+create policy "Users can insert their own cart items"
+  on cart_items for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own cart items" on cart_items;
+create policy "Users can update their own cart items"
+  on cart_items for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own cart items" on cart_items;
+create policy "Users can delete their own cart items"
+  on cart_items for delete
+  using (auth.uid() = user_id);
+
+-- Favorites table - directly linked to users
+-- First, ensure the table exists (may have old structure)
 create table if not exists favorites (
   id uuid primary key default gen_random_uuid(),
   created_at timestamp with time zone default now()
 );
 
-create table if not exists favorite_items (
-  id uuid primary key default gen_random_uuid(),
-  favorite_id uuid not null references favorites(id) on delete cascade,
-  product_id uuid not null references products(id) on delete restrict,
-  created_at timestamp with time zone default now()
-);
+-- Add missing columns if they don't exist
+alter table favorites add column if not exists user_id uuid references profiles(user_id) on delete cascade;
+alter table favorites add column if not exists product_id uuid references products(id) on delete restrict;
+
+-- Drop old unique constraint if it exists
+alter table favorites drop constraint if exists favorites_user_id_product_id_key;
+alter table favorites drop constraint if exists favorites_user_id_fkey;
+alter table favorites drop constraint if exists favorites_product_id_fkey;
+
+-- Create unique constraint to prevent duplicate favorites
+-- Using a partial unique index that only applies when user_id and product_id are not null
+create unique index if not exists favorites_user_product_unique 
+  on favorites(user_id, product_id)
+  where user_id is not null and product_id is not null;
+
+alter table favorites enable row level security;
+
+drop policy if exists "Users can view their own favorites" on favorites;
+create policy "Users can view their own favorites"
+  on favorites for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own favorites" on favorites;
+create policy "Users can insert their own favorites"
+  on favorites for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own favorites" on favorites;
+create policy "Users can delete their own favorites"
+  on favorites for delete
+  using (auth.uid() = user_id);
 
 create table if not exists profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -178,6 +201,50 @@ create policy "Profiles can be updated by owner without role change"
     auth.uid() = user_id
     and role = (select p.role from profiles p where p.user_id = auth.uid())
   );
+
+create table if not exists delivery_issues (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  issue_type text not null,
+  status text not null default 'open',
+  occurred_at timestamp with time zone default now(),
+  note text,
+  resolution_action text,
+  resolved_at timestamp with time zone,
+  last_updated_by text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table delivery_issues
+  drop constraint if exists delivery_issues_status_check;
+
+alter table delivery_issues
+  add constraint delivery_issues_status_check check (
+    status in ('open', 'in_progress', 'resolved')
+  );
+
+alter table delivery_issues
+  drop constraint if exists delivery_issues_type_check;
+
+alter table delivery_issues
+  add constraint delivery_issues_type_check check (
+    issue_type in (
+      'customer_unavailable',
+      'wrong_address',
+      'package_damaged',
+      'returned_shipment',
+      'other'
+    )
+  );
+
+create table if not exists delivery_issue_comments (
+  id uuid primary key default gen_random_uuid(),
+  issue_id uuid not null references delivery_issues(id) on delete cascade,
+  author text,
+  body text not null,
+  created_at timestamp with time zone default now()
+);
 
 create table if not exists collections (
   id uuid primary key default gen_random_uuid(),
@@ -280,7 +347,8 @@ values
   ('22222222-2222-2222-2222-222222222222', 'Noir Atelier FW26', 'FW26', 'planned', '2026-08-01', '2026-11-30',
    'Struktura i tekstura u tamnijoj paleti za gradsku eleganciju.'),
   ('33333333-3333-3333-3333-333333333333', 'Essenza Resort 25', 'Resort 25', 'archived', '2025-01-01', '2025-04-30',
-   'Arhivirana kolekcija sa fokusom na resort komade.');
+   'Arhivirana kolekcija sa fokusom na resort komade.')
+on conflict (id) do nothing;
 
 insert into product_models (
   id, collection_id, name, sku, category, development_stage,
@@ -318,7 +386,8 @@ values
     'Lan 280g; Pamuk podstava',
     'S-XXL, korekcije u ramenima',
     'Testirati dugmad i opterecenje na sramenima.'
-  );
+  )
+on conflict (id) do nothing;
 
 insert into product_model_versions (id, model_id, version_number, change_summary, payload)
 values
@@ -327,7 +396,8 @@ values
    '{"palette":["pearl","misty rose","soft lilac"],"materials":["Svila 22 momme","Viskoza postava"]}'),
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 1,
    'Dodate varijante i korekcije kroja',
-   '{"variants":["Cropped","Regular"],"pattern":"Dvostruko postavljen rever"}');
+   '{"variants":["Cropped","Regular"],"pattern":"Dvostruko postavljen rever"}')
+on conflict (id) do nothing;
 
 insert into product_model_comments (id, model_id, author_name, role, body)
 values
@@ -336,7 +406,8 @@ values
    'Predlog: ojacati savove na ramenom delu zbog tezine materijala.'),
   ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
    'Nikola Ilic', 'tester_kvaliteta',
-   'Fit test pokazuje potrebu za +1cm u struku za velicinu M.');
+   'Fit test pokazuje potrebu za +1cm u struku za velicinu M.')
+on conflict (id) do nothing;
 
 insert into product_model_approvals (id, model_id, approval_item, status, note)
 values
@@ -345,7 +416,8 @@ values
   ('88888888-8888-8888-8888-888888888888', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
    'Krojevi', 'approved', 'Odobreno nakon druge probe.'),
   ('77777777-7777-7777-7777-777777777777', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-   'Fit test', 'changes_required', 'Potrebne korekcije u struku.');
+   'Fit test', 'changes_required', 'Potrebne korekcije u struku.')
+on conflict (id) do nothing;
 
 insert into product_model_media (id, model_id, image_url, label, is_primary)
 values
@@ -354,4 +426,5 @@ values
    'Glavna fotografija', true),
   ('55555555-5555-5555-5555-555555555555', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
    'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=800&q=80',
-   'Lookbook', true);
+   'Lookbook', true)
+on conflict (id) do nothing;

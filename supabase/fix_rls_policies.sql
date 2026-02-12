@@ -1,0 +1,69 @@
+-- ============================================
+-- SQL UPITI ZA ISPRAVKU RLS POLITIKA
+-- Problem: RLS politike ne dozvoljavaju INSERT operacije
+-- ============================================
+
+-- 1. OBRISI POSTOJEĆE POLITIKE ZA cart_items
+DROP POLICY IF EXISTS "Users can view their own cart items" ON cart_items;
+DROP POLICY IF EXISTS "Users can insert their own cart items" ON cart_items;
+DROP POLICY IF EXISTS "Users can update their own cart items" ON cart_items;
+DROP POLICY IF EXISTS "Users can delete their own cart items" ON cart_items;
+
+-- 2. KREIRAJ NOVE POLITIKE ZA cart_items
+-- SELECT - korisnici mogu da vide samo svoje stavke
+CREATE POLICY "Users can view their own cart items"
+  ON cart_items FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- INSERT - korisnici mogu da dodaju samo svoje stavke
+-- Važno: user_id mora biti jednak auth.uid()
+-- (Provera uloge se radi u backend middleware-u)
+CREATE POLICY "Users can insert their own cart items"
+  ON cart_items FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- UPDATE - korisnici mogu da ažuriraju samo svoje stavke
+CREATE POLICY "Users can update their own cart items"
+  ON cart_items FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- DELETE - korisnici mogu da brišu samo svoje stavke
+CREATE POLICY "Users can delete their own cart items"
+  ON cart_items FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- 3. OBRISI POSTOJEĆE POLITIKE ZA favorites
+DROP POLICY IF EXISTS "Users can view their own favorites" ON favorites;
+DROP POLICY IF EXISTS "Users can insert their own favorites" ON favorites;
+DROP POLICY IF EXISTS "Users can delete their own favorites" ON favorites;
+
+-- 4. KREIRAJ NOVE POLITIKE ZA favorites
+-- SELECT - korisnici mogu da vide samo svoje omiljene proizvode
+CREATE POLICY "Users can view their own favorites"
+  ON favorites FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- INSERT - korisnici mogu da dodaju samo svoje omiljene proizvode
+-- Važno: user_id mora biti jednak auth.uid()
+-- (Provera uloge se radi u backend middleware-u)
+CREATE POLICY "Users can insert their own favorites"
+  ON favorites FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- DELETE - korisnici mogu da brišu samo svoje omiljene proizvode
+CREATE POLICY "Users can delete their own favorites"
+  ON favorites FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- 5. PROVERA - Da li su politike kreirane
+SELECT 
+    schemaname,
+    tablename,
+    policyname,
+    cmd,
+    qual,
+    with_check
+FROM pg_policies
+WHERE tablename IN ('cart_items', 'favorites')
+ORDER BY tablename, policyname;

@@ -13,7 +13,7 @@ const FAQS = [
     id: 'payment',
     question: 'Koje načine plaćanja prihvatate?',
     answer:
-      'Možete platiti karticom ili pouzećem. Ako imate firmu, možemo poslati i račun po zahtevu.',
+      'Kao savremeni modni brend koji prati trendove ne samo u dizajnu već i u tehnologiji, omogućavamo vam fleksibilne i moderne načine plaćanja. Kupovinu možete izvršiti pouzećem, što znači da porudžbinu plaćate prilikom preuzimanja paketa, brzo i jednostavno. Takođe, pratimo digitalne inovacije, pa nudimo mogućnost plaćanja putem MetaMask novčanika, omogućavajući sigurnu i savremenu kripto transakciju za sve koji preferiraju Web3 način plaćanja. Naš cilj je da vam pružimo jednostavno, bezbedno i moderno iskustvo kupovine — od izbora proizvoda do finalnog plaćanja. ✨',
     keywords: ['plaćanje', 'kartica', 'pouzeć', 'račun', 'uplata'],
   },
   {

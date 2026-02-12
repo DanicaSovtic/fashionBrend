@@ -1,86 +1,145 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { useAuth } from './AuthContext.jsx'
 
 const CartContext = createContext(null)
-const STORAGE_KEY = 'piccola_cart'
+const AUTH_STORAGE_KEY = 'auth_access_token'
+
+const getStoredToken = () => localStorage.getItem(AUTH_STORAGE_KEY)
+
+const apiFetch = async (path, options = {}) => {
+  const token = getStoredToken()
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {})
+  }
+
+  const response = await fetch(path, {
+    ...options,
+    headers
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const message = data?.error || 'Request failed'
+    throw new Error(message)
+  }
+
+  return data
+}
+
+const buildItemKey = (id, size) => `${id}::${size || 'na'}`
 
 export const CartProvider = ({ children }) => {
+  const { user, profile } = useAuth()
   const [items, setItems] = useState([])
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
 
+  const isKrajnjiKorisnik = profile?.role === 'krajnji_korisnik'
+
+  // Load cart items from API when user logs in
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
+    const loadCartItems = async () => {
+      if (!user || !isKrajnjiKorisnik) {
+        setItems([])
+        return
+      }
+
+      setLoading(true)
       try {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed)) {
-          const normalized = parsed.map((item) => {
-            if (item.key) {
-              return item
-            }
-            const sizeValue = item.size || ''
-            return {
-              ...item,
-              size: sizeValue,
-              key: buildItemKey(item.id, sizeValue)
-            }
-          })
-          setItems(normalized)
-        }
+        const data = await apiFetch('/api/cart')
+        setItems(data || [])
       } catch (error) {
-        console.error('Failed to parse cart storage', error)
+        console.error('Failed to load cart items', error)
+        setItems([])
+      } finally {
+        setLoading(false)
       }
     }
-  }, [])
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  }, [items])
+    loadCartItems()
+  }, [user, isKrajnjiKorisnik])
 
-  const buildItemKey = (id, size) => `${id}::${size || 'na'}`
-
-  const addItem = (product, size) => {
+  const addItem = async (product, size) => {
     if (!product?.id) {
       return
     }
-    const itemKey = buildItemKey(product.id, size)
-    setItems((prev) => {
-      const existing = prev.find((item) => item.key === itemKey)
-      if (existing) {
-        return prev.map((item) =>
-          item.key === itemKey
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      }
-      return [
-        ...prev,
-        {
-          key: itemKey,
-          id: product.id,
-          title: product.title,
-          price: Number(product.price) || 0,
-          image_url: product.image_url || '',
-          size: size || '',
-          quantity: 1
-        }
-      ]
-    })
-  }
 
-  const removeItem = (key) => {
-    setItems((prev) => prev.filter((item) => item.key !== key))
-  }
+    if (!user || !isKrajnjiKorisnik) {
+      // If not logged in as krajnji_korisnik, show error or redirect to login
+      console.warn('User must be logged in as krajnji_korisnik to add items to cart')
+      return
+    }
 
-  const updateQuantity = (key, delta) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.key !== key) {
-          return item
-        }
-        const nextQuantity = Math.max(1, item.quantity + delta)
-        return { ...item, quantity: nextQuantity }
+    try {
+      const data = await apiFetch('/api/cart', {
+        method: 'POST',
+        body: JSON.stringify({
+          product_id: product.id,
+          quantity: 1,
+          size: size || null
+        })
       })
-    )
+
+      // Refresh cart items
+      const cartData = await apiFetch('/api/cart')
+      setItems(cartData || [])
+    } catch (error) {
+      console.error('Failed to add item to cart', error)
+      throw error
+    }
+  }
+
+  const removeItem = async (key) => {
+    if (!user || !isKrajnjiKorisnik) {
+      return
+    }
+
+    const item = items.find((i) => i.key === key)
+    if (!item || !item.id) {
+      return
+    }
+
+    try {
+      await apiFetch(`/api/cart/${item.id}`, {
+        method: 'DELETE'
+      })
+
+      // Refresh cart items
+      const cartData = await apiFetch('/api/cart')
+      setItems(cartData || [])
+    } catch (error) {
+      console.error('Failed to remove item from cart', error)
+      throw error
+    }
+  }
+
+  const updateQuantity = async (key, delta) => {
+    if (!user || !isKrajnjiKorisnik) {
+      return
+    }
+
+    const item = items.find((i) => i.key === key)
+    if (!item || !item.id) {
+      return
+    }
+
+    const newQuantity = Math.max(1, item.quantity + delta)
+
+    try {
+      await apiFetch(`/api/cart/${item.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ quantity: newQuantity })
+      })
+
+      // Refresh cart items
+      const cartData = await apiFetch('/api/cart')
+      setItems(cartData || [])
+    } catch (error) {
+      console.error('Failed to update cart item quantity', error)
+      throw error
+    }
   }
 
   const total = useMemo(
@@ -103,6 +162,7 @@ export const CartProvider = ({ children }) => {
       total,
       totalItems,
       isCartOpen,
+      loading,
       addItem,
       removeItem,
       updateQuantity,
@@ -110,7 +170,7 @@ export const CartProvider = ({ children }) => {
       closeCart: () => setIsCartOpen(false),
       toggleCart: () => setIsCartOpen((prev) => !prev)
     }),
-    [items, total, totalItems, isCartOpen]
+    [items, total, totalItems, isCartOpen, loading]
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
