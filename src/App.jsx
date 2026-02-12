@@ -28,6 +28,7 @@ const AppRoutes = () => {
   const { profile } = useAuth()
   const isDistributor = profile?.role === 'distributer'
   const isDesigner = profile?.role === 'modni_dizajner'
+  const isEndUser = profile?.role === 'krajnji_korisnik'
 
   return (
     <Routes>
@@ -36,8 +37,14 @@ const AppRoutes = () => {
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/collection" element={<Collection />} />
-          <Route path="/collection/:id" element={<CollectionDetail />} />
+          <Route
+            path="/collection"
+            element={isEndUser ? <Navigate to="/" replace /> : <Collection />}
+          />
+          <Route
+            path="/collection/:id"
+            element={isEndUser ? <Navigate to="/" replace /> : <CollectionDetail />}
+          />
           <Route path="/shop" element={<Shop />} />
           <Route path="/product/:productId" element={<Product />} />
           <Route path="/cart" element={<CartPage />} />

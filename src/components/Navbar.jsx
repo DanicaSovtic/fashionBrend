@@ -65,14 +65,16 @@ const Navbar = ({ activePath }) => {
                   Prodavnica
                 </Link>
               </li>
-              <li className="navbar-item">
-                <Link
-                  to="/collection"
-                  className={`navbar-link ${isActive('/collection') ? 'active' : ''}`}
-                >
-                  Kolekcije
-                </Link>
-              </li>
+              {profile?.role !== 'krajnji_korisnik' && (
+                <li className="navbar-item">
+                  <Link
+                    to="/collection"
+                    className={`navbar-link ${isActive('/collection') ? 'active' : ''}`}
+                  >
+                    Kolekcije
+                  </Link>
+                </li>
+              )}
               {profile?.role !== 'superadmin' && !isDesigner && (
                 <li className="navbar-item">
                   <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
