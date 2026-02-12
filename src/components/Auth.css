@@ -50,6 +50,57 @@
   font-size: 14px;
 }
 
+.auth-form input:focus,
+.auth-form select:focus,
+.auth-form input:focus-visible,
+.auth-form select:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.auth-password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-password-field input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #5d5a55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+}
+
+.auth-password-toggle:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.auth-password-toggle:focus-visible,
+.auth-password-toggle:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.auth-password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 .auth-form button,
 .auth-profile button {
   height: 42px;

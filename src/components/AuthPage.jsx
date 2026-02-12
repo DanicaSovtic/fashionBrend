@@ -8,6 +8,7 @@ const AuthPage = () => {
   const navigate = useNavigate()
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
 
@@ -63,12 +64,27 @@ const AuthPage = () => {
             </label>
             <label>
               Lozinka
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(event) => setLoginPassword(event.target.value)}
-                required
-              />
+              <div className="auth-password-field">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Sakrij lozinku' : 'Prikazi lozinku'}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 5c-5.5 0-9.5 4.8-10.7 6.4a1 1 0 0 0 0 1.2C2.5 14.2 6.5 19 12 19s9.5-4.8 10.7-6.4a1 1 0 0 0 0-1.2C21.5 9.8 17.5 5 12 5zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
             </label>
             <button type="submit">Uloguj se</button>
           </form>
