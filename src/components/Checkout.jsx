@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ethers } from 'ethers'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import {
+  switchToSepolia,
+  rsdToWei,
+  weiToEth,
+  SEPOLIA_CHAIN_ID_HEX
+} from '../lib/blockchain'
 import Navbar from './Navbar'
 import './Checkout.css'
+
+const ABI_PAY_FOR_ORDER = [
+  'function payForOrder(bytes32 orderId) payable'
+]
 
 const Checkout = () => {
   const navigate = useNavigate()
@@ -15,6 +26,7 @@ const Checkout = () => {
   const [metamaskAccount, setMetamaskAccount] = useState(null)
   const [isConnectingMetamask, setIsConnectingMetamask] = useState(false)
   const [metamaskError, setMetamaskError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     firstName: profile?.full_name?.split(' ')[0] || '',
     lastName: profile?.full_name?.split(' ').slice(1).join(' ') || '',
@@ -201,74 +213,190 @@ const Checkout = () => {
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!paymentMethod) {
       alert('Molimo izaberite način plaćanja')
       return
     }
 
-    // Za Metamask, proveri da li je povezan
     if (paymentMethod === 'metamask' && !metamaskAccount) {
       alert('Molimo povežite Metamask novčanik pre nastavka.')
       await connectMetamask()
       return
     }
 
-    try {
-      const token = localStorage.getItem('auth_access_token')
-      if (!token) {
-        throw new Error('Niste autentifikovani')
-      }
-
-      // Za Metamask, možemo dodati wallet adresu u order data
-      const requestData = {
-        deliveryInfo: formData,
-        paymentMethod,
-        items: items.map(item => ({
-          product_id: item.product_id,
-          title: item.title,
-          price: item.price,
-          quantity: item.quantity,
-          size: item.size || null
-        }))
-      }
-
-      // Dodaj Metamask adresu ako je plaćanje preko Metamask-a
-      if (paymentMethod === 'metamask' && metamaskAccount) {
-        requestData.walletAddress = metamaskAccount
-      }
-
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(requestData)
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Greška prilikom kreiranja narudžbine')
-      }
-
-      const orderResponse = await response.json()
-      console.log('Order created successfully:', orderResponse)
-
-      // Clear cart after successful order
-      try {
-        await clearCart()
-      } catch (clearError) {
-        console.error('Failed to clear cart:', clearError)
-        // Don't fail the order if cart clearing fails
-      }
-
-      alert('Narudžbina je uspešno kreirana!')
-      navigate('/cart')
-    } catch (error) {
-      console.error('Error creating order:', error)
-      alert(error.message || 'Došlo je do greške prilikom kreiranja narudžbine.')
+    const token = localStorage.getItem('auth_access_token')
+    if (!token) {
+      alert('Niste autentifikovani')
+      return
     }
+
+    setIsSubmitting(true)
+    setMetamaskError('')
+
+    try {
+      if (paymentMethod === 'metamask') {
+        await handleMetamaskPayment(token)
+      } else {
+        await handleOtherPayment(token)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      const msg = error?.reason || error?.message || 'Došlo je do greške.'
+      setMetamaskError(msg)
+      alert(msg)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleMetamaskPayment = async (token) => {
+    // 1. Prebaci na Sepolia testnet
+    await switchToSepolia()
+
+    // 2. Proveri da li smo na Sepolia
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' })
+    if (chainId !== SEPOLIA_CHAIN_ID_HEX) {
+      throw new Error('MetaMask mora biti na Sepolia testnet mreži.')
+    }
+
+    // 3. Konfiguracija i izračun iznosa
+    const configRes = await fetch('/api/config/blockchain')
+    const config = await configRes.json()
+    const amountWei = rsdToWei(total, config.rsdRate)
+    const ethAmount = weiToEth(amountWei)
+
+    // 4. Kreiraj narudžbinu u bazi (status: pending_blockchain)
+    const requestData = {
+      deliveryInfo: formData,
+      paymentMethod: 'metamask',
+      walletAddress: metamaskAccount,
+      items: items.map(item => ({
+        product_id: item.product_id,
+        title: item.title,
+        price: item.price,
+        quantity: item.quantity,
+        size: item.size || null
+      }))
+    }
+
+    const orderRes = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(requestData)
+    })
+
+    if (!orderRes.ok) {
+      const errData = await orderRes.json().catch(() => ({}))
+      throw new Error(errData.error || 'Greška pri kreiranju narudžbine')
+    }
+
+    const order = await orderRes.json()
+    const orderId = order.id
+
+    let txHash, blockNumber, contractAddress
+
+    if (config.contractAddress) {
+      // 5a. Plaćanje preko smart contracta
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      const contract = new ethers.Contract(config.contractAddress, ABI_PAY_FOR_ORDER, signer)
+      const orderIdBytes32 = ethers.id(orderId)
+
+      const tx = await contract.payForOrder(orderIdBytes32, { value: amountWei })
+      const receipt = await tx.wait()
+
+      txHash = receipt.hash
+      blockNumber = Number(receipt.blockNumber)
+      contractAddress = config.contractAddress
+    } else if (config.brandOwnerWallet && config.brandOwnerWallet !== '0x0000000000000000000000000000000000000000') {
+      // 5b. Fallback: direktan ETH transfer na adresu brenda (bez contracta)
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+
+      const tx = await signer.sendTransaction({
+        to: config.brandOwnerWallet,
+        value: amountWei
+      })
+      const receipt = await tx.wait()
+
+      txHash = receipt.hash
+      blockNumber = Number(receipt.blockNumber)
+    } else {
+      throw new Error(
+        'Blockchain nije konfigurisan. Postavi ORDER_PAYMENT_CONTRACT u backend .env. ' +
+        'Za testiranje: uzmi besplatan Sepolia ETH sa https://sepoliafaucet.org'
+      )
+    }
+
+    // 6. Potvrdi plaćanje na backendu (dual storage: baza + blockchain)
+    const confirmRes = await fetch(`/api/orders/${orderId}/confirm-payment`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        txHash,
+        amountWei: amountWei.toString(),
+        blockNumber,
+        contractAddress: contractAddress || null
+      })
+    })
+
+    if (!confirmRes.ok) {
+      const errData = await confirmRes.json().catch(() => ({}))
+      throw new Error(errData.error || 'Greška pri potvrdi plaćanja')
+    }
+
+    try {
+      await clearCart()
+    } catch (clearError) {
+      console.error('Failed to clear cart:', clearError)
+    }
+
+    alert(`Narudžbina uspešna! Transakcija: ${txHash.slice(0, 10)}...`)
+    navigate('/cart')
+  }
+
+  const handleOtherPayment = async (token) => {
+    const requestData = {
+      deliveryInfo: formData,
+      paymentMethod,
+      items: items.map(item => ({
+        product_id: item.product_id,
+        title: item.title,
+        price: item.price,
+        quantity: item.quantity,
+        size: item.size || null
+      }))
+    }
+
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(requestData)
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Greška prilikom kreiranja narudžbine')
+    }
+
+    try {
+      await clearCart()
+    } catch (clearError) {
+      console.error('Failed to clear cart:', clearError)
+    }
+
+    alert('Narudžbina je uspešno kreirana!')
+    navigate('/cart')
   }
 
   if (items.length === 0) {
@@ -443,6 +571,12 @@ const Checkout = () => {
                   <p>
                     Prikupljanje broja Lične karte/Pasoša je novi zahtev od Poreske Uprave, te se eventualno obrađuje jedino u svrhu moguće zamene, i/ili povrata.
                   </p>
+                  {paymentMethod === 'metamask' && (
+                    <p className="payment-info-testnet">
+                      Plaćanje preko Sepolia testneta. Besplatan test ETH:{' '}
+                      <a href="https://sepoliafaucet.org" target="_blank" rel="noopener noreferrer">sepoliafaucet.org</a>
+                    </p>
+                  )}
                 </div>
 
                 {metamaskError && (
@@ -497,6 +631,11 @@ const Checkout = () => {
                     {metamaskAccount && (
                       <span className="metamask-connected-badge">✓ Povezan</span>
                     )}
+                    {paymentMethod === 'metamask' && metamaskAccount && total > 0 && (
+                      <span className="metamask-eth-hint">
+                        ≈ {weiToEth(rsdToWei(total))} ETH (Sepolia testnet)
+                      </span>
+                    )}
                   </div>
 
                   <div
@@ -538,8 +677,8 @@ const Checkout = () => {
                   >
                     ← Nazad na podatke za isporuku
                   </button>
-                  <button type="submit" className="checkout-btn checkout-btn-primary" disabled={!paymentMethod}>
-                    Završi narudžbinu
+                  <button type="submit" className="checkout-btn checkout-btn-primary" disabled={!paymentMethod || isSubmitting}>
+                    {isSubmitting ? 'Obrada...' : 'Završi narudžbinu'}
                   </button>
                 </div>
               </form>

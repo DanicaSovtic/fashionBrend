@@ -1,4 +1,4 @@
-import { createAuthedClient } from '../services/supabaseClient.js'
+import { createAuthedClient, createAdminClient } from '../services/supabaseClient.js'
 
 const getAccessToken = (req) => {
   const header = req.headers.authorization || ''
@@ -47,31 +47,57 @@ export const requireRole = (allowedRoles = []) => {
       }
 
       if (!req.profile) {
-        const { data, error } = await req.supabase
+        // Admin client za profil – zaobilazi RLS, osigurava tačan role check
+        const adminSupabase = createAdminClient()
+        console.log('[AuthMiddleware] requireRole - Fetching profile for user_id:', req.user.id)
+        const { data, error } = await adminSupabase
           .from('profiles')
           .select('*')
           .eq('user_id', req.user.id)
           .single()
 
         if (error) {
-          res.status(403).json({ error: 'Profile not found', details: error.message })
+          console.error('[AuthMiddleware] requireRole - Profile fetch error:', error)
+          res.status(403).json({ error: 'Profile not found', details: error.message, user_id: req.user.id })
           return
         }
 
+        console.log('[AuthMiddleware] requireRole - Profile found:', { user_id: data.user_id, full_name: data.full_name, role: data.role })
         req.profile = data
       }
 
-      if (!allowedRoles.includes(req.profile.role)) {
-        if (req.profile.role === 'superadmin') {
+      const userRole = req.profile?.role ?? null
+      // Normalizuj ulogu - trim i lowercase za poređenje
+      const normalizedUserRole = userRole ? userRole.trim().toLowerCase() : null
+      const normalizedAllowedRoles = allowedRoles.map(r => r.trim().toLowerCase())
+      
+      console.log('[AuthMiddleware] requireRole - Checking role:', { 
+        userRole, 
+        normalizedUserRole,
+        allowedRoles, 
+        normalizedAllowedRoles,
+        match: normalizedAllowedRoles.includes(normalizedUserRole)
+      })
+      
+      if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
+        if (userRole === 'superadmin') {
+          console.log('[AuthMiddleware] requireRole - Superadmin access granted')
           next()
           return
         }
+        console.log('[AuthMiddleware] requireRole - Access denied:', { userRole, allowedRoles })
         res.status(403).json({ 
           error: 'Forbidden',
-          message: `Access denied. Required role: ${allowedRoles.join(' or ')}, but user has role: ${req.profile.role}`
+          message: `Access denied. Required role: ${allowedRoles.join(' or ')}, but user has role: ${userRole === null ? '(null)' : userRole}`,
+          userRole,
+          normalizedUserRole,
+          allowedRoles,
+          normalizedAllowedRoles
         })
         return
       }
+      
+      console.log('[AuthMiddleware] requireRole - Access granted')
 
       next()
     } catch (error) {

@@ -22,6 +22,8 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import LogisticsDashboard from './components/LogisticsDashboard'
 import LogisticsIssuesPage from './components/LogisticsIssuesPage'
 import DesignerCollectionsPage from './components/DesignerCollectionsPage'
+import TesterCollectionsPage from './components/TesterCollectionsPage'
+import LabDashboard from './components/LabDashboard'
 import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import AdminBlog from './components/AdminBlog'
@@ -32,6 +34,8 @@ const AppRoutes = () => {
   const { profile } = useAuth()
   const isDistributor = profile?.role === 'distributer'
   const isDesigner = profile?.role === 'modni_dizajner'
+  const isTester = profile?.role === 'tester_kvaliteta'
+  const isLaborant = profile?.role === 'laborant'
   const isEndUser = profile?.role === 'krajnji_korisnik'
 
   return (
@@ -60,6 +64,14 @@ const AppRoutes = () => {
           <Route
             path="/designer/collections"
             element={isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/tester/collections"
+            element={isTester ? <TesterCollectionsPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/lab/dashboard"
+            element={isLaborant ? <LabDashboard /> : <Navigate to="/" replace />}
           />
           <Route
             path="/admin/blog"

@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
-import { createOrder, getUserOrders } from '../services/orderService.js'
+import { createOrder, getUserOrders, confirmBlockchainPayment } from '../services/orderService.js'
 import { createAdminClient } from '../services/supabaseClient.js'
 
 const router = Router()
@@ -11,7 +11,7 @@ const adminSupabase = createAdminClient()
 // Create new order
 router.post('/orders', requireAuth, requireRole(['krajnji_korisnik']), async (req, res, next) => {
   try {
-    const { deliveryInfo, paymentMethod, items } = req.body
+    const { deliveryInfo, paymentMethod, items, walletAddress } = req.body
 
     if (!deliveryInfo || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: 'Missing required fields: deliveryInfo, paymentMethod, and items are required' })
@@ -23,7 +23,8 @@ router.post('/orders', requireAuth, requireRole(['krajnji_korisnik']), async (re
       req.user.id,
       {
         ...deliveryInfo,
-        paymentMethod
+        paymentMethod,
+        walletAddress
       },
       items
     )
@@ -31,6 +32,26 @@ router.post('/orders', requireAuth, requireRole(['krajnji_korisnik']), async (re
     res.status(201).json(order)
   } catch (error) {
     console.error('[OrderRoute] Error creating order:', error)
+    next(error)
+  }
+})
+
+// Confirm blockchain payment (MetaMask)
+router.patch('/orders/:orderId/confirm-payment', requireAuth, requireRole(['krajnji_korisnik']), async (req, res, next) => {
+  try {
+    const { orderId } = req.params
+    const { txHash, amountWei, blockNumber, contractAddress } = req.body
+
+    const order = await confirmBlockchainPayment(
+      adminSupabase,
+      orderId,
+      req.user.id,
+      { txHash, amountWei, blockNumber, contractAddress }
+    )
+
+    res.json(order)
+  } catch (error) {
+    console.error('[OrderRoute] Error confirming payment:', error)
     next(error)
   }
 })

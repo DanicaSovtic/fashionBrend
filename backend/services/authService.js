@@ -7,6 +7,7 @@ const ALLOWED_ROLES = new Set([
   'dobavljac',
   'proizvodjac',
   'tester_kvaliteta',
+  'laborant',
   'distributer',
   'krajnji_korisnik'
 ])
@@ -17,6 +18,7 @@ const ROLE_LABELS = {
   dobavljac: 'Dobavljac',
   proizvodjac: 'Proizvodjac',
   tester_kvaliteta: 'Tester kvaliteta',
+  laborant: 'Laborant',
   distributer: 'Distributer / logistika',
   krajnji_korisnik: 'Krajnji korisnik'
 }

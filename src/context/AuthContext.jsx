@@ -9,6 +9,7 @@ const ROLE_OPTIONS = [
   { value: 'dobavljac', label: '🧵 Dobavljaci' },
   { value: 'proizvodjac', label: '✂️ Proizvodjaci' },
   { value: 'tester_kvaliteta', label: '🧪 Tester kvaliteta' },
+  { value: 'laborant', label: '🔬 Laborant' },
   { value: 'distributer', label: '📦 Distributer / logistika' },
   { value: 'krajnji_korisnik', label: '👤 Krajnji korisnik' }
 ]

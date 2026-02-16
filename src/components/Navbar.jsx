@@ -8,6 +8,8 @@ const Navbar = ({ activePath }) => {
   const { user, profile, logout } = useAuth()
   const isDistributor = profile?.role === 'distributer'
   const isDesigner = profile?.role === 'modni_dizajner'
+  const isTester = profile?.role === 'tester_kvaliteta'
+  const isLaborant = profile?.role === 'laborant'
 
   const currentPath = activePath || location.pathname
   const isActive = (path) => currentPath === path
@@ -57,6 +59,26 @@ const Navbar = ({ activePath }) => {
                     className={`navbar-link ${isActive('/designer/collections') ? 'active' : ''}`}
                   >
                     Razvoj kolekcija
+                  </Link>
+                </li>
+              )}
+              {isTester && (
+                <li className="navbar-item">
+                  <Link
+                    to="/tester/collections"
+                    className={`navbar-link ${isActive('/tester/collections') ? 'active' : ''}`}
+                  >
+                    Pregled kvaliteta
+                  </Link>
+                </li>
+              )}
+              {isLaborant && (
+                <li className="navbar-item">
+                  <Link
+                    to="/lab/dashboard"
+                    className={`navbar-link ${isActive('/lab/dashboard') ? 'active' : ''}`}
+                  >
+                    Laboratorija
                   </Link>
                 </li>
               )}

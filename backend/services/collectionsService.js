@@ -255,3 +255,78 @@ export const updateCollectionStatus = async (collectionId, status) => {
     throw error
   }
 }
+
+/**
+ * Ažurira development_stage proizvoda (npr. iz 'testing' u 'approved')
+ */
+export const updateProductModelStage = async (modelId, stage, approvedBy = null) => {
+  try {
+    const validStages = ['idea', 'prototype', 'testing', 'approved']
+    if (!validStages.includes(stage)) {
+      throw new Error(`Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`)
+    }
+
+    const updateData = {
+      development_stage: stage,
+      updated_at: new Date().toISOString()
+    }
+
+    const { data, error } = await dbClient
+      .from('product_models')
+      .update(updateData)
+      .eq('id', modelId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[CollectionsService] Error updating product model stage:', error)
+      throw error
+    }
+
+    // Ako je odobren, dodaj zapis u product_model_approvals
+    if (stage === 'approved' && approvedBy) {
+      try {
+        const { error: approvalError } = await dbClient
+          .from('product_model_approvals')
+          .insert({
+            model_id: modelId,
+            approval_item: 'Final Quality Approval',
+            status: 'approved',
+            note: 'Proizvod odobren od strane testera kvaliteta',
+            approved_by: approvedBy
+          })
+
+        if (approvalError) {
+          console.error('[CollectionsService] Error creating approval record:', approvalError)
+          // Ne bacamo grešku - glavna operacija je uspešna
+        }
+      } catch (err) {
+        console.error('[CollectionsService] Exception creating approval record:', err)
+        // Ne bacamo grešku - glavna operacija je uspešna
+      }
+    }
+
+    return data
+  } catch (error) {
+    console.error('[CollectionsService] Exception in updateProductModelStage:', error)
+    throw error
+  }
+}
+
+/**
+ * Dobija detalje proizvoda po ID-u
+ */
+export const getProductModelById = async (modelId) => {
+  const { data, error } = await dbClient
+    .from('product_models')
+    .select('*')
+    .eq('id', modelId)
+    .single()
+
+  if (error) {
+    console.error('[CollectionsService] Error fetching product model:', error)
+    throw error
+  }
+
+  return data
+}

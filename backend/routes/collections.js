@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import {
-  getCollections,
   getPublicCollections,
   getCollectionById,
   getCollectionWithProductModels,
@@ -38,21 +37,11 @@ router.get('/collections', async (req, res, next) => {
   }
 })
 
-// Ruta za modnog dizajnera - koristi /designer/collections umesto /collections/designer da izbegne konflikt
-router.get('/designer/collections', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
-  try {
-    const { type } = req.query
-    const collections = await getCollections(type)
-    res.json(collections)
-  } catch (error) {
-    console.error('[CollectionsRoute] Error in GET /designer/collections:', error)
-    next(error)
-  }
-})
+// /designer/collections i /tester/collections su u testerDesigner.js (prvi ruter)
 
 // SPECIFIČNE RUTE MORAJU BITI PRE DINAMIČKIH RUTA
-// PATCH endpoint za promenu statusa kolekcije - MORA biti pre /collections/:id
-router.patch('/collections/:id/status', requireAuth, async (req, res, next) => {
+// PATCH endpoint za promenu statusa kolekcije - samo modni dizajner
+router.patch('/collections/:id/status', requireAuth, requireRole(['modni_dizajner', 'superadmin']), async (req, res, next) => {
   try {
     const { id } = req.params
     const { status } = req.body
@@ -114,7 +103,7 @@ router.get('/collections/:id/stats', async (req, res, next) => {
   }
 })
 
-router.get('/product-models/:modelId/approvals', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+router.get('/product-models/:modelId/approvals', requireAuth, requireRole(['modni_dizajner', 'tester_kvaliteta']), async (req, res, next) => {
   try {
     const { modelId } = req.params
     const approvals = await getProductModelApprovals(modelId)

@@ -18,7 +18,8 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     addressDetails,
     postalCode,
     city,
-    paymentMethod
+    paymentMethod,
+    walletAddress
   } = orderData
 
   // Calculate total price
@@ -27,10 +28,14 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     0
   )
 
+  // Za MetaMask/blockchain: status pending dok ne potvrdimo transakciju
+  const isBlockchainPayment = paymentMethod === 'metamask'
+  const status = isBlockchainPayment ? 'pending_blockchain' : 'ready_for_shipping'
+
   // Create order
   const dbOrderData = {
     total_price: totalPrice,
-    status: 'ready_for_shipping',
+    status,
     recipient_name: `${firstName} ${lastName}`.trim(),
     recipient_email: email,
     recipient_phone: phone ? `+381${phone}` : null,
@@ -40,7 +45,9 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     recipient_city: city,
     recipient_country: 'Srbija',
     payment_method: paymentMethod,
-    user_id: userId
+    user_id: userId,
+    ...(walletAddress && { wallet_address: walletAddress }),
+    ...(isBlockchainPayment && { blockchain_network: process.env.BLOCKCHAIN_NETWORK || 'sepolia' })
   }
 
   const { data: order, error: orderError } = await supabase
@@ -83,8 +90,6 @@ export const createOrder = async (supabase, userId, orderData, items) => {
  * @returns {Promise<Array>} User orders
  */
 export const getUserOrders = async (supabase, userId) => {
-  // Note: This assumes orders table has user_id column
-  // If not, we might need to add it or use a different approach
   const { data, error } = await supabase
     .from('orders')
     .select(`
@@ -99,6 +104,7 @@ export const getUserOrders = async (supabase, userId) => {
         )
       )
     `)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -106,4 +112,54 @@ export const getUserOrders = async (supabase, userId) => {
   }
 
   return data || []
+}
+
+/**
+ * Potvrda blockchain plaćanja – ažurira porudžbinu sa tx_hash
+ */
+export const confirmBlockchainPayment = async (supabase, orderId, userId, paymentData) => {
+  const { txHash, amountWei, blockNumber, contractAddress } = paymentData
+
+  if (!txHash || !orderId) {
+    throw new Error('txHash i orderId su obavezni')
+  }
+
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, user_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    throw new Error('Porudžbina nije pronađena')
+  }
+
+  if (order.user_id !== userId) {
+    throw new Error('Neautorizovano')
+  }
+
+  if (order.status !== 'pending_blockchain') {
+    throw new Error('Porudžbina nije u statusu pending_blockchain')
+  }
+
+  const updateData = {
+    tx_hash: txHash,
+    status: 'ready_for_shipping',
+    ...(amountWei && { amount_wei: String(amountWei) }),
+    ...(blockNumber && { block_number: blockNumber }),
+    ...(contractAddress && { contract_address: contractAddress })
+  }
+
+  const { data: updated, error } = await supabase
+    .from('orders')
+    .update(updateData)
+    .eq('id', orderId)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Greška pri ažuriranju: ${error.message}`)
+  }
+
+  return updated
 }

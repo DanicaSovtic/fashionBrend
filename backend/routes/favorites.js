@@ -12,24 +12,20 @@ const router = Router()
 
 // All routes require authentication and krajnji_korisnik role
 router.use((req, res, next) => {
-  console.log('[FavoritesRouter] Middleware called for:', req.method, req.path)
-  // Ne presreći blog rute
-  if (req.path.startsWith('/blog')) {
-    console.log('[FavoritesRouter] Skipping blog route, passing to next router')
+  // Ne presreći blog, tester, designer rute – one imaju svoje rute
+  if (req.path.startsWith('/blog') || req.path.startsWith('/tester') || req.path.startsWith('/designer')) {
     return next()
   }
   next()
 })
 router.use((req, res, next) => {
-  // Ne presreći blog rute
-  if (req.path.startsWith('/blog')) {
+  if (req.path.startsWith('/blog') || req.path.startsWith('/tester') || req.path.startsWith('/designer')) {
     return next()
   }
   requireAuth(req, res, next)
 })
 router.use((req, res, next) => {
-  // Ne presreći blog rute
-  if (req.path.startsWith('/blog')) {
+  if (req.path.startsWith('/blog') || req.path.startsWith('/tester') || req.path.startsWith('/designer')) {
     return next()
   }
   requireRole(['krajnji_korisnik'])(req, res, next)

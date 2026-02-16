@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Router } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import productsRouter from './routes/products.js'
@@ -9,6 +9,8 @@ import favoritesRouter from './routes/favorites.js'
 import collectionsRouter from './routes/collections.js'
 import blogRouter from './routes/blog.js'
 import ordersRouter from './routes/orders.js'
+import { testerRouter, designerRouter } from './routes/testerDesigner.js'
+import labRouter from './routes/lab.js'
 
 dotenv.config()
 
@@ -37,7 +39,25 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend is working!', timestamp: new Date().toISOString() })
 })
 
-// Collections router prvi da se izbegne konflikt sa drugim rutama
+// Blockchain config – JAVNO, bez auth, mora biti pre ostalih /api ruta
+const configRouter = Router()
+configRouter.get('/config/blockchain', (req, res) => {
+  res.json({
+    network: process.env.BLOCKCHAIN_NETWORK || 'sepolia',
+    contractAddress: process.env.ORDER_PAYMENT_CONTRACT || '',
+    productApprovalContract: process.env.PRODUCT_APPROVAL_CONTRACT || process.env.ORDER_PAYMENT_CONTRACT || '',
+    brandOwnerWallet: process.env.BRAND_OWNER_WALLET || '',
+    rsdRate: Number(process.env.RSD_RATE) || 118
+  })
+})
+app.use('/api', configRouter)
+
+// Tester i Designer rute – montirane na tačne putanje, pre cart/favorites
+app.use('/api/tester', testerRouter)
+app.use('/api/designer', designerRouter)
+app.use('/api/lab', labRouter)
+
+// Collections router
 app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/blog')) {
     console.log('[Server] Request going to routers, path:', req.path)

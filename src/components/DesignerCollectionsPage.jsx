@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
 import './DesignerCollectionsPage.css'
+import { formatMaterialsForDisplay, formatMaterialsDetailed } from '../utils/materialParser'
 
 // Helper funkcije za mapiranje podataka
 const mapStatus = (status) => {
@@ -606,7 +607,20 @@ const DesignerCollectionsPage = () => {
                   </div>
                   <div className="designer-model-section">
                     <h5>Tehnički podaci</h5>
-                    <p>Materijali: {selectedModel.materials || 'Nema informacija'}</p>
+                    <div>
+                      <strong>Materijali:</strong>
+                      {selectedModel.materials ? (
+                        <div style={{ marginTop: '8px' }}>
+                          {formatMaterialsDetailed(selectedModel.materials).map((material, idx) => (
+                            <div key={idx} style={{ marginBottom: '4px', paddingLeft: '12px' }}>
+                              • {material}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ marginLeft: '8px' }}>Nema informacija</span>
+                      )}
+                    </div>
                     <p>Krojevi: {selectedModel.pattern_notes || 'Nema informacija'}</p>
                     <p>Tabela veličina: {selectedModel.size_table || 'Nema informacija'}</p>
                     <p>Napomene: {selectedModel.tech_notes || 'Nema napomena'}</p>
@@ -737,7 +751,9 @@ const DesignerCollectionsPage = () => {
                       {selectedModel.concept || 'Elegantan komad sa fokusom na teksturu i fluidnost.'}
                     </p>
                     <ul>
-                      <li>Materijali: {selectedModel.materials || 'Nema informacija'}</li>
+                      <li>
+                        Materijali: {selectedModel.materials ? formatMaterialsForDisplay(selectedModel.materials) : 'Nema informacija'}
+                      </li>
                       <li>Varijante: {selectedModel.variants || 'Nema varijanti'}</li>
                       <li>Paleta: {selectedModel.color_palette || 'Nema palete'}</li>
                     </ul>

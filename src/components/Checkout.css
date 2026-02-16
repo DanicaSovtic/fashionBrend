@@ -257,6 +257,15 @@
   font-weight: 600;
   margin-top: -0.5rem;
   padding: 0.25rem 0.5rem;
+}
+
+.metamask-eth-hint {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-olive);
+  opacity: 0.9;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
   background: rgba(61, 65, 39, 0.1);
   border-radius: 12px;
 }
@@ -274,6 +283,17 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.payment-info-testnet {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--color-olive);
+}
+
+.payment-info-testnet a {
+  color: var(--color-olive);
+  text-decoration: underline;
 }
 
 .metamask-error {
