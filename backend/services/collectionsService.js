@@ -314,6 +314,64 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
 }
 
 /**
+ * Ažurira product model – dozvoljeno samo ako nije odobren (development_stage !== 'approved')
+ * Samo modni dizajner može da edituje.
+ */
+export const updateProductModel = async (modelId, updateData) => {
+  try {
+    const { data: existing, error: fetchError } = await dbClient
+      .from('product_models')
+      .select('development_stage')
+      .eq('id', modelId)
+      .single()
+
+    if (fetchError || !existing) {
+      throw new Error('Model nije pronađen')
+    }
+
+    if (existing.development_stage === 'approved') {
+      throw new Error('Odobren model ne može biti izmenjen. Kontaktirajte administratora ako je potrebna izmena.')
+    }
+
+    const allowedFields = [
+      'name', 'sku', 'category', 'concept', 'inspiration',
+      'color_palette', 'variants', 'pattern_notes', 'materials',
+      'size_table', 'tech_notes'
+    ]
+
+    const filtered = {}
+    for (const key of allowedFields) {
+      if (updateData.hasOwnProperty(key)) {
+        filtered[key] = updateData[key]
+      }
+    }
+
+    if (Object.keys(filtered).length === 0) {
+      throw new Error('Nema podataka za ažuriranje')
+    }
+
+    filtered.updated_at = new Date().toISOString()
+
+    const { data, error } = await dbClient
+      .from('product_models')
+      .update(filtered)
+      .eq('id', modelId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[CollectionsService] Error updating product model:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('[CollectionsService] Exception in updateProductModel:', error)
+    throw error
+  }
+}
+
+/**
  * Dobija detalje proizvoda po ID-u
  */
 export const getProductModelById = async (modelId) => {

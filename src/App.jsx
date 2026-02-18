@@ -31,7 +31,7 @@ import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
 const AppRoutes = () => {
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const isDistributor = profile?.role === 'distributer'
   const isDesigner = profile?.role === 'modni_dizajner'
   const isTester = profile?.role === 'tester_kvaliteta'
@@ -63,15 +63,15 @@ const AppRoutes = () => {
           <Route path="/blog/:slugOrId" element={<BlogDetail />} />
           <Route
             path="/designer/collections"
-            element={isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}
+            element={authLoading || isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}
           />
           <Route
             path="/tester/collections"
-            element={isTester ? <TesterCollectionsPage /> : <Navigate to="/" replace />}
+            element={authLoading || isTester ? <TesterCollectionsPage /> : <Navigate to="/" replace />}
           />
           <Route
             path="/lab/dashboard"
-            element={isLaborant ? <LabDashboard /> : <Navigate to="/" replace />}
+            element={authLoading || isLaborant ? <LabDashboard /> : <Navigate to="/" replace />}
           />
           <Route
             path="/admin/blog"

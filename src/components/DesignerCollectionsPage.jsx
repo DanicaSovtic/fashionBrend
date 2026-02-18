@@ -63,6 +63,39 @@ const DesignerCollectionsPage = () => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [isSavingModel, setIsSavingModel] = useState(false)
+
+  const canEditModel = (model) => model && model.development_stage !== 'approved'
+
+  const selectedModel = useMemo(
+    () => models.find((model) => model.id === selectedModelId) || models[0],
+    [models, selectedModelId]
+  )
+
+  const selectedCollection = useMemo(
+    () => collections.find((col) => col.id === selectedCollectionId),
+    [collections, selectedCollectionId]
+  )
+
+  useEffect(() => {
+    if (selectedModel && canEditModel(selectedModel)) {
+      setEditForm({
+        name: selectedModel.name || '',
+        sku: selectedModel.sku || '',
+        concept: selectedModel.concept || '',
+        inspiration: selectedModel.inspiration || '',
+        color_palette: selectedModel.color_palette || '',
+        variants: selectedModel.variants || '',
+        materials: selectedModel.materials || '',
+        pattern_notes: selectedModel.pattern_notes || '',
+        size_table: selectedModel.size_table || '',
+        tech_notes: selectedModel.tech_notes || ''
+      })
+    } else {
+      setEditForm(null)
+    }
+  }, [selectedModel])
 
   // Učitaj kolekcije sa statistikom
   useEffect(() => {
@@ -221,16 +254,6 @@ const DesignerCollectionsPage = () => {
     fetchModelDetails()
   }, [selectedModelId])
 
-  const selectedModel = useMemo(
-    () => models.find((model) => model.id === selectedModelId) || models[0],
-    [models, selectedModelId]
-  )
-
-  const selectedCollection = useMemo(
-    () => collections.find((col) => col.id === selectedCollectionId),
-    [collections, selectedCollectionId]
-  )
-
   // Funkcija za promenu statusa kolekcije
   const handleStatusChange = async (newStatus) => {
     if (!selectedCollectionId) return
@@ -337,6 +360,35 @@ const DesignerCollectionsPage = () => {
       alert(`Greška pri dodavanju komentara: ${err.message}`)
     } finally {
       setIsSubmittingComment(false)
+    }
+  }
+
+  const handleSaveModel = async () => {
+    if (!selectedModelId || !editForm || !canEditModel(selectedModel)) return
+
+    try {
+      setIsSavingModel(true)
+      const token = localStorage.getItem('auth_access_token')
+      const response = await fetch(`/api/product-models/${selectedModelId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(editForm)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Greška pri čuvanju modela')
+      }
+
+      const updated = await response.json()
+      setModels((prev) => prev.map((m) => (m.id === selectedModelId ? { ...m, ...updated } : m)))
+    } catch (err) {
+      alert(`Greška pri čuvanju: ${err.message}`)
+    } finally {
+      setIsSavingModel(false)
     }
   }
 
@@ -565,7 +617,7 @@ const DesignerCollectionsPage = () => {
                       className={`designer-model-item ${model.id === selectedModel?.id ? 'active' : ''}`}
                       onClick={() => setSelectedModelId(model.id)}
                     >
-                      <div>
+                      <div className="designer-model-item-text">
                         <strong>{model.name}</strong>
                         <span className="designer-muted">{model.sku}</span>
                       </div>
@@ -578,58 +630,206 @@ const DesignerCollectionsPage = () => {
                 <div className="designer-model-detail">
                   <div className="designer-model-header">
                     <div>
-                      <h4>{selectedModel.name}</h4>
-                      <p className="designer-muted">
-                        {selectedModel.sku} • {selectedCollection?.name || ''}
-                      </p>
+                      {canEditModel(selectedModel) && editForm ? (
+                        <>
+                          <input
+                            type="text"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                            placeholder="Naziv modela"
+                            className="designer-edit-input designer-edit-input--title"
+                          />
+                          <input
+                            type="text"
+                            value={editForm.sku}
+                            onChange={(e) => setEditForm((f) => ({ ...f, sku: e.target.value }))}
+                            placeholder="SKU"
+                            className="designer-edit-input designer-muted"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <h4>{selectedModel.name}</h4>
+                          <p className="designer-muted">
+                            {selectedModel.sku} • {selectedCollection?.name || ''}
+                          </p>
+                        </>
+                      )}
                     </div>
                     <span className="designer-status-chip">{mapStage(selectedModel.development_stage)}</span>
                   </div>
                   <div className="designer-model-section">
                     <h5>Koncept i inspiracija</h5>
-                    <p>{selectedModel.concept || 'Nema opisa koncepta'}</p>
-                    <p className="designer-muted">Inspiracija: {selectedModel.inspiration || 'Nema informacija'}</p>
+                    {canEditModel(selectedModel) && editForm ? (
+                      <>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Koncept:</span>
+                          <textarea
+                            value={editForm.concept}
+                            onChange={(e) => setEditForm((f) => ({ ...f, concept: e.target.value }))}
+                            placeholder="Opis koncepta"
+                            className="designer-edit-input"
+                            rows={2}
+                          />
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Inspiracija:</span>
+                          <input
+                            type="text"
+                            value={editForm.inspiration}
+                            onChange={(e) => setEditForm((f) => ({ ...f, inspiration: e.target.value }))}
+                            placeholder="Inspiracija"
+                            className="designer-edit-input"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Koncept:</span>
+                          <span className="designer-tech-content">{selectedModel.concept || 'Nema opisa koncepta'}</span>
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Inspiracija:</span>
+                          <span className="designer-tech-content">{selectedModel.inspiration || 'Nema informacija'}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="designer-model-section">
                     <h5>Paleta i varijante</h5>
-                    <div className="designer-tags">
-                      {selectedModel.color_palette ? (
-                        selectedModel.color_palette.split(',').map((tone, idx) => (
-                          <span key={idx} className="designer-tag">
-                            {tone.trim()}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="designer-muted">Nema palete</span>
-                      )}
-                    </div>
-                    <p className="designer-muted">Varijante: {selectedModel.variants || 'Nema varijanti'}</p>
+                    {canEditModel(selectedModel) && editForm ? (
+                      <>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Paleta:</span>
+                          <input
+                            type="text"
+                            value={editForm.color_palette}
+                            onChange={(e) => setEditForm((f) => ({ ...f, color_palette: e.target.value }))}
+                            placeholder="npr. crvena, plava, crna"
+                            className="designer-edit-input"
+                          />
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Varijante:</span>
+                          <input
+                            type="text"
+                            value={editForm.variants}
+                            onChange={(e) => setEditForm((f) => ({ ...f, variants: e.target.value }))}
+                            placeholder="npr. Regular, Cropped"
+                            className="designer-edit-input"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Paleta:</span>
+                          <div className="designer-tags">
+                            {selectedModel.color_palette ? (
+                              selectedModel.color_palette.split(',').map((tone, idx) => (
+                                <span key={idx} className="designer-tag">
+                                  {tone.trim()}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="designer-muted designer-tech-content">Nema palete</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Varijante:</span>
+                          <span className="designer-tech-content">{selectedModel.variants || 'Nema varijanti'}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="designer-model-section">
                     <h5>Tehnički podaci</h5>
-                    <div>
-                      <strong>Materijali:</strong>
-                      {selectedModel.materials ? (
-                        <div style={{ marginTop: '8px' }}>
-                          {formatMaterialsDetailed(selectedModel.materials).map((material, idx) => (
-                            <div key={idx} style={{ marginBottom: '4px', paddingLeft: '12px' }}>
-                              • {material}
-                            </div>
-                          ))}
+                    {canEditModel(selectedModel) && editForm ? (
+                      <>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Materijali:</span>
+                          <input
+                            type="text"
+                            value={editForm.materials}
+                            onChange={(e) => setEditForm((f) => ({ ...f, materials: e.target.value }))}
+                            placeholder="npr. Pamuk 98%, Elastan 2%"
+                            className="designer-edit-input"
+                          />
                         </div>
-                      ) : (
-                        <span style={{ marginLeft: '8px' }}>Nema informacija</span>
-                      )}
-                    </div>
-                    <p>Krojevi: {selectedModel.pattern_notes || 'Nema informacija'}</p>
-                    <p>Tabela veličina: {selectedModel.size_table || 'Nema informacija'}</p>
-                    <p>Napomene: {selectedModel.tech_notes || 'Nema napomena'}</p>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Krojevi:</span>
+                          <input
+                            type="text"
+                            value={editForm.pattern_notes}
+                            onChange={(e) => setEditForm((f) => ({ ...f, pattern_notes: e.target.value }))}
+                            placeholder="Opis kroja"
+                            className="designer-edit-input"
+                          />
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Tabela veličina:</span>
+                          <input
+                            type="text"
+                            value={editForm.size_table}
+                            onChange={(e) => setEditForm((f) => ({ ...f, size_table: e.target.value }))}
+                            placeholder="npr. 24-34"
+                            className="designer-edit-input"
+                          />
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Napomene:</span>
+                          <textarea
+                            value={editForm.tech_notes}
+                            onChange={(e) => setEditForm((f) => ({ ...f, tech_notes: e.target.value }))}
+                            placeholder="Tehničke napomene"
+                            className="designer-edit-input"
+                            rows={2}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Materijali:</span>
+                          {selectedModel.materials ? (
+                            <div className="designer-tech-content">
+                              {formatMaterialsDetailed(selectedModel.materials).map((material, idx) => (
+                                <div key={idx}>• {material}</div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="designer-tech-content">Nema informacija</span>
+                          )}
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Krojevi:</span>
+                          <span className="designer-tech-content">{selectedModel.pattern_notes || 'Nema informacija'}</span>
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Tabela veličina:</span>
+                          <span className="designer-tech-content">{selectedModel.size_table || 'Nema informacija'}</span>
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Napomene:</span>
+                          <span className="designer-tech-content">{selectedModel.tech_notes || 'Nema napomena'}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="designer-model-footer">
                     <span>Poslednja izmena: {formatDate(selectedModel.updated_at || selectedModel.created_at)}</span>
-                    <button type="button" className="designer-secondary-button">
-                      Sačuvaj verziju
-                    </button>
+                    {canEditModel(selectedModel) && (
+                      <button
+                        type="button"
+                        className="designer-primary-button"
+                        onClick={handleSaveModel}
+                        disabled={isSavingModel}
+                      >
+                        {isSavingModel ? 'Čuvanje...' : 'Sačuvaj izmene'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -745,35 +945,45 @@ const DesignerCollectionsPage = () => {
                       'Preview foto'
                     )}
                   </div>
-                  <div>
+                  <div className="designer-webshop-details">
                     <h4>{selectedModel.name}</h4>
-                    <p className="designer-muted">
-                      {selectedModel.concept || 'Elegantan komad sa fokusom na teksturu i fluidnost.'}
-                    </p>
-                    <ul>
-                      <li>
-                        Materijali: {selectedModel.materials ? formatMaterialsForDisplay(selectedModel.materials) : 'Nema informacija'}
-                      </li>
-                      <li>Varijante: {selectedModel.variants || 'Nema varijanti'}</li>
-                      <li>Paleta: {selectedModel.color_palette || 'Nema palete'}</li>
-                    </ul>
+                    <div className="designer-webshop-block">
+                      <span className="designer-tech-label">Opis:</span>
+                      <p className="designer-muted designer-tech-content">
+                        {selectedModel.concept || 'Elegantan komad sa fokusom na teksturu i fluidnost.'}
+                      </p>
+                    </div>
+                    <div className="designer-webshop-block">
+                      <span className="designer-tech-label">Materijali:</span>
+                      <span className="designer-tech-content">
+                        {selectedModel.materials ? formatMaterialsForDisplay(selectedModel.materials) : 'Nema informacija'}
+                      </span>
+                    </div>
+                    <div className="designer-webshop-block">
+                      <span className="designer-tech-label">Varijante:</span>
+                      <span className="designer-tech-content">{selectedModel.variants || 'Nema varijanti'}</span>
+                    </div>
+                    <div className="designer-webshop-block">
+                      <span className="designer-tech-label">Paleta:</span>
+                      <span className="designer-tech-content">{selectedModel.color_palette || 'Nema palete'}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="designer-webshop-meta">
-                  <div>
-                    <span className="designer-muted">Naziv proizvoda</span>
+                  <div className="designer-webshop-meta-row">
+                    <span className="designer-muted">Naziv proizvoda:</span>
                     <strong>{selectedModel.name}</strong>
                   </div>
-                  <div>
-                    <span className="designer-muted">SKU</span>
+                  <div className="designer-webshop-meta-row">
+                    <span className="designer-muted">SKU:</span>
                     <strong>{selectedModel.sku}</strong>
                   </div>
-                  <div>
-                    <span className="designer-muted">Istaknute karakteristike</span>
+                  <div className="designer-webshop-meta-row">
+                    <span className="designer-muted">Istaknute karakteristike:</span>
                     <strong>Premium materijal, ručna obrada</strong>
                   </div>
-                  <div>
-                    <span className="designer-muted">Priprema za online prodaju</span>
+                  <div className="designer-webshop-meta-row">
+                    <span className="designer-muted">Priprema za online prodaju:</span>
                     <strong>{selectedModel.development_stage === 'approved' ? 'Spremno za prodaju' : 'U toku fotografisanje'}</strong>
                   </div>
                 </div>

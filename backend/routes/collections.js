@@ -7,7 +7,8 @@ import {
   getProductModelApprovals,
   getProductModelComments,
   createProductModelComment,
-  updateCollectionStatus
+  updateCollectionStatus,
+  updateProductModel
 } from '../services/collectionsService.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 
@@ -99,6 +100,32 @@ router.get('/collections/:id/stats', async (req, res, next) => {
     const stats = await getCollectionStats(id)
     res.json(stats)
   } catch (error) {
+    next(error)
+  }
+})
+
+// PATCH product model – samo modni dizajner, samo modeli koji nisu odobreni
+router.patch('/product-models/:modelId', requireAuth, requireRole(['modni_dizajner', 'superadmin']), async (req, res, next) => {
+  try {
+    const { modelId } = req.params
+    const updateData = req.body
+
+    if (!updateData || typeof updateData !== 'object') {
+      res.status(400).json({ error: 'Telo zahteva mora sadržati podatke za ažuriranje' })
+      return
+    }
+
+    const updated = await updateProductModel(modelId, updateData)
+    res.json(updated)
+  } catch (error) {
+    if (error.message?.includes('nije pronađen')) {
+      res.status(404).json({ error: error.message })
+      return
+    }
+    if (error.message?.includes('Odobren model')) {
+      res.status(403).json({ error: error.message })
+      return
+    }
     next(error)
   }
 })

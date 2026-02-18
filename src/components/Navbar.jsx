@@ -87,11 +87,13 @@ const Navbar = ({ activePath }) => {
                   Prodavnica
                 </Link>
               </li>
-              <li className="navbar-item">
-                <Link to="/blog" className={`navbar-link ${isActive('/blog') ? 'active' : ''}`}>
-                  Blog
-                </Link>
-              </li>
+              {!isDesigner && (
+                <li className="navbar-item">
+                  <Link to="/blog" className={`navbar-link ${isActive('/blog') ? 'active' : ''}`}>
+                    Blog
+                  </Link>
+                </li>
+              )}
               {user && profile?.role !== 'krajnji_korisnik' && (
                 <li className="navbar-item">
                   <Link
