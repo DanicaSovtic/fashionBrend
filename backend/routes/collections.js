@@ -8,7 +8,9 @@ import {
   getProductModelComments,
   createProductModelComment,
   updateCollectionStatus,
-  updateProductModel
+  updateProductModel,
+  getNewCollections,
+  getApprovedProductsFromCollection
 } from '../services/collectionsService.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 
@@ -32,6 +34,37 @@ router.get('/collections', async (req, res, next) => {
     console.error('[CollectionsRoute] Error in GET /collections:', error)
     res.status(500).json({ 
       error: error.message || 'Greška prilikom učitavanja kolekcija',
+      code: error.code,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
+})
+
+// Ruta za "Nove kolekcije" - vraća aktivne kolekcije sa brojem odobrenih proizvoda
+router.get('/new-collections', async (req, res, next) => {
+  try {
+    const collections = await getNewCollections()
+    res.json(collections)
+  } catch (error) {
+    console.error('[CollectionsRoute] Error in GET /new-collections:', error)
+    res.status(500).json({ 
+      error: error.message || 'Greška prilikom učitavanja novih kolekcija',
+      code: error.code,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
+})
+
+// Ruta za dobijanje samo odobrenih proizvoda iz određene kolekcije
+router.get('/new-collections/:collectionId/products', async (req, res, next) => {
+  try {
+    const { collectionId } = req.params
+    const data = await getApprovedProductsFromCollection(collectionId)
+    res.json(data)
+  } catch (error) {
+    console.error('[CollectionsRoute] Error in GET /new-collections/:collectionId/products:', error)
+    res.status(500).json({ 
+      error: error.message || 'Greška prilikom učitavanja odobrenih proizvoda',
       code: error.code,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })

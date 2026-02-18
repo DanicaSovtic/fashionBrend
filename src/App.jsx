@@ -6,6 +6,8 @@ import Contact from './components/Contact'
 import Collection from './components/Collection'
 import CollectionDetail from './components/CollectionDetail'
 import Shop from './components/Shop'
+import NewCollections from './components/NewCollections'
+import NewCollectionDetail from './components/NewCollectionDetail'
 import Product from './components/Product'
 import CartPage from './components/CartPage'
 import Checkout from './components/Checkout'
@@ -87,6 +89,14 @@ const AppRoutes = () => {
             element={isEndUser ? <Navigate to="/" replace /> : <CollectionDetail />}
           />
           <Route path="/shop" element={<Shop />} />
+          <Route 
+            path="/new-collections" 
+            element={profile?.role === 'krajnji_korisnik' ? <NewCollections /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/new-collections/:collectionId" 
+            element={profile?.role === 'krajnji_korisnik' ? <NewCollectionDetail /> : <Navigate to="/" replace />} 
+          />
           <Route path="/product/:productId" element={<Product />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<Checkout />} />

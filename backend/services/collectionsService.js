@@ -416,3 +416,117 @@ export const getProductModelById = async (modelId) => {
 
   return data
 }
+
+/**
+ * Dobija aktivne kolekcije sa brojem odobrenih proizvoda za stranicu "Nove kolekcije"
+ */
+export const getNewCollections = async () => {
+  try {
+    // Dobijamo sve aktivne kolekcije
+    const { data: activeCollections, error: collectionsError } = await dbClient
+      .from('collections')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+
+    if (collectionsError) {
+      console.error('[CollectionsService] Error fetching active collections:', collectionsError)
+      throw collectionsError
+    }
+
+    if (!activeCollections || activeCollections.length === 0) {
+      return []
+    }
+
+    // Za svaku kolekciju dobijamo broj odobrenih proizvoda
+    const collectionsWithStats = await Promise.all(
+      activeCollections.map(async (collection) => {
+        const { data: approvedModels, error: modelsError } = await dbClient
+          .from('product_models')
+          .select('id')
+          .eq('collection_id', collection.id)
+          .eq('development_stage', 'approved')
+
+        const approvedCount = modelsError ? 0 : (approvedModels?.length || 0)
+
+        // Vraćamo kolekciju samo ako ima odobrene proizvode
+        if (approvedCount > 0) {
+          return {
+            ...collection,
+            approved_count: approvedCount
+          }
+        }
+        return null
+      })
+    )
+
+    // Filtriramo kolekcije koje imaju odobrene proizvode
+    return collectionsWithStats.filter(c => c !== null)
+  } catch (error) {
+    console.error('[CollectionsService] Exception in getNewCollections:', error)
+    throw error
+  }
+}
+
+/**
+ * Dobija samo odobrene proizvode iz određene kolekcije
+ */
+export const getApprovedProductsFromCollection = async (collectionId) => {
+  try {
+    // Proveravamo da li je kolekcija aktivna
+    const { data: collection, error: collectionError } = await dbClient
+      .from('collections')
+      .select('*')
+      .eq('id', collectionId)
+      .eq('status', 'active')
+      .single()
+
+    if (collectionError || !collection) {
+      throw new Error('Kolekcija nije pronađena ili nije aktivna')
+    }
+
+    // Dobijamo sve odobrene proizvode iz kolekcije
+    const { data: approvedModels, error: modelsError } = await dbClient
+      .from('product_models')
+      .select(`
+        *,
+        media:product_model_media(*)
+      `)
+      .eq('collection_id', collectionId)
+      .eq('development_stage', 'approved')
+      .order('created_at', { ascending: false })
+
+    if (modelsError) {
+      console.error('[CollectionsService] Error fetching approved products:', modelsError)
+      throw modelsError
+    }
+
+    // Formatujemo proizvode za prikaz (slično kao products tabela)
+    const formattedProducts = (approvedModels || []).map(model => {
+      const primaryImage = model.media?.find(m => m.is_primary) || model.media?.[0]
+      return {
+        id: model.id,
+        title: model.name || 'Proizvod bez naziva',
+        description: model.concept || model.inspiration || '',
+        category: model.category || '',
+        image_url: primaryImage?.image_url || 'https://via.placeholder.com/300x400',
+        sku: model.sku || '',
+        collection_id: model.collection_id,
+        collection_name: collection.name,
+        price: 0, // Trebaće dodati logiku za cenu
+        sastav: model.materials || '',
+        created_at: model.created_at,
+        color_palette: model.color_palette || '',
+        variants: model.variants || ''
+      }
+    })
+
+    return {
+      collection: collection,
+      products: formattedProducts
+    }
+  } catch (error) {
+    console.error('[CollectionsService] Exception in getApprovedProductsFromCollection:', error)
+    throw error
+  }
+}
