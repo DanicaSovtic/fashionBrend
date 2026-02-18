@@ -46,13 +46,29 @@ const FAQS = [
   },
 ]
 
+const FALLBACK_ANSWER =
+  'Nisam sigurna da sam razumela. Možeš probati jedno od najčešćih pitanja ili nas kontaktirati.'
+
 const initialMessages = [
   {
     id: 'welcome',
     from: 'bot',
-    text: 'Zdravo! Tu sam za brza pitanja o porudžbinama, dostavi i povratu.',
+    text: 'Zdravo! Ja sam Piccola Girl. Tu sam za pitanja o porudžbinama, dostavi, povratu i sve vezano za Piccola brend.',
   },
 ]
+
+const PICCOLA_GIRL_IMAGE =
+  'https://i.pinimg.com/736x/cd/86/71/cd8671b350d6daa7371abcee3bbeb200.jpg'
+
+const FallbackIcon = () => (
+  <svg
+    className="chatbot-fallback-icon"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <path d="M12 3C6.48 3 2 6.8 2 11.5c0 2.71 1.55 5.12 4 6.7V22l3.55-2.05c.78.17 1.6.26 2.45.26 5.52 0 10-3.8 10-8.5S17.52 3 12 3zm0 14.5c-.78 0-1.54-.08-2.26-.24l-.6-.13-.55.32L7 18.3v-2.1l-.42-.29C4.6 14.5 3.5 13.05 3.5 11.5 3.5 7.65 7.36 4.5 12 4.5s8.5 3.15 8.5 7-3.86 7-8.5 7z" />
+  </svg>
+)
 
 const normalize = (value) => value.toLowerCase().trim()
 
@@ -64,12 +80,8 @@ const findAnswer = (message) => {
     item.keywords.some((keyword) => normalized.includes(keyword))
   )
 
-  if (matched) return matched.answer
-
-  const fallback =
-    'Nisam sigurna da sam razumela. Možeš probati jedno od najčešćih pitanja ili nas kontaktirati.'
-
-  return fallback
+  if (matched) return { answer: matched.answer, fromFaq: true }
+  return { answer: FALLBACK_ANSWER, fromFaq: false }
 }
 
 const createId = (prefix) =>
@@ -80,7 +92,10 @@ const ChatBotWidget = () => {
   const [messages, setMessages] = useState(initialMessages)
   const [inputValue, setInputValue] = useState('')
   const [showFaq, setShowFaq] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [avatarError, setAvatarError] = useState(false)
   const faqTimerRef = useRef(null)
+  const messagesEndRef = useRef(null)
 
   const faqButtons = useMemo(
     () =>
@@ -106,9 +121,29 @@ const ChatBotWidget = () => {
     }, 6000)
   }
 
-  const sendMessage = (text) => {
+  const fetchLLMReply = async (userText, history) => {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userText,
+          history: history.slice(-10),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return data?.error || 'Došlo je do greške. Probajte brza pitanja ispod.'
+      }
+      return data.reply
+    } catch (err) {
+      return 'Servis trenutno nije dostupan. Koristite brza pitanja ispod ili nas kontaktirajte.'
+    }
+  }
+
+  const sendMessage = async (text) => {
     const trimmed = text.trim()
-    if (!trimmed) return
+    if (!trimmed || isLoading) return
 
     addMessage({
       id: createId('user'),
@@ -116,11 +151,24 @@ const ChatBotWidget = () => {
       text: trimmed,
     })
 
-    addMessage({
-      id: createId('bot'),
-      from: 'bot',
-      text: findAnswer(trimmed),
-    })
+    const { answer, fromFaq } = findAnswer(trimmed)
+
+    if (fromFaq) {
+      addMessage({
+        id: createId('bot'),
+        from: 'bot',
+        text: answer,
+      })
+    } else {
+      setIsLoading(true)
+      const llmReply = await fetchLLMReply(trimmed, messages)
+      addMessage({
+        id: createId('bot'),
+        from: 'bot',
+        text: llmReply,
+      })
+      setIsLoading(false)
+    }
 
     setInputValue('')
     hideFaqTemporarily()
@@ -139,6 +187,10 @@ const ChatBotWidget = () => {
     })
     hideFaqTemporarily()
   }
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isLoading])
 
   useEffect(() => {
     if (isOpen) {
@@ -163,11 +215,11 @@ const ChatBotWidget = () => {
   return (
     <div className="chatbot-container" aria-live="polite">
       {isOpen && (
-        <div className="chatbot-panel" role="dialog" aria-label="Chat podrška">
+        <div className="chatbot-panel" role="dialog" aria-label="Piccola Girl chat">
           <div className="chatbot-header">
             <div>
-              <p className="chatbot-title">Podrška</p>
-              <p className="chatbot-subtitle">Najčešća pitanja</p>
+              <p className="chatbot-title">Piccola Girl</p>
+              <p className="chatbot-subtitle">Tvoja virtuelna asistentkinja</p>
             </div>
             <button
               type="button"
@@ -188,6 +240,14 @@ const ChatBotWidget = () => {
                 {message.text}
               </div>
             ))}
+            {isLoading && (
+              <div className="chatbot-message chatbot-message--bot chatbot-message--typing">
+                <span className="chatbot-typing-dot" />
+                <span className="chatbot-typing-dot" />
+                <span className="chatbot-typing-dot" />
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
 
           {showFaq && (
@@ -198,6 +258,7 @@ const ChatBotWidget = () => {
                   type="button"
                   className="chatbot-faq-button"
                   onClick={() => handleFaqClick(faq)}
+                  disabled={isLoading}
                 >
                   {faq.question}
                 </button>
@@ -212,17 +273,12 @@ const ChatBotWidget = () => {
               placeholder="Postavi pitanje..."
               value={inputValue}
               onChange={(event) => setInputValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  sendMessage(inputValue)
-                }
-              }}
+              disabled={isLoading}
             />
             <button
-              type="button"
+              type="submit"
               className="chatbot-send"
-              onClick={() => sendMessage(inputValue)}
+              disabled={isLoading}
             >
               Pošalji
             </button>
@@ -235,18 +291,23 @@ const ChatBotWidget = () => {
         className="chatbot-toggle"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
-        aria-label="Otvori chat podršku"
+        aria-label="Otvori Piccola Girl chat"
       >
         <span className="chatbot-visually-hidden">
           {isOpen ? 'Zatvori' : 'Otvori'} chat
         </span>
-        <svg
-          className="chatbot-icon"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path d="M12 3C6.48 3 2 6.8 2 11.5c0 2.71 1.55 5.12 4 6.7V22l3.55-2.05c.78.17 1.6.26 2.45.26 5.52 0 10-3.8 10-8.5S17.52 3 12 3zm0 14.5c-.78 0-1.54-.08-2.26-.24l-.6-.13-.55.32L7 18.3v-2.1l-.42-.29C4.6 14.5 3.5 13.05 3.5 11.5 3.5 7.65 7.36 4.5 12 4.5s8.5 3.15 8.5 7-3.86 7-8.5 7z" />
-        </svg>
+        {avatarError ? (
+          <span className="chatbot-avatar-fallback">
+            <FallbackIcon />
+          </span>
+        ) : (
+          <img
+            src={PICCOLA_GIRL_IMAGE}
+            alt="Piccola Girl"
+            className="chatbot-avatar"
+            onError={() => setAvatarError(true)}
+          />
+        )}
       </button>
     </div>
   )

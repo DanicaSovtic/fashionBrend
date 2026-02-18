@@ -2,6 +2,7 @@
   position: fixed;
   left: 1.5rem;
   bottom: 1.5rem;
+  right: auto;
   z-index: 1600;
   display: flex;
   flex-direction: column;
@@ -12,16 +13,47 @@
 .chatbot-toggle {
   border: none;
   border-radius: 50%;
-  background: var(--color-olive-dark);
-  color: #ffffff;
-  width: 52px;
-  height: 52px;
+  background: transparent;
   padding: 0;
+  width: 72px;
+  height: 72px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chatbot-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.chatbot-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  border-radius: 50%;
+}
+
+.chatbot-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: var(--color-olive-dark);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.chatbot-fallback-icon {
+  width: 32px;
+  height: 32px;
+  fill: currentColor;
 }
 
 .chatbot-panel {
@@ -146,10 +178,38 @@
   cursor: pointer;
 }
 
-.chatbot-icon {
-  width: 26px;
-  height: 26px;
-  fill: currentColor;
+.chatbot-message--typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 1rem 1.2rem;
+}
+
+.chatbot-typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-olive-light);
+  animation: chatbot-typing 1.2s ease-in-out infinite both;
+}
+
+.chatbot-typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.chatbot-typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes chatbot-typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
 .chatbot-visually-hidden {
@@ -163,10 +223,22 @@
   border: 0;
 }
 
+.chatbot-send:disabled,
+.chatbot-input:disabled,
+.chatbot-faq-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 600px) {
   .chatbot-container {
     left: 1rem;
     bottom: 1rem;
+  }
+
+  .chatbot-toggle {
+    width: 80px;
+    height: 80px;
   }
 
   .chatbot-panel {

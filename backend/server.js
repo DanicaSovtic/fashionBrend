@@ -11,6 +11,7 @@ import blogRouter from './routes/blog.js'
 import ordersRouter from './routes/orders.js'
 import { testerRouter, designerRouter } from './routes/testerDesigner.js'
 import labRouter from './routes/lab.js'
+import chatRouter from './routes/chat.js'
 
 dotenv.config()
 
@@ -67,6 +68,7 @@ app.use('/api', (req, res, next) => {
 
 console.log('[Server] Registering routers...')
 // Blog router prvi jer ima javne rute bez autentifikacije
+app.use('/api', chatRouter)
 app.use('/api', blogRouter)
 console.log('[Server] Blog router registered')
 app.use('/api', collectionsRouter)
