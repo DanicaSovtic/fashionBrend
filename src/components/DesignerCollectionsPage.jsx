@@ -65,6 +65,7 @@ const DesignerCollectionsPage = () => {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [editForm, setEditForm] = useState(null)
   const [isSavingModel, setIsSavingModel] = useState(false)
+  const [isUpdatingStage, setIsUpdatingStage] = useState(false)
 
   const canEditModel = (model) => model && model.development_stage !== 'approved'
 
@@ -389,6 +390,62 @@ const DesignerCollectionsPage = () => {
       alert(`Greška pri čuvanju: ${err.message}`)
     } finally {
       setIsSavingModel(false)
+    }
+  }
+
+  // Funkcija za promenu statusa proizvoda
+  const handleStageChange = async (newStage) => {
+    if (!selectedModelId) return
+
+    try {
+      setIsUpdatingStage(true)
+      const token = localStorage.getItem('auth_access_token')
+      
+      const response = await fetch(`/api/designer/products/${selectedModelId}/stage`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ stage: newStage })
+      })
+
+      if (!response.ok) {
+        let errorMessage = 'Greška pri ažuriranju statusa'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || errorMessage
+          // Ako ima dodatne informacije o grešci
+          if (errorData.details) {
+            errorMessage += `: ${errorData.details}`
+          }
+        } catch (e) {
+          // Ako nije JSON, pokušaj da pročitaš tekst
+          const errorText = await response.text().catch(() => '')
+          if (errorText) {
+            errorMessage = errorText
+          } else {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`
+          }
+        }
+        throw new Error(errorMessage)
+      }
+
+      const result = await response.json()
+      
+      // Ažuriraj model u listi - selectedModel će se automatski ažurirati preko useMemo
+      setModels((prev) => 
+        prev.map((m) => 
+          m.id === selectedModelId 
+            ? { ...m, ...result.product }
+            : m
+        )
+      )
+    } catch (err) {
+      console.error('[DesignerCollectionsPage] Error updating stage:', err)
+      alert(`Greška pri ažuriranju statusa: ${err.message}`)
+    } finally {
+      setIsUpdatingStage(false)
     }
   }
 
@@ -927,9 +984,41 @@ const DesignerCollectionsPage = () => {
                   Provera kako će proizvod biti predstavljen krajnjim kupcima.
                 </p>
               </div>
-              <button type="button" className="designer-primary-button">
-                Ažuriraj listing
-              </button>
+              {selectedModel ? (
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <label htmlFor="stage-select" style={{ fontWeight: '500', color: '#5a5463', fontSize: '14px' }}>
+                    Status proizvoda:
+                  </label>
+                  <select
+                    id="stage-select"
+                    value={selectedModel.development_stage || 'idea'}
+                    onChange={(e) => handleStageChange(e.target.value)}
+                    disabled={isUpdatingStage}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '14px',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      backgroundColor: isUpdatingStage ? '#f5f5f5' : '#fff',
+                      cursor: isUpdatingStage ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                      minWidth: '150px'
+                    }}
+                  >
+                    <option value="idea">Ideja</option>
+                    <option value="prototype">Prototip</option>
+                    <option value="testing">Testiranje</option>
+                    <option value="approved">Odobreno</option>
+                  </select>
+                  {isUpdatingStage && (
+                    <span style={{ fontSize: '14px', color: '#5a5463' }}>Čuvanje...</span>
+                  )}
+                </div>
+              ) : (
+                <button type="button" className="designer-primary-button" disabled>
+                  Izaberite proizvod
+                </button>
+              )}
             </div>
             {selectedModel ? (
               <div className="designer-webshop">

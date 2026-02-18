@@ -121,4 +121,97 @@ testerRouter.post('/products/:modelId/approve', requireAuth, requireRole(['teste
 const designerRouter = Router()
 designerRouter.get('/collections', requireAuth, requireRole(['modni_dizajner']), handler)
 
+/**
+ * PATCH /api/designer/products/:modelId/stage
+ * Ažurira development_stage proizvoda (za modnog dizajnera)
+ * Očekuje: { stage: 'idea' | 'prototype' | 'testing' | 'approved' }
+ */
+designerRouter.patch('/products/:modelId/stage', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { modelId } = req.params
+    const { stage } = req.body
+
+    console.log('[DesignerRoute] PATCH /products/:modelId/stage called:', { modelId, stage, userId: req.user?.id })
+
+    if (!stage) {
+      res.status(400).json({ error: 'Stage je obavezan' })
+      return
+    }
+
+    const validStages = ['idea', 'prototype', 'testing', 'approved']
+    if (!validStages.includes(stage)) {
+      res.status(400).json({ 
+        error: `Nevažeći stage: ${stage}. Dozvoljeni: ${validStages.join(', ')}` 
+      })
+      return
+    }
+
+    if (!modelId) {
+      res.status(400).json({ error: 'Model ID je obavezan' })
+      return
+    }
+
+    // Proveri da li proizvod postoji
+    console.log('[DesignerRoute] Fetching product model:', modelId)
+    const product = await getProductModelById(modelId)
+    
+    if (!product) {
+      console.log('[DesignerRoute] Product not found:', modelId)
+      res.status(404).json({ error: 'Proizvod nije pronađen' })
+      return
+    }
+
+    console.log('[DesignerRoute] Product found, updating stage:', { 
+      currentStage: product.development_stage, 
+      newStage: stage 
+    })
+
+    // Ažuriraj status
+    const updatedProduct = await updateProductModelStage(
+      modelId, 
+      stage, 
+      req.user.id
+    )
+
+    console.log('[DesignerRoute] Successfully updated product stage:', updatedProduct)
+
+    res.json({
+      success: true,
+      product: updatedProduct,
+      message: `Status proizvoda je uspešno ažuriran na: ${stage}`
+    })
+  } catch (error) {
+    console.error('[DesignerRoute] Error updating product stage:', error)
+    console.error('[DesignerRoute] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint
+    })
+    
+    // Ako je Supabase greška, ekstraktuj korisnu poruku
+    if (error?.code) {
+      res.status(400).json({ 
+        error: error.message || 'Greška pri ažuriranju statusa',
+        details: error.details || error.hint || error.code
+      })
+      return
+    }
+    
+    // Ako je već Error objekat sa statusom
+    if (error?.status) {
+      res.status(error.status).json({ 
+        error: error.message || 'Greška pri ažuriranju statusa'
+      })
+      return
+    }
+    
+    // Generička greška
+    res.status(500).json({ 
+      error: error?.message || 'Greška pri ažuriranju statusa',
+      details: error?.toString()
+    })
+  }
+})
+
 export { testerRouter, designerRouter }

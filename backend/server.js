@@ -54,6 +54,11 @@ configRouter.get('/config/blockchain', (req, res) => {
 app.use('/api', configRouter)
 
 // Tester i Designer rute – montirane na tačne putanje, pre cart/favorites
+// Dodaj logging middleware pre designer ruta
+app.use('/api/designer', (req, res, next) => {
+  console.log('[Server] Designer route hit:', req.method, req.path, req.originalUrl)
+  next()
+})
 app.use('/api/tester', testerRouter)
 app.use('/api/designer', designerRouter)
 app.use('/api/lab', labRouter)

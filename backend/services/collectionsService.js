@@ -266,10 +266,19 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
       throw new Error(`Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`)
     }
 
+    console.log('[CollectionsService] Updating product model stage:', { modelId, stage, approvedBy })
+
+    if (!dbClient) {
+      throw new Error('Database client nije inicijalizovan')
+    }
+
     const updateData = {
       development_stage: stage,
       updated_at: new Date().toISOString()
     }
+
+    console.log('[CollectionsService] Update data:', updateData)
+    console.log('[CollectionsService] Model ID:', modelId)
 
     const { data, error } = await dbClient
       .from('product_models')
@@ -280,8 +289,22 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
 
     if (error) {
       console.error('[CollectionsService] Error updating product model stage:', error)
-      throw error
+      console.error('[CollectionsService] Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      })
+      // Formatiraj grešku za bolje razumevanje
+      const errorMessage = error.message || 'Greška pri ažuriranju statusa proizvoda'
+      const formattedError = new Error(errorMessage)
+      formattedError.code = error.code
+      formattedError.details = error.details
+      formattedError.hint = error.hint
+      throw formattedError
     }
+
+    console.log('[CollectionsService] Successfully updated product model stage:', data)
 
     // Ako je odobren, dodaj zapis u product_model_approvals
     if (stage === 'approved' && approvedBy) {
@@ -382,6 +405,11 @@ export const getProductModelById = async (modelId) => {
     .single()
 
   if (error) {
+    // Ako je greška "PGRST116" (no rows returned), vrati null umesto da baci grešku
+    if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+      console.log('[CollectionsService] Product model not found:', modelId)
+      return null
+    }
     console.error('[CollectionsService] Error fetching product model:', error)
     throw error
   }
