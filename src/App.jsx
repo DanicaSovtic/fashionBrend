@@ -42,9 +42,42 @@ const AppRoutes = () => {
     <Routes>
       {!isDistributor && (
         <>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route
+            path="/"
+            element={
+              isTester ? (
+                <Navigate to="/tester/collections" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : (
+                <Home />
+              )
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              isTester ? (
+                <Navigate to="/tester/collections" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : (
+                <About />
+              )
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              isTester ? (
+                <Navigate to="/tester/collections" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : (
+                <Contact />
+              )
+            }
+          />
           <Route
             path="/collection"
             element={isEndUser ? <Navigate to="/" replace /> : <Collection />}
@@ -59,8 +92,30 @@ const AppRoutes = () => {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/users" element={<UsersPage />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:slugOrId" element={<BlogDetail />} />
+          <Route
+            path="/blog"
+            element={
+              isTester ? (
+                <Navigate to="/tester/collections" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : (
+                <Blog />
+              )
+            }
+          />
+          <Route
+            path="/blog/:slugOrId"
+            element={
+              isTester ? (
+                <Navigate to="/tester/collections" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : (
+                <BlogDetail />
+              )
+            }
+          />
           <Route
             path="/designer/collections"
             element={authLoading || isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}

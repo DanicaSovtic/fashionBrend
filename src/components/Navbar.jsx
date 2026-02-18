@@ -45,7 +45,7 @@ const Navbar = ({ activePath }) => {
             </>
           ) : (
             <>
-              {profile?.role !== 'superadmin' && !isDesigner && (
+              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && (
                 <li className="navbar-item">
                   <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`}>
                     Početna
@@ -87,7 +87,7 @@ const Navbar = ({ activePath }) => {
                   Prodavnica
                 </Link>
               </li>
-              {!isDesigner && (
+              {!isDesigner && !isTester && !isLaborant && (
                 <li className="navbar-item">
                   <Link to="/blog" className={`navbar-link ${isActive('/blog') ? 'active' : ''}`}>
                     Blog
@@ -104,14 +104,14 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
-              {profile?.role !== 'superadmin' && !isDesigner && (
+              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && (
                 <li className="navbar-item">
                   <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
                     O nama
                   </Link>
                 </li>
               )}
-              {profile?.role !== 'superadmin' && !isDesigner && (
+              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && (
                 <li className="navbar-item">
                   <Link
                     to="/contact"
