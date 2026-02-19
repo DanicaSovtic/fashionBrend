@@ -509,7 +509,10 @@ const TesterCollectionsPage = () => {
                         className={`designer-model-item ${model.id === selectedModel?.id ? 'active' : ''}`}
                         onClick={() => setSelectedModelId(model.id)}
                       >
-                        <div><strong>{model.name}</strong><span className="designer-muted">{model.sku}</span></div>
+                        <div className="designer-model-item-text">
+                          <strong>{model.name}</strong>
+                          <span className="designer-muted">{model.sku}</span>
+                        </div>
                         <span className="designer-status">{mapStage(model.development_stage)}</span>
                       </button>
                     ))
@@ -519,8 +522,8 @@ const TesterCollectionsPage = () => {
                   <div className="designer-model-detail">
                     <div className="designer-model-header">
                       <div>
-                        <h4>{selectedModel.name}</h4>
-                        <p className="designer-muted">{selectedModel.sku} • {selectedCollection?.name}</p>
+                        <h4>{selectedModel.name} <span className="designer-muted">• {selectedModel.sku}</span></h4>
+                        <p className="designer-muted">{selectedCollection?.name}</p>
                       </div>
                       <span className="designer-status-chip">{mapStage(selectedModel.development_stage)}</span>
                     </div>
@@ -760,9 +763,15 @@ const TesterCollectionsPage = () => {
                 </div>
               </div>
               <div className="designer-webshop-meta">
-                <div><span className="designer-muted">Naziv</span><strong>{selectedModel.name}</strong></div>
-                <div><span className="designer-muted">SKU</span><strong>{selectedModel.sku}</strong></div>
-                <div>
+                <div className="designer-webshop-meta-row">
+                  <span className="designer-muted">Naziv</span>
+                  <strong>{selectedModel.name}</strong>
+                </div>
+                <div className="designer-webshop-meta-row">
+                  <span className="designer-muted">SKU</span>
+                  <strong>{selectedModel.sku}</strong>
+                </div>
+                <div className="designer-webshop-meta-row">
                   <span className="designer-muted">Priprema za prodaju</span>
                   <strong>{selectedModel.development_stage === 'approved' ? 'Spremno' : 'U toku'}</strong>
                 </div>

@@ -214,10 +214,10 @@ const LabDashboard = () => {
                     <button
                       key={product.id}
                       type="button"
-                      className={`designer-model-item ${selectedProduct?.id === product.id ? 'active' : ''}`}
+                      className={`designer-model-item lab-model-item ${selectedProduct?.id === product.id ? 'active' : ''}`}
                       onClick={() => setSelectedProduct(product)}
                     >
-                      <div>
+                      <div className="designer-model-item-text">
                         <strong>{product.name}</strong>
                         <span className="designer-muted">{product.sku}</span>
                       </div>

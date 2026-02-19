@@ -202,6 +202,13 @@
   font-weight: 600;
 }
 
+/* LabDashboard - status ispod naziva i šifre */
+.lab-model-item {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+}
+
 .designer-model-detail {
   border: 1px solid #eee;
   border-radius: 16px;
@@ -385,7 +392,7 @@
 .designer-webshop-meta-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .designer-webshop-meta-row .designer-muted {

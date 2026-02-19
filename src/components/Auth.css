@@ -62,11 +62,18 @@
   position: relative;
   display: flex;
   align-items: center;
+  background: transparent;
 }
 
 .auth-password-field input {
   width: 100%;
   padding-right: 44px;
+  background: #ffffff;
+}
+
+.auth-password-field input:focus,
+.auth-password-field input:hover {
+  background: #ffffff !important;
 }
 
 .auth-password-toggle {
@@ -75,7 +82,7 @@
   width: 32px;
   height: 32px;
   border: none;
-  background: transparent;
+  background: transparent !important;
   color: #5d5a55;
   display: inline-flex;
   align-items: center;
@@ -83,17 +90,17 @@
   cursor: pointer;
   padding: 0;
   outline: none;
+  box-shadow: none !important;
 }
 
-.auth-password-toggle:focus {
-  outline: none;
-  box-shadow: none;
-}
-
+.auth-password-toggle:hover,
+.auth-password-toggle:focus,
 .auth-password-toggle:focus-visible,
 .auth-password-toggle:active {
   outline: none;
-  box-shadow: none;
+  box-shadow: none !important;
+  background: transparent !important;
+  border: none !important;
 }
 
 .auth-password-toggle svg {
@@ -101,7 +108,7 @@
   height: 20px;
 }
 
-.auth-form button,
+.auth-form button:not(.auth-password-toggle),
 .auth-profile button {
   height: 42px;
   border: none;

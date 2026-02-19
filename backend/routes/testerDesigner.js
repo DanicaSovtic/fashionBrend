@@ -124,7 +124,8 @@ designerRouter.get('/collections', requireAuth, requireRole(['modni_dizajner']),
 /**
  * PATCH /api/designer/products/:modelId/stage
  * Ažurira development_stage proizvoda (za modnog dizajnera)
- * Očekuje: { stage: 'idea' | 'prototype' | 'testing' | 'approved' }
+ * Očekuje: { stage: 'idea' | 'prototype' | 'testing' }
+ * Napomena: Modni dizajner ne može da postavi status na 'approved' - odobrenje zavisi od testera kvaliteta
  */
 designerRouter.patch('/products/:modelId/stage', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
   try {
@@ -138,10 +139,12 @@ designerRouter.patch('/products/:modelId/stage', requireAuth, requireRole(['modn
       return
     }
 
-    const validStages = ['idea', 'prototype', 'testing', 'approved']
+    // Modni dizajner može da postavi samo ideja, prototip i testiranje - ne može odobrenje
+    // Odobrenje zavisi od testera kvaliteta
+    const validStages = ['idea', 'prototype', 'testing']
     if (!validStages.includes(stage)) {
       res.status(400).json({ 
-        error: `Nevažeći stage: ${stage}. Dozvoljeni: ${validStages.join(', ')}` 
+        error: `Nevažeći stage: ${stage}. Dozvoljeni: ${validStages.join(', ')}. Modni dizajner ne može da odobri proizvod - odobrenje zavisi od testera kvaliteta.` 
       })
       return
     }

@@ -1008,7 +1008,6 @@ const DesignerCollectionsPage = () => {
                     <option value="idea">Ideja</option>
                     <option value="prototype">Prototip</option>
                     <option value="testing">Testiranje</option>
-                    <option value="approved">Odobreno</option>
                   </select>
                   {isUpdatingStage && (
                     <span style={{ fontSize: '14px', color: '#5a5463' }}>Čuvanje...</span>
