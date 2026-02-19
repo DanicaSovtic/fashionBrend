@@ -119,7 +119,8 @@ const NewCollections = () => {
                   <div className="collection-card-content">
                     <div className="collection-card-header">
                       <span className="collection-season">{collection.season || 'N/A'}</span>
-                      {collection.approved_count !== undefined && (
+                      {/* Sakriveno od krajnjih korisnika */}
+                      {false && collection.approved_count !== undefined && (
                         <span className="collection-items" style={{ color: '#10b981', fontWeight: '600' }}>
                           {collection.approved_count} odobrenih proizvoda
                         </span>

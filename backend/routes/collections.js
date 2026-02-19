@@ -10,7 +10,8 @@ import {
   updateCollectionStatus,
   updateProductModel,
   getNewCollections,
-  getApprovedProductsFromCollection
+  getApprovedProductsFromCollection,
+  createProductsForApprovedModels
 } from '../services/collectionsService.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 
@@ -216,6 +217,21 @@ router.post('/product-models/:modelId/comments', requireAuth, async (req, res, n
     res.status(201).json(comment)
   } catch (error) {
     console.error('[CollectionsRoute] Error creating comment:', error)
+    next(error)
+  }
+})
+
+// POST endpoint za kreiranje proizvoda za sve odobrene modele (admin/superadmin)
+router.post('/products/create-from-approved-models', requireAuth, requireRole(['superadmin', 'modni_dizajner']), async (req, res, next) => {
+  try {
+    const results = await createProductsForApprovedModels()
+    res.json({
+      success: true,
+      message: `Kreirano ${results.created} proizvoda, preskočeno ${results.skipped}, grešaka ${results.errors.length}`,
+      ...results
+    })
+  } catch (error) {
+    console.error('[CollectionsRoute] Error creating products from approved models:', error)
     next(error)
   }
 })

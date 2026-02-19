@@ -257,6 +257,127 @@ export const updateCollectionStatus = async (collectionId, status) => {
 }
 
 /**
+ * Kreira proizvod u products tabeli iz odobrenog product_model
+ */
+export const createProductFromModel = async (modelId) => {
+  try {
+    console.log('[CollectionsService] createProductFromModel called for modelId:', modelId)
+    
+    // Proveri da li proizvod već postoji
+    const { data: existingProduct, error: checkError } = await dbClient
+      .from('products')
+      .select('id, title, product_model_id')
+      .eq('product_model_id', modelId)
+      .maybeSingle()
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('[CollectionsService] Error checking existing product:', {
+        error: checkError,
+        code: checkError.code,
+        message: checkError.message
+      })
+      throw checkError
+    }
+
+    if (existingProduct) {
+      console.log('[CollectionsService] Product already exists for model:', {
+        modelId,
+        productId: existingProduct.id,
+        title: existingProduct.title
+      })
+      return existingProduct
+    }
+
+    // Dobij product_model sa svim podacima uključujući media
+    const { data: productModel, error: modelError } = await dbClient
+      .from('product_models')
+      .select(`
+        *,
+        media:product_model_media(*)
+      `)
+      .eq('id', modelId)
+      .single()
+
+    if (modelError) {
+      console.error('[CollectionsService] Error fetching product model:', modelError)
+      throw modelError
+    }
+
+    if (!productModel) {
+      throw new Error(`Product model ${modelId} not found`)
+    }
+
+    // Dobij primarnu sliku ili prvu dostupnu
+    const primaryImage = productModel.media?.find(m => m.is_primary) || productModel.media?.[0]
+    const imageUrl = primaryImage?.image_url || 'https://via.placeholder.com/300x400'
+
+    // Mapiraj podatke iz product_model u products format
+    // Koristi cenu iz product_model ako je postavljena, inače default cena: 5000 RSD
+    const DEFAULT_PRICE = 5000
+    const productPrice = productModel.price && productModel.price > 0 
+      ? productModel.price 
+      : DEFAULT_PRICE
+    
+    const productData = {
+      product_model_id: modelId,
+      title: productModel.name || 'Proizvod bez naziva',
+      description: productModel.concept || productModel.inspiration || '',
+      category: productModel.category || '',
+      image_url: imageUrl,
+      sku: productModel.sku || null,
+      price: productPrice, // Koristi cenu iz product_model ili default
+      sastav: productModel.materials || '',
+      odrzavanje: 'Prati ručno do 30°C; Ne koristiti izbeljivač; Peglati na niskoj temperaturi', // Default ili iz tech_notes
+      poreklo: 'Proizvedeno u Srbiji' // Default vrednost
+    }
+
+    // Ako ima tech_notes, možemo pokušati da izvučemo održavanje
+    if (productModel.tech_notes) {
+      // Možemo dodati logiku za parsiranje tech_notes ako je potrebno
+      // Za sada koristimo default vrednost
+    }
+
+    console.log('[CollectionsService] Product data to insert:', {
+      title: productData.title,
+      category: productData.category,
+      price: productData.price,
+      hasImage: !!productData.image_url,
+      imageUrl: productData.image_url
+    })
+
+    // Kreiraj proizvod
+    const { data: newProduct, error: insertError } = await dbClient
+      .from('products')
+      .insert(productData)
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('[CollectionsService] Error creating product:', {
+        error: insertError,
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        productData
+      })
+      throw insertError
+    }
+
+    console.log('[CollectionsService] Successfully created product from model:', {
+      productId: newProduct.id,
+      title: newProduct.title,
+      category: newProduct.category,
+      price: newProduct.price
+    })
+    return newProduct
+  } catch (error) {
+    console.error('[CollectionsService] Exception in createProductFromModel:', error)
+    throw error
+  }
+}
+
+/**
  * Ažurira development_stage proizvoda (npr. iz 'testing' u 'approved')
  */
 export const updateProductModelStage = async (modelId, stage, approvedBy = null) => {
@@ -306,7 +427,7 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
 
     console.log('[CollectionsService] Successfully updated product model stage:', data)
 
-    // Ako je odobren, dodaj zapis u product_model_approvals
+    // Ako je odobren, dodaj zapis u product_model_approvals i kreiraj proizvod u products tabeli
     if (stage === 'approved' && approvedBy) {
       try {
         const { error: approvalError } = await dbClient
@@ -326,6 +447,27 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
       } catch (err) {
         console.error('[CollectionsService] Exception creating approval record:', err)
         // Ne bacamo grešku - glavna operacija je uspešna
+      }
+
+      // Automatski kreiraj proizvod u products tabeli
+      try {
+        console.log('[CollectionsService] Attempting to create product from approved model:', modelId)
+        const createdProduct = await createProductFromModel(modelId)
+        console.log('[CollectionsService] Product successfully created in store:', {
+          productId: createdProduct.id,
+          title: createdProduct.title,
+          category: createdProduct.category,
+          price: createdProduct.price
+        })
+      } catch (productErr) {
+        console.error('[CollectionsService] Error creating product in store:', {
+          modelId,
+          error: productErr.message,
+          stack: productErr.stack,
+          details: productErr.details || productErr.hint || 'No additional details'
+        })
+        // Ne bacamo grešku - glavna operacija (odobrenje) je uspešna
+        // Proizvod može biti kreiran ručno kasnije ako je potrebno
       }
     }
 
@@ -359,7 +501,7 @@ export const updateProductModel = async (modelId, updateData) => {
     const allowedFields = [
       'name', 'sku', 'category', 'concept', 'inspiration',
       'color_palette', 'variants', 'pattern_notes', 'materials',
-      'size_table', 'tech_notes'
+      'size_table', 'tech_notes', 'price'
     ]
 
     const filtered = {}
@@ -469,6 +611,67 @@ export const getNewCollections = async () => {
 }
 
 /**
+ * Kreira proizvode za sve odobrene modele koji još nisu kreirani u products tabeli
+ */
+export const createProductsForApprovedModels = async () => {
+  try {
+    console.log('[CollectionsService] Creating products for all approved models...')
+    
+    // Dobij sve odobrene modele
+    const { data: approvedModels, error: modelsError } = await dbClient
+      .from('product_models')
+      .select('id')
+      .eq('development_stage', 'approved')
+
+    if (modelsError) {
+      console.error('[CollectionsService] Error fetching approved models:', modelsError)
+      throw modelsError
+    }
+
+    if (!approvedModels || approvedModels.length === 0) {
+      console.log('[CollectionsService] No approved models found')
+      return { created: 0, skipped: 0, errors: [] }
+    }
+
+    console.log(`[CollectionsService] Found ${approvedModels.length} approved models`)
+
+    const results = {
+      created: 0,
+      skipped: 0,
+      errors: []
+    }
+
+    // Za svaki odobren model, pokušaj da kreiraš proizvod
+    for (const model of approvedModels) {
+      try {
+        const product = await createProductFromModel(model.id)
+        if (product) {
+          results.created++
+          console.log(`[CollectionsService] Created product for model ${model.id}`)
+        }
+      } catch (err) {
+        // Proveri da li je greška zbog toga što proizvod već postoji
+        if (err.message && err.message.includes('already exists')) {
+          results.skipped++
+        } else {
+          results.errors.push({
+            modelId: model.id,
+            error: err.message || 'Unknown error'
+          })
+          console.error(`[CollectionsService] Error creating product for model ${model.id}:`, err.message)
+        }
+      }
+    }
+
+    console.log('[CollectionsService] Finished creating products:', results)
+    return results
+  } catch (error) {
+    console.error('[CollectionsService] Exception in createProductsForApprovedModels:', error)
+    throw error
+  }
+}
+
+/**
  * Dobija samo odobrene proizvode iz određene kolekcije
  */
 export const getApprovedProductsFromCollection = async (collectionId) => {
@@ -501,25 +704,76 @@ export const getApprovedProductsFromCollection = async (collectionId) => {
       throw modelsError
     }
 
-    // Formatujemo proizvode za prikaz (slično kao products tabela)
-    const formattedProducts = (approvedModels || []).map(model => {
-      const primaryImage = model.media?.find(m => m.is_primary) || model.media?.[0]
-      return {
-        id: model.id,
-        title: model.name || 'Proizvod bez naziva',
-        description: model.concept || model.inspiration || '',
-        category: model.category || '',
-        image_url: primaryImage?.image_url || 'https://via.placeholder.com/300x400',
-        sku: model.sku || '',
-        collection_id: model.collection_id,
-        collection_name: collection.name,
-        price: 0, // Trebaće dodati logiku za cenu
-        sastav: model.materials || '',
-        created_at: model.created_at,
-        color_palette: model.color_palette || '',
-        variants: model.variants || ''
-      }
-    })
+    console.log(`[CollectionsService] Found ${approvedModels?.length || 0} approved models for collection ${collectionId}`)
+
+    // Za svaki model, proveri da li postoji proizvod u products tabeli i kreiraj ga ako ne postoji
+    const formattedProducts = await Promise.all(
+      (approvedModels || []).map(async (model) => {
+        console.log(`[CollectionsService] Processing model: ${model.id} (${model.name})`)
+        
+        // Proveri da li postoji proizvod u products tabeli za ovaj model
+        let existingProduct = null
+        const { data: productCheck, error: checkError } = await dbClient
+          .from('products')
+          .select('id')
+          .eq('product_model_id', model.id)
+          .maybeSingle()
+        
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error(`[CollectionsService] Error checking for existing product:`, checkError)
+        }
+        
+        existingProduct = productCheck
+
+        if (existingProduct) {
+          console.log(`[CollectionsService] Product already exists for model ${model.id}: ${existingProduct.id}`)
+        } else {
+          // Ako proizvod ne postoji, automatski ga kreiram
+          try {
+            console.log(`[CollectionsService] Auto-creating product for approved model: ${model.id}`)
+            const createdProduct = await createProductFromModel(model.id)
+            if (createdProduct && createdProduct.id) {
+              existingProduct = { id: createdProduct.id }
+              console.log(`[CollectionsService] Successfully auto-created product: ${createdProduct.id} for model ${model.id}`)
+            } else {
+              console.error(`[CollectionsService] Created product but no ID returned for model ${model.id}`)
+            }
+          } catch (createErr) {
+            console.error(`[CollectionsService] Error auto-creating product for model ${model.id}:`, {
+              error: createErr.message,
+              stack: createErr.stack,
+              details: createErr.details || createErr.hint
+            })
+            // Nastavljamo sa model.id ako kreiranje ne uspe
+          }
+        }
+
+        const primaryImage = model.media?.find(m => m.is_primary) || model.media?.[0]
+        
+        const productId = existingProduct?.id || model.id
+        console.log(`[CollectionsService] Returning product with ID: ${productId} (hasProduct: ${!!existingProduct})`)
+        
+        return {
+          id: productId, // Koristi ID iz products ako postoji, inače ID iz modela
+          product_model_id: model.id, // Zadrži i ID modela za reference
+          title: model.name || 'Proizvod bez naziva',
+          description: model.concept || model.inspiration || '',
+          category: model.category || '',
+          image_url: primaryImage?.image_url || 'https://via.placeholder.com/300x400',
+          sku: model.sku || '',
+          collection_id: model.collection_id,
+          collection_name: collection.name,
+          price: model.price && model.price > 0 ? model.price : 0,
+          sastav: model.materials || '',
+          created_at: model.created_at,
+          color_palette: model.color_palette || '',
+          variants: model.variants || '',
+          hasProduct: !!existingProduct // Flag da znamo da li proizvod postoji u products tabeli
+        }
+      })
+    )
+
+    console.log(`[CollectionsService] Returning ${formattedProducts.length} products for collection ${collectionId}`)
 
     return {
       collection: collection,

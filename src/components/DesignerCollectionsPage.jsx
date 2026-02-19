@@ -91,7 +91,8 @@ const DesignerCollectionsPage = () => {
         materials: selectedModel.materials || '',
         pattern_notes: selectedModel.pattern_notes || '',
         size_table: selectedModel.size_table || '',
-        tech_notes: selectedModel.tech_notes || ''
+        tech_notes: selectedModel.tech_notes || '',
+        price: selectedModel.price || ''
       })
     } else {
       setEditForm(null)
@@ -845,6 +846,18 @@ const DesignerCollectionsPage = () => {
                             rows={2}
                           />
                         </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Cena (RSD):</span>
+                          <input
+                            type="number"
+                            value={editForm.price}
+                            onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value ? parseFloat(e.target.value) : '' }))}
+                            placeholder="npr. 5000"
+                            className="designer-edit-input"
+                            min="0"
+                            step="100"
+                          />
+                        </div>
                       </>
                     ) : (
                       <>
@@ -871,6 +884,18 @@ const DesignerCollectionsPage = () => {
                         <div className="designer-tech-block">
                           <span className="designer-tech-label">Napomene:</span>
                           <span className="designer-tech-content">{selectedModel.tech_notes || 'Nema napomena'}</span>
+                        </div>
+                        <div className="designer-tech-block">
+                          <span className="designer-tech-label">Cena (RSD):</span>
+                          <span className="designer-tech-content">
+                            {selectedModel.price 
+                              ? new Intl.NumberFormat('sr-RS', { 
+                                  style: 'currency', 
+                                  currency: 'RSD',
+                                  minimumFractionDigits: 0 
+                                }).format(selectedModel.price)
+                              : 'Nije postavljena'}
+                          </span>
                         </div>
                       </>
                     )}

@@ -16,6 +16,8 @@ create table if not exists products (
 alter table products add column if not exists sastav text;
 alter table products add column if not exists odrzavanje text;
 alter table products add column if not exists poreklo text;
+alter table products add column if not exists sku text;
+alter table products add column if not exists product_model_id uuid references product_models(id) on delete set null;
 
 create table if not exists orders (
   id uuid primary key default gen_random_uuid(),
@@ -329,6 +331,7 @@ create table if not exists product_models (
   materials text,
   size_table text,
   tech_notes text,
+  price numeric,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
