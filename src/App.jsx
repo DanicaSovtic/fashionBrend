@@ -82,11 +82,11 @@ const AppRoutes = () => {
           />
           <Route
             path="/collection"
-            element={isEndUser ? <Navigate to="/" replace /> : <Collection />}
+            element={isEndUser || profile?.role === 'superadmin' ? <Navigate to="/" replace /> : <Collection />}
           />
           <Route
             path="/collection/:id"
-            element={isEndUser ? <Navigate to="/" replace /> : <CollectionDetail />}
+            element={isEndUser || profile?.role === 'superadmin' ? <Navigate to="/" replace /> : <CollectionDetail />}
           />
           <Route path="/shop" element={<Shop />} />
           <Route 

@@ -101,7 +101,7 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
-              {user && profile?.role !== 'krajnji_korisnik' && (
+              {user && profile?.role !== 'krajnji_korisnik' && profile?.role !== 'superadmin' && (
                 <li className="navbar-item">
                   <Link
                     to="/collection"
@@ -130,6 +130,14 @@ const Navbar = ({ activePath }) => {
               )}
               {profile?.role === 'superadmin' && (
                 <>
+                  <li className="navbar-item">
+                    <Link
+                      to="/admin/blog"
+                      className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
+                    >
+                      Upravljanje Blogom
+                    </Link>
+                  </li>
                   <li className="navbar-item navbar-dropdown">
                     <span
                       className={`navbar-link navbar-dropdown-toggle ${isUsersActive ? 'active' : ''}`}
@@ -144,14 +152,6 @@ const Navbar = ({ activePath }) => {
                         Pregled korisnika
                       </Link>
                     </div>
-                  </li>
-                  <li className="navbar-item">
-                    <Link
-                      to="/admin/blog"
-                      className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
-                    >
-                      Upravljanje Blogom
-                    </Link>
                   </li>
                 </>
               )}
