@@ -15,6 +15,7 @@ import chatRouter from './routes/chat.js'
 import supplierRouter from './routes/supplier.js'
 import designerMaterialRequestsRouter from './routes/designerMaterialRequests.js'
 import manufacturerRouter from './routes/manufacturer.js'
+import accountantRouter from './routes/accountant.js'
 
 dotenv.config()
 
@@ -69,6 +70,7 @@ app.use('/api/designer/material-requests', designerMaterialRequestsRouter)
 app.use('/api/lab', labRouter)
 app.use('/api/supplier', supplierRouter)
 app.use('/api/manufacturer', manufacturerRouter)
+app.use('/api', accountantRouter)
 
 // Collections router
 app.use('/api', (req, res, next) => {

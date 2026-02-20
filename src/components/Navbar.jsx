@@ -13,6 +13,7 @@ const Navbar = ({ activePath }) => {
   const isSupplier = profile?.role === 'dobavljac_materijala'
   const isManufacturer = profile?.role === 'proizvodjac'
   const isMarketingAsistent = profile?.role === 'marketing_asistent'
+  const isAccountant = profile?.role === 'racunovodja'
 
   const currentPath = activePath || location.pathname
   const isActive = (path) => currentPath === path
@@ -27,7 +28,7 @@ const Navbar = ({ activePath }) => {
     <nav className="navbar">
       <div className="navbar-container">
         <div className="navbar-logo">
-          <Link to={isDistributor ? '/logistics' : isMarketingAsistent ? '/blog' : '/'}>Piccola</Link>
+          <Link to={isDistributor ? '/logistics' : isMarketingAsistent ? '/blog' : isAccountant ? '/accountant/transactions' : '/'}>Piccola</Link>
         </div>
         <ul className="navbar-menu">
           {isDistributor ? (
@@ -59,6 +60,17 @@ const Navbar = ({ activePath }) => {
                   className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
                 >
                   Upravljanje Blogom
+                </Link>
+              </li>
+            </>
+          ) : isAccountant ? (
+            <>
+              <li className="navbar-item">
+                <Link
+                  to="/accountant/transactions"
+                  className={`navbar-link ${isActive('/accountant/transactions') ? 'active' : ''}`}
+                >
+                  Transakcije
                 </Link>
               </li>
             </>

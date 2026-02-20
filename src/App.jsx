@@ -32,6 +32,7 @@ import AdminBlog from './components/AdminBlog'
 import DobavljacMaterijalaPage from './components/DobavljacMaterijalaPage'
 import RazvojModelaPage from './components/RazvojModelaPage'
 import ProizvodnjaPage from './components/ProizvodnjaPage'
+import RacunovodjaPage from './components/RacunovodjaPage'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
@@ -45,6 +46,7 @@ const AppRoutes = () => {
   const isMarketingAsistent = profile?.role === 'marketing_asistent'
   const isSupplier = profile?.role === 'dobavljac_materijala'
   const isManufacturer = profile?.role === 'proizvodjac'
+  const isAccountant = profile?.role === 'racunovodja'
 
   return (
     <Routes>
@@ -63,6 +65,8 @@ const AppRoutes = () => {
                 <Navigate to="/supplier/inventory" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <Home />
               )
@@ -79,6 +83,8 @@ const AppRoutes = () => {
                 <Navigate to="/lab/dashboard" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <About />
               )
@@ -95,6 +101,8 @@ const AppRoutes = () => {
                 <Navigate to="/lab/dashboard" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <Contact />
               )
@@ -109,6 +117,8 @@ const AppRoutes = () => {
                 <Navigate to="/supplier/inventory" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : isEndUser || profile?.role === 'superadmin' ? (
                 <Navigate to="/" replace />
               ) : (
@@ -125,6 +135,8 @@ const AppRoutes = () => {
                 <Navigate to="/supplier/inventory" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : isEndUser || profile?.role === 'superadmin' ? (
                 <Navigate to="/" replace />
               ) : (
@@ -143,6 +155,8 @@ const AppRoutes = () => {
                 <Navigate to="/designer/collections" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <Shop />
               )
@@ -153,6 +167,8 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : profile?.role === 'krajnji_korisnik' ? (
                 <NewCollections />
               ) : (
@@ -165,6 +181,8 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : profile?.role === 'krajnji_korisnik' ? (
                 <NewCollectionDetail />
               ) : (
@@ -179,6 +197,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <Product />
               )
@@ -191,6 +211,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <CartPage />
               )
@@ -203,6 +225,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <Checkout />
               )
@@ -215,6 +239,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <FavoritesPage />
               )
@@ -227,6 +253,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <UsersPage />
               )
@@ -241,6 +269,8 @@ const AppRoutes = () => {
                 <Navigate to="/lab/dashboard" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <Blog />
               )
@@ -255,6 +285,8 @@ const AppRoutes = () => {
                 <Navigate to="/lab/dashboard" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : (
                 <BlogDetail />
               )
@@ -267,6 +299,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : authLoading || isDesigner ? (
                 <DesignerCollectionsPage />
               ) : (
@@ -281,6 +315,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : authLoading || isTester ? (
                 <TesterCollectionsPage />
               ) : (
@@ -295,6 +331,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : authLoading || isLaborant ? (
                 <LabDashboard />
               ) : (
@@ -307,6 +345,8 @@ const AppRoutes = () => {
             element={
               isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
                 <AdminBlog />
               ) : (
@@ -319,6 +359,8 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : authLoading || isSupplier ? (
                 <DobavljacMaterijalaPage />
               ) : (
@@ -333,6 +375,8 @@ const AppRoutes = () => {
                 <Navigate to="/blog" replace />
               ) : isManufacturer ? (
                 <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : authLoading || isDesigner ? (
                 <RazvojModelaPage />
               ) : (
@@ -345,8 +389,22 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
               ) : authLoading || isManufacturer ? (
                 <ProizvodnjaPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/accountant/transactions"
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isAccountant ? (
+                <RacunovodjaPage />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -363,6 +421,8 @@ const AppRoutes = () => {
             <Navigate to="/blog" replace />
           ) : isManufacturer ? (
             <Navigate to="/manufacturer/proizvodnja" replace />
+          ) : isAccountant ? (
+            <Navigate to="/accountant/transactions" replace />
           ) : (
             <LogisticsDashboard />
           )
@@ -375,6 +435,8 @@ const AppRoutes = () => {
             <Navigate to="/blog" replace />
           ) : isManufacturer ? (
             <Navigate to="/manufacturer/proizvodnja" replace />
+          ) : isAccountant ? (
+            <Navigate to="/accountant/transactions" replace />
           ) : (
             <LogisticsIssuesPage />
           )
@@ -383,6 +445,7 @@ const AppRoutes = () => {
       {isDistributor && <Route path="*" element={<Navigate to="/logistics" replace />} />}
       {isMarketingAsistent && <Route path="*" element={<Navigate to="/blog" replace />} />}
       {isManufacturer && <Route path="*" element={<Navigate to="/manufacturer/proizvodnja" replace />} />}
+      {isAccountant && <Route path="*" element={<Navigate to="/accountant/transactions" replace />} />}
     </Routes>
   )
 }
