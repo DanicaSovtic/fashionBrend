@@ -437,3 +437,290 @@ export const approveProductOnBlockchain = async (
     gasUsed: receipt.gasUsed.toString()
   }
 }
+
+/**
+ * Inventory Contract ABI
+ */
+const INVENTORY_CONTRACT_ABI = [
+  {
+    "inputs": [
+      { "internalType": "string", "name": "material", "type": "string" },
+      { "internalType": "string", "name": "color", "type": "string" },
+      { "internalType": "uint256", "name": "quantityKg", "type": "uint256" },
+      { "internalType": "uint256", "name": "pricePerKg", "type": "uint256" },
+      { "internalType": "uint256", "name": "leadTimeDays", "type": "uint256" }
+    ],
+    "name": "addItem",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "itemId", "type": "uint256" },
+      { "internalType": "uint256", "name": "newQuantityKg", "type": "uint256" },
+      { "internalType": "uint256", "name": "newPricePerKg", "type": "uint256" }
+    ],
+    "name": "updateQty",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "itemId", "type": "uint256" }],
+    "name": "pauseItem",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "itemId", "type": "uint256" }],
+    "name": "activateItem",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "supplier", "type": "address" },
+      { "internalType": "uint256", "name": "itemId", "type": "uint256" }
+    ],
+    "name": "getItem",
+    "outputs": [
+      { "internalType": "string", "name": "material", "type": "string" },
+      { "internalType": "string", "name": "color", "type": "string" },
+      { "internalType": "uint256", "name": "quantityKg", "type": "uint256" },
+      { "internalType": "uint256", "name": "pricePerKg", "type": "uint256" },
+      { "internalType": "uint256", "name": "leadTimeDays", "type": "uint256" },
+      { "internalType": "bool", "name": "isActive", "type": "bool" },
+      { "internalType": "uint256", "name": "createdAt", "type": "uint256" },
+      { "internalType": "uint256", "name": "updatedAt", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "supplier", "type": "address" }],
+    "name": "getItemCount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "supplier", "type": "address" },
+      { "indexed": true, "internalType": "uint256", "name": "itemId", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "material", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "color", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "quantityKg", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "pricePerKg", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "leadTimeDays", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "ItemAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "supplier", "type": "address" },
+      { "indexed": true, "internalType": "uint256", "name": "itemId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "quantityKg", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "pricePerKg", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "ItemUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "supplier", "type": "address" },
+      { "indexed": true, "internalType": "uint256", "name": "itemId", "type": "uint256" },
+      { "indexed": false, "internalType": "bool", "name": "isActive", "type": "bool" },
+      { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" }
+    ],
+    "name": "ItemStatusChanged",
+    "type": "event"
+  }
+]
+
+/**
+ * Dodaje novu stavku u zalihu na blockchainu
+ * @param {string} contractAddress Adresa InventoryContract
+ * @param {string} material Naziv materijala
+ * @param {string} color Boja
+ * @param {number} quantityKg Količina u kilogramima
+ * @param {number} pricePerKg Cena po kilogramu (u RSD, konvertuje se u wei)
+ * @param {number} leadTimeDays Rok isporuke u danima
+ * @returns {Promise<{itemId: number, txHash: string, blockNumber: number}>}
+ */
+export const addInventoryItemOnBlockchain = async (
+  contractAddress,
+  material,
+  color,
+  quantityKg,
+  pricePerKg = 0,
+  leadTimeDays = 0
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  // Proveri da li contract postoji
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`Smart contract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, INVENTORY_CONTRACT_ABI, signer)
+
+  // Konvertuj cenu u wei (ako je cena u RSD, koristi se rsdToWei)
+  // Za sada, ako je pricePerKg 0, šaljemo 0
+  const priceWei = pricePerKg > 0 ? rsdToWei(pricePerKg) : ethers.parseEther('0')
+
+  console.log('[Blockchain] Calling addItem with:', {
+    material,
+    color,
+    quantityKg,
+    pricePerKg,
+    priceWei: priceWei.toString(),
+    leadTimeDays,
+    contractAddress
+  })
+
+  const tx = await contract.addItem(
+    material,
+    color,
+    ethers.parseEther(quantityKg.toString()), // Konvertuj kg u wei format za preciznost
+    priceWei,
+    leadTimeDays
+  )
+
+  const receipt = await tx.wait()
+
+  // Pronađi itemId iz eventa
+  const event = receipt.logs.find(log => {
+    try {
+      const parsed = contract.interface.parseLog(log)
+      return parsed && parsed.name === 'ItemAdded'
+    } catch {
+      return false
+    }
+  })
+
+  let itemId = null
+  if (event) {
+    const parsed = contract.interface.parseLog(event)
+    itemId = parsed.args.itemId.toString()
+  }
+
+  return {
+    itemId: itemId || 'unknown',
+    txHash: receipt.hash,
+    blockNumber: receipt.blockNumber
+  }
+}
+
+/**
+ * Ažurira količinu i/ili cenu stavke na blockchainu
+ * @param {string} contractAddress Adresa InventoryContract
+ * @param {number} itemId ID stavke
+ * @param {number} newQuantityKg Nova količina (0 = ne menja se)
+ * @param {number} newPricePerKg Nova cena (0 = ne menja se)
+ * @returns {Promise<{txHash: string, blockNumber: number}>}
+ */
+export const updateInventoryItemOnBlockchain = async (
+  contractAddress,
+  itemId,
+  newQuantityKg = 0,
+  newPricePerKg = 0
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const contract = new ethers.Contract(contractAddress, INVENTORY_CONTRACT_ABI, signer)
+
+  const quantityWei = newQuantityKg > 0 ? ethers.parseEther(newQuantityKg.toString()) : ethers.parseEther('0')
+  const priceWei = newPricePerKg > 0 ? rsdToWei(newPricePerKg) : ethers.parseEther('0')
+
+  console.log('[Blockchain] Calling updateQty with:', {
+    itemId,
+    newQuantityKg,
+    quantityWei: quantityWei.toString(),
+    newPricePerKg,
+    priceWei: priceWei.toString()
+  })
+
+  const tx = await contract.updateQty(itemId, quantityWei, priceWei)
+  const receipt = await tx.wait()
+
+  return {
+    txHash: receipt.hash,
+    blockNumber: receipt.blockNumber
+  }
+}
+
+/**
+ * Pauzira stavku na blockchainu
+ */
+export const pauseInventoryItemOnBlockchain = async (contractAddress, itemId) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const contract = new ethers.Contract(contractAddress, INVENTORY_CONTRACT_ABI, signer)
+
+  const tx = await contract.pauseItem(itemId)
+  const receipt = await tx.wait()
+
+  return {
+    txHash: receipt.hash,
+    blockNumber: receipt.blockNumber
+  }
+}
+
+/**
+ * Aktivira pauziranu stavku na blockchainu
+ */
+export const activateInventoryItemOnBlockchain = async (contractAddress, itemId) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const contract = new ethers.Contract(contractAddress, INVENTORY_CONTRACT_ABI, signer)
+
+  const tx = await contract.activateItem(itemId)
+  const receipt = await tx.wait()
+
+  return {
+    txHash: receipt.hash,
+    blockNumber: receipt.blockNumber
+  }
+}

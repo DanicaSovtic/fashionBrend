@@ -6,12 +6,14 @@ const AUTH_STORAGE_KEY = 'auth_access_token'
 
 const ROLE_OPTIONS = [
   { value: 'modni_dizajner', label: '🎨 Modni dizajneri' },
-  { value: 'dobavljac', label: '🧵 Dobavljaci' },
+  { value: 'dobavljac_materijala', label: '🧵 Dobavljac materijala' },
   { value: 'proizvodjac', label: '✂️ Proizvodjaci' },
   { value: 'tester_kvaliteta', label: '🧪 Tester kvaliteta' },
   { value: 'laborant', label: '🔬 Laborant' },
   { value: 'distributer', label: '📦 Distributer / logistika' },
-  { value: 'krajnji_korisnik', label: '👤 Krajnji korisnik' }
+  { value: 'krajnji_korisnik', label: '👤 Krajnji korisnik' },
+  { value: 'racunovodja', label: '📊 Računovodja' },
+  { value: 'marketing_asistent', label: '📢 Marketing asistent' }
 ]
 
 const getStoredToken = () => localStorage.getItem(AUTH_STORAGE_KEY)

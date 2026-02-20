@@ -175,11 +175,14 @@ alter table profiles
     role in (
       'superadmin',
       'modni_dizajner',
-      'dobavljac',
+      'dobavljac_materijala',
       'proizvodjac',
       'tester_kvaliteta',
+      'laborant',
       'distributer',
-      'krajnji_korisnik'
+      'krajnji_korisnik',
+      'racunovodja',
+      'marketing_asistent'
     )
   );
 

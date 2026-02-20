@@ -10,6 +10,8 @@ const Navbar = ({ activePath }) => {
   const isDesigner = profile?.role === 'modni_dizajner'
   const isTester = profile?.role === 'tester_kvaliteta'
   const isLaborant = profile?.role === 'laborant'
+  const isSupplier = profile?.role === 'dobavljac_materijala'
+  const isMarketingAsistent = profile?.role === 'marketing_asistent'
 
   const currentPath = activePath || location.pathname
   const isActive = (path) => currentPath === path
@@ -24,7 +26,7 @@ const Navbar = ({ activePath }) => {
     <nav className="navbar">
       <div className="navbar-container">
         <div className="navbar-logo">
-          <Link to={isDistributor ? '/logistics' : '/'}>Piccola</Link>
+          <Link to={isDistributor ? '/logistics' : isMarketingAsistent ? '/blog' : '/'}>Piccola</Link>
         </div>
         <ul className="navbar-menu">
           {isDistributor ? (
@@ -43,9 +45,25 @@ const Navbar = ({ activePath }) => {
                 </Link>
               </li>
             </>
+          ) : isMarketingAsistent ? (
+            <>
+              <li className="navbar-item">
+                <Link to="/blog" className={`navbar-link ${isActive('/blog') ? 'active' : ''}`}>
+                  Blog
+                </Link>
+              </li>
+              <li className="navbar-item">
+                <Link
+                  to="/admin/blog"
+                  className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
+                >
+                  Upravljanje Blogom
+                </Link>
+              </li>
+            </>
           ) : (
             <>
-              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && (
+              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && !isSupplier && (
                 <li className="navbar-item">
                   <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`}>
                     Početna
@@ -53,14 +71,24 @@ const Navbar = ({ activePath }) => {
                 </li>
               )}
               {isDesigner && (
-                <li className="navbar-item">
-                  <Link
-                    to="/designer/collections"
-                    className={`navbar-link ${isActive('/designer/collections') ? 'active' : ''}`}
-                  >
-                    Razvoj kolekcija
-                  </Link>
-                </li>
+                <>
+                  <li className="navbar-item">
+                    <Link
+                      to="/designer/collections"
+                      className={`navbar-link ${isActive('/designer/collections') ? 'active' : ''}`}
+                    >
+                      Razvoj kolekcija
+                    </Link>
+                  </li>
+                  <li className="navbar-item">
+                    <Link
+                      to="/designer/razvoj-modela"
+                      className={`navbar-link ${isActive('/designer/razvoj-modela') ? 'active' : ''}`}
+                    >
+                      Razvoj modela
+                    </Link>
+                  </li>
+                </>
               )}
               {isTester && (
                 <li className="navbar-item">
@@ -82,6 +110,16 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
+              {isSupplier && (
+                <li className="navbar-item">
+                  <Link
+                    to="/supplier/inventory"
+                    className={`navbar-link ${isActive('/supplier/inventory') ? 'active' : ''}`}
+                  >
+                    Zalihe i zahtevi
+                  </Link>
+                </li>
+              )}
               <li className="navbar-item">
                 <Link to="/shop" className={`navbar-link ${isActive('/shop') ? 'active' : ''}`}>
                   Prodavnica
@@ -94,7 +132,7 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
-              {!isDesigner && !isTester && !isLaborant && (
+              {!isDesigner && !isTester && !isLaborant && !isSupplier && (
                 <li className="navbar-item">
                   <Link to="/blog" className={`navbar-link ${isActive('/blog') ? 'active' : ''}`}>
                     Blog
@@ -111,14 +149,14 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
-              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && (
+              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && !isSupplier && (
                 <li className="navbar-item">
                   <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
                     O nama
                   </Link>
                 </li>
               )}
-              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && (
+              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && !isSupplier && (
                 <li className="navbar-item">
                   <Link
                     to="/contact"

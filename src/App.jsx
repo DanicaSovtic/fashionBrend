@@ -29,6 +29,8 @@ import LabDashboard from './components/LabDashboard'
 import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import AdminBlog from './components/AdminBlog'
+import DobavljacMaterijalaPage from './components/DobavljacMaterijalaPage'
+import RazvojModelaPage from './components/RazvojModelaPage'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
@@ -39,6 +41,8 @@ const AppRoutes = () => {
   const isTester = profile?.role === 'tester_kvaliteta'
   const isLaborant = profile?.role === 'laborant'
   const isEndUser = profile?.role === 'krajnji_korisnik'
+  const isMarketingAsistent = profile?.role === 'marketing_asistent'
+  const isSupplier = profile?.role === 'dobavljac_materijala'
 
   return (
     <Routes>
@@ -47,10 +51,14 @@ const AppRoutes = () => {
           <Route
             path="/"
             element={
-              isTester ? (
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isTester ? (
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
+              ) : isSupplier ? (
+                <Navigate to="/supplier/inventory" replace />
               ) : (
                 <Home />
               )
@@ -59,7 +67,9 @@ const AppRoutes = () => {
           <Route
             path="/about"
             element={
-              isTester ? (
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isTester ? (
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
@@ -71,7 +81,9 @@ const AppRoutes = () => {
           <Route
             path="/contact"
             element={
-              isTester ? (
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isTester ? (
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
@@ -82,26 +94,76 @@ const AppRoutes = () => {
           />
           <Route
             path="/collection"
-            element={isEndUser || profile?.role === 'superadmin' ? <Navigate to="/" replace /> : <Collection />}
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isEndUser || profile?.role === 'superadmin' ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Collection />
+              )
+            }
           />
           <Route
             path="/collection/:id"
-            element={isEndUser || profile?.role === 'superadmin' ? <Navigate to="/" replace /> : <CollectionDetail />}
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isEndUser || profile?.role === 'superadmin' ? (
+                <Navigate to="/" replace />
+              ) : (
+                <CollectionDetail />
+              )
+            }
           />
-          <Route path="/shop" element={<Shop />} />
+          <Route 
+            path="/shop" 
+            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <Shop />} 
+          />
           <Route 
             path="/new-collections" 
-            element={profile?.role === 'krajnji_korisnik' ? <NewCollections /> : <Navigate to="/" replace />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : profile?.role === 'krajnji_korisnik' ? (
+                <NewCollections />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
           />
           <Route 
             path="/new-collections/:collectionId" 
-            element={profile?.role === 'krajnji_korisnik' ? <NewCollectionDetail /> : <Navigate to="/" replace />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : profile?.role === 'krajnji_korisnik' ? (
+                <NewCollectionDetail />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
           />
-          <Route path="/product/:productId" element={<Product />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/users" element={<UsersPage />} />
+          <Route 
+            path="/product/:productId" 
+            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <Product />} 
+          />
+          <Route 
+            path="/cart" 
+            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <CartPage />} 
+          />
+          <Route 
+            path="/checkout" 
+            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <Checkout />} 
+          />
+          <Route 
+            path="/favorites" 
+            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <FavoritesPage />} 
+          />
+          <Route 
+            path="/users" 
+            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <UsersPage />} 
+          />
           <Route
             path="/blog"
             element={
@@ -128,27 +190,88 @@ const AppRoutes = () => {
           />
           <Route
             path="/designer/collections"
-            element={authLoading || isDesigner ? <DesignerCollectionsPage /> : <Navigate to="/" replace />}
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isDesigner ? (
+                <DesignerCollectionsPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
           <Route
             path="/tester/collections"
-            element={authLoading || isTester ? <TesterCollectionsPage /> : <Navigate to="/" replace />}
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isTester ? (
+                <TesterCollectionsPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
           <Route
             path="/lab/dashboard"
-            element={authLoading || isLaborant ? <LabDashboard /> : <Navigate to="/" replace />}
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isLaborant ? (
+                <LabDashboard />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
           <Route
             path="/admin/blog"
-            element={profile?.role === 'superadmin' ? <AdminBlog /> : <Navigate to="/" replace />}
+            element={
+              profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
+                <AdminBlog />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/supplier/inventory"
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isSupplier ? (
+                <DobavljacMaterijalaPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/designer/razvoj-modela"
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isDesigner ? (
+                <RazvojModelaPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
         </>
       )}
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/logistics" element={<LogisticsDashboard />} />
-      <Route path="/logistics/issues" element={<LogisticsIssuesPage />} />
+      <Route 
+        path="/logistics" 
+        element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <LogisticsDashboard />} 
+      />
+      <Route 
+        path="/logistics/issues" 
+        element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <LogisticsIssuesPage />} 
+      />
       {isDistributor && <Route path="*" element={<Navigate to="/logistics" replace />} />}
+      {isMarketingAsistent && <Route path="*" element={<Navigate to="/blog" replace />} />}
     </Routes>
   )
 }

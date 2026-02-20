@@ -108,13 +108,13 @@ router.get('/blog/categories', async (req, res, next) => {
   }
 })
 
-// ADMIN RUTE - samo za superadmin
+// ADMIN RUTE - za superadmin i marketing_asistent
 
 // Dobavi sve blog postove (uključujući draft i archived)
 router.get(
   '/blog/admin/posts',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const { status, limit, offset, search } = req.query
@@ -138,7 +138,7 @@ router.get(
 router.get(
   '/blog/admin/posts/:id',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const { id } = req.params
@@ -161,7 +161,7 @@ router.get(
 router.post(
   '/blog/admin/posts',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const postData = req.body
@@ -180,7 +180,7 @@ router.post(
 router.patch(
   '/blog/admin/posts/:id',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const { id } = req.params
@@ -200,7 +200,7 @@ router.patch(
 router.delete(
   '/blog/admin/posts/:id',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const { id } = req.params
@@ -217,7 +217,7 @@ router.delete(
 router.patch(
   '/blog/admin/posts/:id/status',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const { id } = req.params
@@ -241,7 +241,7 @@ router.patch(
 router.post(
   '/blog/admin/categories',
   requireAuth,
-  requireRole(['superadmin']),
+  requireRole(['superadmin', 'marketing_asistent']),
   async (req, res, next) => {
     try {
       const categoryData = req.body

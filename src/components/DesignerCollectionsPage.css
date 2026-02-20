@@ -78,13 +78,13 @@
 }
 
 .designer-primary-button {
-  background: #6f4ff2;
+  background: var(--color-olive);
   color: #fff;
 }
 
 .designer-secondary-button {
-  background: #f1edff;
-  color: #4c3fb4;
+  background: var(--color-olive-light);
+  color: var(--color-olive-dark);
 }
 
 .designer-muted {
@@ -109,14 +109,14 @@
 }
 
 .designer-collection-card:hover {
-  border-color: #5a3fb7;
-  box-shadow: 0 4px 12px rgba(90, 63, 183, 0.1);
+  border-color: var(--color-olive);
+  box-shadow: 0 4px 12px rgba(61, 65, 39, 0.1);
 }
 
 .designer-collection-card.active {
-  border-color: #5a3fb7;
-  background: #f8f6ff;
-  box-shadow: 0 4px 12px rgba(90, 63, 183, 0.15);
+  border-color: var(--color-olive);
+  background: #f5f7f0;
+  box-shadow: 0 4px 12px rgba(61, 65, 39, 0.15);
 }
 
 .designer-collection-meta {
@@ -137,7 +137,7 @@
 .designer-phase-grid strong {
   display: block;
   font-size: 1rem;
-  color: #5a3fb7;
+  color: var(--color-olive-dark);
 }
 
 .designer-grid {
@@ -188,14 +188,14 @@
 }
 
 .designer-model-item.active {
-  border-color: #6f4ff2;
-  box-shadow: 0 0 0 2px rgba(111, 79, 242, 0.15);
+  border-color: var(--color-olive);
+  box-shadow: 0 0 0 2px rgba(61, 65, 39, 0.15);
 }
 
 .designer-status,
 .designer-status-chip {
-  background: #f3edff;
-  color: #4c3fb4;
+  background: var(--color-olive-light);
+  color: var(--color-olive-dark);
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 0.8rem;

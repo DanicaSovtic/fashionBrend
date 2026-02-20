@@ -27,7 +27,7 @@ const AdminBlog = () => {
   })
 
   useEffect(() => {
-    if (profile?.role !== 'superadmin') {
+    if (profile?.role !== 'superadmin' && profile?.role !== 'marketing_asistent') {
       return
     }
 
@@ -62,6 +62,10 @@ const AdminBlog = () => {
 
   const fetchPosts = async () => {
     const token = getToken()
+    if (!token) {
+      throw new Error('Niste autentifikovani')
+    }
+    
     const url = statusFilter === 'all'
       ? '/api/blog/admin/posts'
       : `/api/blog/admin/posts?status=${statusFilter}`
@@ -73,7 +77,8 @@ const AdminBlog = () => {
     })
 
     if (!response.ok) {
-      throw new Error('Greška prilikom učitavanja blog postova.')
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Greška prilikom učitavanja blog postova.')
     }
 
     const data = await response.json()
@@ -230,7 +235,7 @@ const AdminBlog = () => {
     })
   }
 
-  if (profile?.role !== 'superadmin') {
+  if (profile?.role !== 'superadmin' && profile?.role !== 'marketing_asistent') {
     return (
       <div className="admin-blog">
         <Navbar />

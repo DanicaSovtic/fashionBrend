@@ -29,7 +29,7 @@ alter table profiles
     role in (
       'superadmin',
       'modni_dizajner',
-      'dobavljac',
+      'dobavljac_materijala',
       'proizvodjac',
       'tester_kvaliteta',
       'laborant',

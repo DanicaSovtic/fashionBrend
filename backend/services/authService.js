@@ -4,23 +4,27 @@ import { sendUserInviteEmail } from './emailService.js'
 const ALLOWED_ROLES = new Set([
   'superadmin',
   'modni_dizajner',
-  'dobavljac',
+  'dobavljac_materijala',
   'proizvodjac',
   'tester_kvaliteta',
   'laborant',
   'distributer',
-  'krajnji_korisnik'
+  'krajnji_korisnik',
+  'racunovodja',
+  'marketing_asistent'
 ])
 
 const ROLE_LABELS = {
   superadmin: 'Superadmin',
   modni_dizajner: 'Modni dizajner',
-  dobavljac: 'Dobavljac',
+  dobavljac_materijala: 'Dobavljac materijala',
   proizvodjac: 'Proizvodjac',
   tester_kvaliteta: 'Tester kvaliteta',
   laborant: 'Laborant',
   distributer: 'Distributer / logistika',
-  krajnji_korisnik: 'Krajnji korisnik'
+  krajnji_korisnik: 'Krajnji korisnik',
+  racunovodja: 'Računovodja',
+  marketing_asistent: 'Marketing asistent'
 }
 
 const frontendUrl = process.env.FRONTEND_URL

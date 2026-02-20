@@ -146,7 +146,7 @@ router.get('/designs', requireAuth, requireRole(['modni_dizajner']), (req, res) 
   res.json({ ok: true, area: 'designs' })
 })
 
-router.get('/supplies', requireAuth, requireRole(['dobavljac']), (req, res) => {
+router.get('/supplies', requireAuth, requireRole(['dobavljac_materijala']), (req, res) => {
   res.json({ ok: true, area: 'supplies' })
 })
 

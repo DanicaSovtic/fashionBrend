@@ -12,6 +12,8 @@ import ordersRouter from './routes/orders.js'
 import { testerRouter, designerRouter } from './routes/testerDesigner.js'
 import labRouter from './routes/lab.js'
 import chatRouter from './routes/chat.js'
+import supplierRouter from './routes/supplier.js'
+import designerMaterialRequestsRouter from './routes/designerMaterialRequests.js'
 
 dotenv.config()
 
@@ -47,6 +49,7 @@ configRouter.get('/config/blockchain', (req, res) => {
     network: process.env.BLOCKCHAIN_NETWORK || 'sepolia',
     contractAddress: process.env.ORDER_PAYMENT_CONTRACT || '',
     productApprovalContract: process.env.PRODUCT_APPROVAL_CONTRACT || process.env.ORDER_PAYMENT_CONTRACT || '',
+    inventoryContract: process.env.INVENTORY_CONTRACT || '',
     brandOwnerWallet: process.env.BRAND_OWNER_WALLET || '',
     rsdRate: Number(process.env.RSD_RATE) || 118
   })
@@ -61,7 +64,9 @@ app.use('/api/designer', (req, res, next) => {
 })
 app.use('/api/tester', testerRouter)
 app.use('/api/designer', designerRouter)
+app.use('/api/designer/material-requests', designerMaterialRequestsRouter)
 app.use('/api/lab', labRouter)
+app.use('/api/supplier', supplierRouter)
 
 // Collections router
 app.use('/api', (req, res, next) => {
