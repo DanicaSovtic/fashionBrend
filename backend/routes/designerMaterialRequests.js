@@ -236,8 +236,112 @@ router.get('/', requireAuth, requireRole(['modni_dizajner']), async (req, res, n
 })
 
 /**
+ * GET /api/designer/material-requests/completed-products
+ * Dobija listu završenih proizvoda od proizvođača
+ * Query params: collection_id
+ */
+router.get('/completed-products', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { collection_id } = req.query
+
+    let query = adminSupabase
+      .from('completed_products_from_manufacturer')
+      .select('*')
+      .eq('designer_id', req.user.id)
+      .order('completed_at', { ascending: false })
+
+    if (collection_id) {
+      query = query.eq('collection_id', collection_id)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      if (error.code === '42P01') {
+        res.json({
+          products: [],
+          message: 'View completed_products_from_manufacturer ne postoji. Pokreni migraciju: add_completed_products_view.sql'
+        })
+        return
+      }
+      throw error
+    }
+
+    res.json({
+      products: data || [],
+      count: data?.length || 0
+    })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error fetching completed products:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/designer/material-requests/completed-products/:sewing_order_id/publish
+ * Pusti proizvod u prodaju - kreira products zapis i ažurira development_stage na 'approved'
+ */
+router.post('/completed-products/:sewing_order_id/publish', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { sewing_order_id } = req.params
+
+    // Proveri da li proizvod pripada ovom dizajneru i da li je završen
+    const { data: completedProduct, error: checkError } = await adminSupabase
+      .from('completed_products_from_manufacturer')
+      .select('*')
+      .eq('sewing_order_id', sewing_order_id)
+      .eq('designer_id', req.user.id)
+      .single()
+
+    if (checkError) {
+      if (checkError.code === 'PGRST116') {
+        res.status(404).json({ error: 'Završeni proizvod nije pronađen ili ne pripada vama' })
+        return
+      }
+      throw checkError
+    }
+
+    // Proveri da li je već kreiran products zapis
+    if (completedProduct.product_id) {
+      res.status(400).json({ 
+        error: 'Proizvod je već pušten u prodaju',
+        product_id: completedProduct.product_id
+      })
+      return
+    }
+
+    // Ažuriraj development_stage na 'approved'
+    const { error: updateError } = await adminSupabase
+      .from('product_models')
+      .update({
+        development_stage: 'approved',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', completedProduct.product_model_id)
+
+    if (updateError) {
+      throw updateError
+    }
+
+    // Kreiraj products zapis koristeći postojeću funkciju iz collectionsService
+    const { createProductFromModel } = await import('../services/collectionsService.js')
+    const product = await createProductFromModel(completedProduct.product_model_id)
+
+    res.json({
+      success: true,
+      product,
+      message: 'Proizvod je uspešno pušten u prodaju'
+    })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error publishing product:', error)
+    next(error)
+  }
+})
+
+/**
  * GET /api/designer/material-requests/:id
  * Dobija detalje zahteva
+ * OVA RUTA MORA BITI POSLEDNJA jer će Express pokušati da parsira sve kao :id
  */
 router.get('/:id', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
   try {

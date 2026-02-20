@@ -47,6 +47,14 @@ const DobavljacMaterijalaPage = () => {
     manufacturer_address: ''
   })
   const [rejectionReason, setRejectionReason] = useState('')
+  const [manufacturers, setManufacturers] = useState([])
+  const [sendToManufacturerForm, setSendToManufacturerForm] = useState({
+    manufacturer_id: '',
+    quantity_sent_kg: '',
+    shipping_date: '',
+    tracking_number: ''
+  })
+  const [isSendingToManufacturer, setIsSendingToManufacturer] = useState(false)
 
   // Filters
   const [filters, setFilters] = useState({
@@ -89,6 +97,37 @@ const DobavljacMaterijalaPage = () => {
     }
   }, [user, profile, activeTab, filters])
 
+  // Učitaj proizvođače
+  useEffect(() => {
+    const fetchManufacturers = async () => {
+      try {
+        const token = localStorage.getItem('auth_access_token')
+        console.log('[DobavljacMaterijalaPage] Fetching manufacturers...')
+        const res = await fetch('/api/supplier/manufacturers', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}))
+          console.error('[DobavljacMaterijalaPage] Error response:', res.status, errorData)
+          throw new Error(errorData.error || `HTTP ${res.status}`)
+        }
+        
+        const data = await res.json()
+        console.log('[DobavljacMaterijalaPage] Manufacturers received:', data)
+        setManufacturers(data.manufacturers || [])
+      } catch (error) {
+        console.error('[DobavljacMaterijalaPage] Error fetching manufacturers:', error)
+        alert(`Greška pri učitavanju proizvođača: ${error.message}`)
+      }
+    }
+    if (user && profile?.role === 'dobavljac_materijala') {
+      fetchManufacturers()
+    }
+  }, [user, profile])
+
   // Učitaj detalje zahteva
   useEffect(() => {
     if (selectedRequest) {
@@ -99,10 +138,6 @@ const DobavljacMaterijalaPage = () => {
         setRequestStep(1)
       } else if (selectedRequest.status === 'in_progress') {
         setRequestStep(2)
-      } else if (selectedRequest.status === 'sent') {
-        setRequestStep(3)
-      } else {
-        setRequestStep(3)
       }
     }
   }, [selectedRequest])
@@ -421,35 +456,6 @@ const DobavljacMaterijalaPage = () => {
     }
   }
 
-  const handleSendShipment = async () => {
-    try {
-      const token = localStorage.getItem('auth_access_token')
-      const res = await fetch(`/api/supplier/requests/${selectedRequest.id}/send`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          shipping_date: requestForm.shipping_date || new Date().toISOString().split('T')[0],
-          tracking_number: requestForm.tracking_number || null,
-          manufacturer_address: requestForm.manufacturer_address || null
-        })
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Greška pri označavanju kao poslato')
-      }
-
-      await fetchRequests()
-      await fetchRequestDetails(selectedRequest.id)
-      setRequestStep(3)
-      alert('Pošiljka je označena kao poslata')
-    } catch (error) {
-      alert(error.message || 'Greška pri označavanju kao poslato')
-    }
-  }
 
   const handleCompleteRequest = async () => {
     try {
@@ -471,6 +477,51 @@ const DobavljacMaterijalaPage = () => {
       alert('Zahtev je označen kao završen')
     } catch (error) {
       alert(error.message || 'Greška pri označavanju kao završeno')
+    }
+  }
+
+  const handleSendToManufacturer = async () => {
+    if (!sendToManufacturerForm.manufacturer_id) {
+      alert('Molimo izaberite proizvođača')
+      return
+    }
+
+    setIsSendingToManufacturer(true)
+    try {
+      const token = localStorage.getItem('auth_access_token')
+      const res = await fetch(`/api/supplier/requests/${selectedRequest.id}/send-to-manufacturer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          manufacturer_id: sendToManufacturerForm.manufacturer_id,
+          quantity_sent_kg: sendToManufacturerForm.quantity_sent_kg || requestDetails?.request?.quantity_kg,
+          shipping_date: sendToManufacturerForm.shipping_date || new Date().toISOString().split('T')[0],
+          tracking_number: sendToManufacturerForm.tracking_number || null
+        })
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Greška pri slanju proizvođaču')
+      }
+
+      const data = await res.json()
+      alert('Materijal je uspešno poslat proizvođaču!')
+      await fetchRequests()
+      await fetchRequestDetails(selectedRequest.id)
+      setSendToManufacturerForm({
+        manufacturer_id: '',
+        quantity_sent_kg: '',
+        shipping_date: '',
+        tracking_number: ''
+      })
+    } catch (error) {
+      alert(error.message || 'Greška pri slanju proizvođaču')
+    } finally {
+      setIsSendingToManufacturer(false)
     }
   }
 
@@ -962,32 +1013,54 @@ const DobavljacMaterijalaPage = () => {
                             >
                               Sačuvaj pripremu
                             </button>
-                            <button
-                              className="designer-secondary-button"
-                              onClick={() => setRequestStep(3)}
-                              style={{ alignSelf: 'flex-start' }}
-                            >
-                              Sledeći korak: Šaljem →
-                            </button>
                           </div>
                         </div>
                       )}
 
-                      {/* Korak 3: Slanje */}
-                      {requestStep === 3 && (
-                        <div>
-                          <h4 style={{ marginBottom: '16px' }}>
-                            {selectedRequest.status === 'sent' || selectedRequest.status === 'completed' ? 'Informacije o pošiljci' : 'Šaljem'}
-                          </h4>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Sekcija: Pošalji proizvođaču (prikazuje se kada je status 'in_progress') */}
+                      {selectedRequest.status === 'in_progress' && (
+                        <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '2px solid #eee' }}>
+                          <h4 style={{ marginBottom: '16px', color: 'var(--color-olive-dark)' }}>Pošalji proizvođaču</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
+                                Proizvođač *
+                              </label>
+                              <select
+                                value={sendToManufacturerForm.manufacturer_id}
+                                onChange={(e) => setSendToManufacturerForm({ ...sendToManufacturerForm, manufacturer_id: e.target.value })}
+                                required
+                                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                              >
+                                <option value="">Izaberi proizvođača...</option>
+                                {manufacturers.map((mfr) => (
+                                  <option key={mfr.user_id} value={mfr.user_id}>
+                                    {mfr.full_name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
+                                Količina koju šaljem (kg)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={sendToManufacturerForm.quantity_sent_kg || requestDetails?.request?.quantity_kg || ''}
+                                onChange={(e) => setSendToManufacturerForm({ ...sendToManufacturerForm, quantity_sent_kg: e.target.value })}
+                                placeholder={requestDetails?.request?.quantity_kg || ''}
+                                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                              />
+                            </div>
                             <div>
                               <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
                                 Datum slanja
                               </label>
                               <input
                                 type="date"
-                                value={requestForm.shipping_date}
-                                onChange={(e) => setRequestForm({ ...requestForm, shipping_date: e.target.value })}
+                                value={sendToManufacturerForm.shipping_date}
+                                onChange={(e) => setSendToManufacturerForm({ ...sendToManufacturerForm, shipping_date: e.target.value })}
                                 style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
                               />
                             </div>
@@ -997,43 +1070,23 @@ const DobavljacMaterijalaPage = () => {
                               </label>
                               <input
                                 type="text"
-                                value={requestForm.tracking_number}
-                                onChange={(e) => setRequestForm({ ...requestForm, tracking_number: e.target.value })}
+                                value={sendToManufacturerForm.tracking_number}
+                                onChange={(e) => setSendToManufacturerForm({ ...sendToManufacturerForm, tracking_number: e.target.value })}
                                 style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
                               />
                             </div>
-                            {selectedRequest.status !== 'sent' && selectedRequest.status !== 'completed' && (
-                              <>
-                                <button
-                                  className="designer-primary-button"
-                                  onClick={handleSendShipment}
-                                  style={{ alignSelf: 'flex-start' }}
-                                >
-                                  Označi kao poslato
-                                </button>
-                                {selectedRequest.status === 'sent' && (
-                                  <button
-                                    className="designer-secondary-button"
-                                    onClick={handleCompleteRequest}
-                                    style={{ alignSelf: 'flex-start' }}
-                                  >
-                                    Završeno
-                                  </button>
-                                )}
-                              </>
-                            )}
-                            {selectedRequest.status === 'sent' && (
-                              <button
-                                className="designer-primary-button"
-                                onClick={handleCompleteRequest}
-                                style={{ alignSelf: 'flex-start' }}
-                              >
-                                Završeno
-                              </button>
-                            )}
+                            <button
+                              className="designer-primary-button"
+                              onClick={handleSendToManufacturer}
+                              disabled={isSendingToManufacturer}
+                              style={{ alignSelf: 'flex-start', marginTop: '8px' }}
+                            >
+                              {isSendingToManufacturer ? 'Slanje...' : 'Pošalji proizvođaču'}
+                            </button>
                           </div>
                         </div>
                       )}
+
 
                       {/* Poruke */}
                       <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #eee' }}>

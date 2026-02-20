@@ -583,4 +583,159 @@ router.post('/requests/:id/messages', requireAuth, requireRole(['dobavljac_mater
   }
 })
 
+/**
+ * POST /api/supplier/requests/:id/send-to-manufacturer
+ * Šalje materijal proizvođaču
+ * Očekuje: { manufacturer_id, quantity_sent_kg, shipping_date, tracking_number }
+ */
+router.post('/requests/:id/send-to-manufacturer', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { manufacturer_id, quantity_sent_kg, shipping_date, tracking_number } = req.body
+
+    if (!manufacturer_id) {
+      res.status(400).json({ error: 'manufacturer_id je obavezan' })
+      return
+    }
+
+    // Proveri da li zahtev pripada dobavljaču i da li je u statusu 'in_progress'
+    const { data: request, error: requestError } = await adminSupabase
+      .from('material_requests')
+      .select('*')
+      .eq('id', id)
+      .eq('supplier_id', req.user.id)
+      .eq('status', 'in_progress')
+      .single()
+
+    if (requestError || !request) {
+      res.status(404).json({ error: 'Zahtev nije pronađen ili nije u statusu "U toku"' })
+      return
+    }
+
+    // Proveri da li proizvođač postoji
+    const { data: manufacturer } = await adminSupabase
+      .from('profiles')
+      .select('user_id, full_name, role')
+      .eq('user_id', manufacturer_id)
+      .eq('role', 'proizvodjac')
+      .single()
+
+    if (!manufacturer) {
+      res.status(400).json({ error: 'Proizvođač nije pronađen' })
+      return
+    }
+
+    // Kreiraj pošiljku
+    const { data: shipment, error: shipmentError } = await adminSupabase
+      .from('material_shipments')
+      .insert({
+        material_request_id: id,
+        product_model_id: request.product_model_id,
+        collection_id: request.collection_id,
+        supplier_id: req.user.id,
+        manufacturer_id: manufacturer_id,
+        model_name: request.model_name,
+        model_sku: request.model_sku,
+        material: request.material,
+        color: request.color,
+        quantity_kg: request.quantity_kg,
+        quantity_sent_kg: quantity_sent_kg ? parseFloat(quantity_sent_kg) : request.quantity_kg,
+        shipping_date: shipping_date || new Date().toISOString().split('T')[0],
+        tracking_number: tracking_number || null,
+        status: 'sent_to_manufacturer'
+      })
+      .select()
+      .single()
+
+    if (shipmentError) {
+      if (shipmentError.code === '42P01') {
+        res.status(500).json({
+          error: 'Tabela material_shipments ne postoji. Pokreni migraciju: add_manufacturer_tables.sql'
+        })
+        return
+      }
+      throw shipmentError
+    }
+
+    // Ažuriraj status zahteva na "sent" (poslato proizvođaču)
+    await adminSupabase
+      .from('material_requests')
+      .update({
+        status: 'sent',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    res.json({
+      success: true,
+      shipment,
+      message: 'Materijal je uspešno poslat proizvođaču'
+    })
+  } catch (error) {
+    console.error('[Supplier] Error sending to manufacturer:', error)
+    next(error)
+  }
+})
+
+/**
+ * GET /api/supplier/manufacturers
+ * Dobija listu proizvođača
+ */
+router.get('/manufacturers', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    console.log('[Supplier] Fetching manufacturers...')
+    console.log('[Supplier] User ID:', req.user?.id)
+    
+    // Prvo proveri sve profile da vidimo šta imamo
+    const { data: allProfiles, error: allError } = await adminSupabase
+      .from('profiles')
+      .select('user_id, full_name, role')
+      .order('full_name', { ascending: true })
+    
+    console.log('[Supplier] All profiles:', allProfiles)
+    console.log('[Supplier] Profiles with proizvodjac role:', allProfiles?.filter(p => p.role === 'proizvodjac'))
+    
+    // Koristi adminSupabase da zaobiđe RLS policies
+    // Pokušaj sa različitim varijantama role-a
+    const { data: data1, error: error1 } = await adminSupabase
+      .from('profiles')
+      .select('user_id, full_name, role')
+      .eq('role', 'proizvodjac')
+      .order('full_name', { ascending: true })
+    
+    // Ako nema rezultata, probaj sa case-insensitive pretragom
+    let data = data1
+    let error = error1
+    
+    if (!data || data.length === 0) {
+      console.log('[Supplier] No results with exact match, trying case-insensitive...')
+      const { data: data2, error: error2 } = await adminSupabase
+        .from('profiles')
+        .select('user_id, full_name, role')
+        .order('full_name', { ascending: true })
+      
+      if (!error2 && data2) {
+        // Filtriraj ručno
+        data = data2.filter(p => p.role && p.role.toLowerCase().trim() === 'proizvodjac')
+        console.log('[Supplier] Filtered results:', data)
+      }
+    }
+
+    console.log('[Supplier] Manufacturers query result:', { data, error, count: data?.length || 0 })
+
+    if (error) {
+      console.error('[Supplier] Error in query:', error)
+      throw error
+    }
+
+    res.json({
+      manufacturers: data || [],
+      count: data?.length || 0
+    })
+  } catch (error) {
+    console.error('[Supplier] Error fetching manufacturers:', error)
+    next(error)
+  }
+})
+
 export default router

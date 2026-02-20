@@ -31,6 +31,7 @@ import BlogDetail from './components/BlogDetail'
 import AdminBlog from './components/AdminBlog'
 import DobavljacMaterijalaPage from './components/DobavljacMaterijalaPage'
 import RazvojModelaPage from './components/RazvojModelaPage'
+import ProizvodnjaPage from './components/ProizvodnjaPage'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
@@ -43,6 +44,7 @@ const AppRoutes = () => {
   const isEndUser = profile?.role === 'krajnji_korisnik'
   const isMarketingAsistent = profile?.role === 'marketing_asistent'
   const isSupplier = profile?.role === 'dobavljac_materijala'
+  const isManufacturer = profile?.role === 'proizvodjac'
 
   return (
     <Routes>
@@ -59,6 +61,8 @@ const AppRoutes = () => {
                 <Navigate to="/lab/dashboard" replace />
               ) : isSupplier ? (
                 <Navigate to="/supplier/inventory" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : (
                 <Home />
               )
@@ -73,6 +77,8 @@ const AppRoutes = () => {
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : (
                 <About />
               )
@@ -87,6 +93,8 @@ const AppRoutes = () => {
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : (
                 <Contact />
               )
@@ -97,6 +105,10 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isSupplier ? (
+                <Navigate to="/supplier/inventory" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : isEndUser || profile?.role === 'superadmin' ? (
                 <Navigate to="/" replace />
               ) : (
@@ -109,6 +121,10 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isSupplier ? (
+                <Navigate to="/supplier/inventory" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : isEndUser || profile?.role === 'superadmin' ? (
                 <Navigate to="/" replace />
               ) : (
@@ -118,7 +134,19 @@ const AppRoutes = () => {
           />
           <Route 
             path="/shop" 
-            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <Shop />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isSupplier ? (
+                <Navigate to="/supplier/inventory" replace />
+              ) : isDesigner ? (
+                <Navigate to="/designer/collections" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : (
+                <Shop />
+              )
+            } 
           />
           <Route 
             path="/new-collections" 
@@ -146,23 +174,63 @@ const AppRoutes = () => {
           />
           <Route 
             path="/product/:productId" 
-            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <Product />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : (
+                <Product />
+              )
+            } 
           />
           <Route 
             path="/cart" 
-            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <CartPage />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : (
+                <CartPage />
+              )
+            } 
           />
           <Route 
             path="/checkout" 
-            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <Checkout />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : (
+                <Checkout />
+              )
+            } 
           />
           <Route 
             path="/favorites" 
-            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <FavoritesPage />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : (
+                <FavoritesPage />
+              )
+            } 
           />
           <Route 
             path="/users" 
-            element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <UsersPage />} 
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : (
+                <UsersPage />
+              )
+            } 
           />
           <Route
             path="/blog"
@@ -171,6 +239,8 @@ const AppRoutes = () => {
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : (
                 <Blog />
               )
@@ -183,6 +253,8 @@ const AppRoutes = () => {
                 <Navigate to="/tester/collections" replace />
               ) : isLaborant ? (
                 <Navigate to="/lab/dashboard" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : (
                 <BlogDetail />
               )
@@ -193,6 +265,8 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : authLoading || isDesigner ? (
                 <DesignerCollectionsPage />
               ) : (
@@ -205,6 +279,8 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : authLoading || isTester ? (
                 <TesterCollectionsPage />
               ) : (
@@ -217,6 +293,8 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : authLoading || isLaborant ? (
                 <LabDashboard />
               ) : (
@@ -227,7 +305,9 @@ const AppRoutes = () => {
           <Route
             path="/admin/blog"
             element={
-              profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
+              isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
                 <AdminBlog />
               ) : (
                 <Navigate to="/" replace />
@@ -251,8 +331,22 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
               ) : authLoading || isDesigner ? (
                 <RazvojModelaPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/manufacturer/proizvodnja"
+            element={
+              isMarketingAsistent ? (
+                <Navigate to="/blog" replace />
+              ) : authLoading || isManufacturer ? (
+                <ProizvodnjaPage />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -264,14 +358,31 @@ const AppRoutes = () => {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route 
         path="/logistics" 
-        element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <LogisticsDashboard />} 
+        element={
+          isMarketingAsistent ? (
+            <Navigate to="/blog" replace />
+          ) : isManufacturer ? (
+            <Navigate to="/manufacturer/proizvodnja" replace />
+          ) : (
+            <LogisticsDashboard />
+          )
+        } 
       />
       <Route 
         path="/logistics/issues" 
-        element={isMarketingAsistent ? <Navigate to="/blog" replace /> : <LogisticsIssuesPage />} 
+        element={
+          isMarketingAsistent ? (
+            <Navigate to="/blog" replace />
+          ) : isManufacturer ? (
+            <Navigate to="/manufacturer/proizvodnja" replace />
+          ) : (
+            <LogisticsIssuesPage />
+          )
+        } 
       />
       {isDistributor && <Route path="*" element={<Navigate to="/logistics" replace />} />}
       {isMarketingAsistent && <Route path="*" element={<Navigate to="/blog" replace />} />}
+      {isManufacturer && <Route path="*" element={<Navigate to="/manufacturer/proizvodnja" replace />} />}
     </Routes>
   )
 }

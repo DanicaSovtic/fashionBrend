@@ -11,10 +11,13 @@ const RazvojModelaPage = () => {
   const [collections, setCollections] = useState([])
   const [selectedCollectionId, setSelectedCollectionId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState('models') // 'models' ili 'completed-products'
   const [models, setModels] = useState([])
   const [isLoadingModels, setIsLoadingModels] = useState(true)
   const [requests, setRequests] = useState([])
   const [isLoadingRequests, setIsLoadingRequests] = useState(true)
+  const [completedProducts, setCompletedProducts] = useState([])
+  const [isLoadingCompletedProducts, setIsLoadingCompletedProducts] = useState(true)
   const [suppliers, setSuppliers] = useState([])
   
   // Modal state
@@ -82,6 +85,13 @@ const RazvojModelaPage = () => {
     }
   }, [user, profile])
 
+  // Učitaj završene proizvode
+  useEffect(() => {
+    if (user && profile?.role === 'modni_dizajner' && activeTab === 'completed-products') {
+      fetchCompletedProducts()
+    }
+  }, [user, profile, activeTab, selectedCollectionId])
+
   const fetchModels = async () => {
     try {
       setIsLoadingModels(true)
@@ -119,6 +129,55 @@ const RazvojModelaPage = () => {
       console.error('Error fetching requests:', error)
     } finally {
       setIsLoadingRequests(false)
+    }
+  }
+
+  const fetchCompletedProducts = async () => {
+    try {
+      setIsLoadingCompletedProducts(true)
+      const token = localStorage.getItem('auth_access_token')
+      const params = new URLSearchParams()
+      if (selectedCollectionId) params.append('collection_id', selectedCollectionId)
+
+      const res = await fetch(`/api/designer/material-requests/completed-products?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await res.json()
+      setCompletedProducts(data.products || [])
+    } catch (error) {
+      console.error('Error fetching completed products:', error)
+    } finally {
+      setIsLoadingCompletedProducts(false)
+    }
+  }
+
+  const handlePublishProduct = async (sewingOrderId) => {
+    if (!confirm('Da li ste sigurni da želite da pustite ovaj proizvod u prodaju?')) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('auth_access_token')
+      const res = await fetch(`/api/designer/material-requests/completed-products/${sewingOrderId}/publish`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Greška pri puštanju proizvoda u prodaju')
+      }
+
+      const data = await res.json()
+      alert('Proizvod je uspešno pušten u prodaju!')
+      await fetchCompletedProducts()
+      await fetchModels() // Osveži modele da se vidi ažuriran development_stage
+    } catch (error) {
+      alert(error.message || 'Greška pri puštanju proizvoda u prodaju')
     }
   }
 
@@ -290,29 +349,67 @@ const RazvojModelaPage = () => {
                 ))}
               </select>
             </div>
-            <div style={{ flex: 1, minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '0.9rem' }}>
-                Pretraga modela
-              </label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Pretraži po nazivu ili SKU..."
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: '0.95rem'
-                }}
-              />
-            </div>
+            {activeTab === 'models' && (
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', fontSize: '0.9rem' }}>
+                  Pretraga modela
+                </label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Pretraži po nazivu ili SKU..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '0.95rem'
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Tabela modela */}
+        {/* Tabs */}
         <div className="designer-card">
+          <div style={{ display: 'flex', gap: '12px', borderBottom: '2px solid #eee', marginBottom: '20px' }}>
+            <button
+              onClick={() => setActiveTab('models')}
+              style={{
+                padding: '12px 24px',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                borderBottom: activeTab === 'models' ? '2px solid var(--color-olive)' : '2px solid transparent',
+                color: activeTab === 'models' ? 'var(--color-olive-dark)' : '#666',
+                fontWeight: activeTab === 'models' ? '600' : '400'
+              }}
+            >
+              Moji modeli
+            </button>
+            <button
+              onClick={() => setActiveTab('completed-products')}
+              style={{
+                padding: '12px 24px',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                borderBottom: activeTab === 'completed-products' ? '2px solid var(--color-olive)' : '2px solid transparent',
+                color: activeTab === 'completed-products' ? 'var(--color-olive-dark)' : '#666',
+                fontWeight: activeTab === 'completed-products' ? '600' : '400'
+              }}
+            >
+              Pristigli proizvodi od proizvođača
+            </button>
+          </div>
+
+          {/* TAB: Moji modeli */}
+          {activeTab === 'models' && (
+            <>
+              {/* Tabela modela */}
+              <div>
           <h3 style={{ marginBottom: '20px' }}>Moji modeli</h3>
           {models.length === 0 ? (
             <div className="designer-muted" style={{ padding: '2rem', textAlign: 'center' }}>
@@ -387,10 +484,10 @@ const RazvojModelaPage = () => {
               </table>
             </div>
           )}
-        </div>
+              </div>
 
-        {/* Lista poslatih zahteva */}
-        <div className="designer-card">
+              {/* Lista poslatih zahteva */}
+              <div style={{ marginTop: '24px' }}>
           <h3 style={{ marginBottom: '20px' }}>Moji poslati zahtevi</h3>
           {isLoadingRequests ? (
             <div className="designer-muted" style={{ padding: '1rem', textAlign: 'center' }}>
@@ -460,6 +557,104 @@ const RazvojModelaPage = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+              </div>
+            </>
+          )}
+
+          {/* TAB: Pristigli proizvodi od proizvođača */}
+          {activeTab === 'completed-products' && (
+            <div>
+              <h3 style={{ marginBottom: '20px' }}>Pristigli proizvodi od proizvođača</h3>
+              {isLoadingCompletedProducts ? (
+                <div className="designer-muted" style={{ padding: '2rem', textAlign: 'center' }}>
+                  Učitavanje...
+                </div>
+              ) : completedProducts.length === 0 ? (
+                <div className="designer-muted" style={{ padding: '2rem', textAlign: 'center' }}>
+                  Nema pristiglih proizvoda od proizvođača
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #eee' }}>
+                        <th style={{ padding: '12px', textAlign: 'left' }}>Model / SKU</th>
+                        <th style={{ padding: '12px', textAlign: 'left' }}>Kolekcija</th>
+                        <th style={{ padding: '12px', textAlign: 'left' }}>Faza razvoja</th>
+                        <th style={{ padding: '12px', textAlign: 'left' }}>Status materijala</th>
+                        <th style={{ padding: '12px', textAlign: 'right' }}>Količina (kom)</th>
+                        <th style={{ padding: '12px', textAlign: 'left' }}>Završeno</th>
+                        <th style={{ padding: '12px', textAlign: 'center' }}>Akcija</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {completedProducts.map((product) => (
+                        <tr key={product.sewing_order_id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <td style={{ padding: '12px' }}>
+                            <div>
+                              <strong>{product.model_name || product.product_model_name}</strong>
+                              <br />
+                              <span className="designer-muted" style={{ fontSize: '0.85rem' }}>
+                                {product.model_sku || product.product_model_sku || 'Nema SKU'}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            {product.collection_name || '-'}
+                            {product.collection_season && (
+                              <span className="designer-muted" style={{ fontSize: '0.85rem', display: 'block' }}>
+                                {product.collection_season}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span className="designer-status-chip" style={{ backgroundColor: '#10b98120', color: '#10b981' }}>
+                              Odobreno
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span
+                              style={{
+                                padding: '4px 12px',
+                                borderRadius: '999px',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                backgroundColor: '#10b98120',
+                                color: '#10b981'
+                              }}
+                            >
+                              Potvrđen
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>
+                            {product.quantity_pieces} kom
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            {product.completed_at ? formatDate(product.completed_at) : '-'}
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            {product.product_id ? (
+                              <span className="designer-muted" style={{ fontSize: '0.85rem' }}>
+                                U prodaji
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handlePublishProduct(product.sewing_order_id)}
+                                className="designer-primary-button"
+                                style={{ fontSize: '0.85rem', padding: '6px 16px' }}
+                              >
+                                Pusti u prodaju
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
