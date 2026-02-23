@@ -108,7 +108,7 @@ router.get('/shipments/:id', requireAuth, requireRole(['proizvodjac']), async (r
       .select(`
         *,
         supplier_profile:profiles!material_shipments_supplier_id_fkey(full_name),
-        product_model:product_models(name, sku, materials),
+        product_model:product_models(name, sku, materials, concept, variants, color_palette, size_table),
         collection:collections(name, season)
       `)
       .eq('id', id)
@@ -121,6 +121,29 @@ router.get('/shipments/:id', requireAuth, requireRole(['proizvodjac']), async (r
         return
       }
       throw error
+    }
+
+    // Učitaj slike i detalje modela posebno (nested product_model_media često ne stigne u jednom upitu)
+    const productModelId = data.product_model_id || data.product_model?.id
+    if (productModelId) {
+      const { data: modelRow } = await adminSupabase
+        .from('product_models')
+        .select('name, sku, materials, concept, variants, color_palette, size_table')
+        .eq('id', productModelId)
+        .single()
+
+      const { data: mediaRows } = await adminSupabase
+        .from('product_model_media')
+        .select('image_url, is_primary, label')
+        .eq('model_id', productModelId)
+        .order('is_primary', { ascending: false })
+
+      if (modelRow) {
+        data.product_model = {
+          ...modelRow,
+          product_model_media: mediaRows || []
+        }
+      }
     }
 
     res.json({
@@ -472,19 +495,24 @@ router.patch('/sewing-orders/:id/start', requireAuth, requireRole(['proizvodjac'
 /**
  * PATCH /api/manufacturer/sewing-orders/:id/complete
  * Završava nalog za šivenje
- * Očekuje: { proof_document_url } (opciono)
+ * Očekuje: { proof_document_url } (obavezno – URL slike/dokumenta dokaza)
  */
 router.patch('/sewing-orders/:id/complete', requireAuth, requireRole(['proizvodjac']), async (req, res, next) => {
   try {
     const { id } = req.params
     const { proof_document_url } = req.body
 
+    if (!proof_document_url || !String(proof_document_url).trim()) {
+      res.status(400).json({ error: 'URL dokaza (slika/dokument) je obavezan da biste završili šivenje.' })
+      return
+    }
+
     const { data, error } = await adminSupabase
       .from('sewing_orders')
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
-        proof_document_url: proof_document_url || null,
+        proof_document_url: String(proof_document_url).trim(),
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -499,6 +527,8 @@ router.patch('/sewing-orders/:id/complete', requireAuth, requireRole(['proizvodj
       }
       throw error
     }
+
+    // Proizvod ostaje u fazi RAZVOJ – dizajner ga vidi u "Pristigli proizvodi" i bira "Vrati na doradu" ili "Pusti na testiranje"
 
     res.json({
       success: true,

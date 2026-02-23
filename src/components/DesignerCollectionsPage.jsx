@@ -18,7 +18,7 @@ const mapStatus = (status) => {
 const mapStage = (stage) => {
   const stageMap = {
     'idea': 'Ideja',
-    'prototype': 'Prototip',
+    'development': 'Razvoj',
     'testing': 'Testiranje',
     'approved': 'Odobreno'
   }
@@ -147,12 +147,12 @@ const DesignerCollectionsPage = () => {
           collectionsData.map(async (collection) => {
             try {
               const statsResponse = await fetch(`/api/collections/${collection.id}/stats`)
-              const stats = statsResponse.ok ? await statsResponse.json() : { idea: 0, prototype: 0, testing: 0, approved: 0, total: 0 }
+              const stats = statsResponse.ok ? await statsResponse.json() : { idea: 0, development: 0, testing: 0, approved: 0, total: 0 }
               return {
                 ...collection,
                 phaseSummary: {
                   idea: stats.idea || 0,
-                  prototype: stats.prototype || 0,
+                  development: stats.development || 0,
                   testing: stats.testing || 0,
                   approved: stats.approved || 0
                 },
@@ -162,7 +162,7 @@ const DesignerCollectionsPage = () => {
               console.error('Error fetching stats for collection:', collection.id, err)
               return {
                 ...collection,
-                phaseSummary: { idea: 0, prototype: 0, testing: 0, approved: 0 },
+                phaseSummary: { idea: 0, development: 0, testing: 0, approved: 0 },
                 modelsCount: 0
               }
             }
@@ -455,7 +455,7 @@ const DesignerCollectionsPage = () => {
     if (!selectedCollection) {
       return {
         totalModels: 0,
-        prototypeModels: 0,
+        developmentModels: 0,
         approvedModels: 0,
         totalComments: 0
       }
@@ -463,7 +463,7 @@ const DesignerCollectionsPage = () => {
     
     return {
       totalModels: selectedCollection.modelsCount || 0,
-      prototypeModels: selectedCollection.phaseSummary?.prototype || 0,
+      developmentModels: selectedCollection.phaseSummary?.development || 0,
       approvedModels: selectedCollection.phaseSummary?.approved || 0,
       totalComments: comments.length
     }
@@ -558,8 +558,8 @@ const DesignerCollectionsPage = () => {
                 <strong>{collectionMetrics.totalModels}</strong>
               </div>
               <div className="designer-metric">
-                <span>Modeli u prototipu</span>
-                <strong>{collectionMetrics.prototypeModels}</strong>
+                <span>Modeli u razvoju</span>
+                <strong>{collectionMetrics.developmentModels}</strong>
               </div>
               <div className="designer-metric">
                 <span>Odobreno za proizvodnju</span>
@@ -633,12 +633,12 @@ const DesignerCollectionsPage = () => {
                   <span>Ideja</span>
                 </div>
                 <div>
-                  <strong>{selectedCollection.phaseSummary?.prototype || 0}</strong>
-                  <span>Prototip</span>
+                  <strong>{selectedCollection.phaseSummary?.development || 0}</strong>
+                  <span>Razvoj</span>
                 </div>
                 <div>
                   <strong>{selectedCollection.phaseSummary?.testing || 0}</strong>
-                  <span>Test</span>
+                  <span>Testiranje</span>
                 </div>
                 <div>
                   <strong>{selectedCollection.phaseSummary?.approved || 0}</strong>
@@ -1031,7 +1031,7 @@ const DesignerCollectionsPage = () => {
                     }}
                   >
                     <option value="idea">Ideja</option>
-                    <option value="prototype">Prototip</option>
+                    <option value="development">Razvoj</option>
                     <option value="testing">Testiranje</option>
                   </select>
                   {isUpdatingStage && (

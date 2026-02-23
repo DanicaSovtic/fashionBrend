@@ -97,25 +97,40 @@ const buildSeedProducts = (sourceItems, countPerCategory = 10) => {
 export const getProducts = async () => {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select('*, product_model:product_models(development_stage)')
     .order('created_at', { ascending: false })
 
   if (error) {
     throw error
   }
 
-  return data
+  // U prodavnici prikazuj samo proizvode čiji je model odobren (development_stage === 'approved')
+  // ili proizvode bez povezanog modela (stari/seed podaci)
+  return (data || []).filter(
+    (p) =>
+      !p.product_model_id ||
+      (p.product_model && p.product_model.development_stage === 'approved')
+  )
 }
 
 export const getProductById = async (id) => {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    .select('*, product_model:product_models(development_stage)')
     .eq('id', id)
     .maybeSingle()
 
   if (error) {
     throw error
+  }
+
+  if (!data) return null
+
+  // Ako ima povezan model, prikaži samo ako je model odobren (u prodaji)
+  if (data.product_model_id && data.product_model) {
+    if (data.product_model.development_stage !== 'approved') {
+      return null
+    }
   }
 
   return data

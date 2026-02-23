@@ -40,6 +40,22 @@ const Checkout = () => {
 
   const [errors, setErrors] = useState({})
 
+  // Izvor posete za analitiku (utm_source iz URL-a ili sessionStorage)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const utmSource = params.get('utm_source')
+    if (utmSource) {
+      const normalized = utmSource.toLowerCase().replace(/\s+/g, '_')
+      const allowed = ['website', 'instagram', 'facebook', 'google', 'newsletter']
+      const value = allowed.includes(normalized) ? normalized : 'website'
+      sessionStorage.setItem('checkout_acquisition_source', value)
+    }
+  }, [])
+
+  const getAcquisitionSource = () => {
+    return sessionStorage.getItem('checkout_acquisition_source') || 'website'
+  }
+
   // Provera da li je Metamask instaliran
   const isMetamaskInstalled = () => {
     if (typeof window === 'undefined') return false
@@ -271,6 +287,7 @@ const Checkout = () => {
       deliveryInfo: formData,
       paymentMethod: 'metamask',
       walletAddress: metamaskAccount,
+      acquisitionSource: getAcquisitionSource(),
       items: items.map(item => ({
         product_id: item.product_id,
         title: item.title,
@@ -366,6 +383,7 @@ const Checkout = () => {
     const requestData = {
       deliveryInfo: formData,
       paymentMethod,
+      acquisitionSource: getAcquisitionSource(),
       items: items.map(item => ({
         product_id: item.product_id,
         title: item.title,

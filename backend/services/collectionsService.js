@@ -122,7 +122,7 @@ export const getCollectionWithProductModels = async (collectionId) => {
   // Grupiši modele po fazama razvoja
   const modelsByStage = {
     idea: [],
-    prototype: [],
+    development: [],
     testing: [],
     approved: []
   }
@@ -154,7 +154,7 @@ export const getCollectionStats = async (collectionId) => {
 
   const stats = {
     idea: 0,
-    prototype: 0,
+    development: 0,
     testing: 0,
     approved: 0,
     total: data.length
@@ -382,7 +382,7 @@ export const createProductFromModel = async (modelId) => {
  */
 export const updateProductModelStage = async (modelId, stage, approvedBy = null) => {
   try {
-    const validStages = ['idea', 'prototype', 'testing', 'approved']
+    const validStages = ['idea', 'development', 'testing', 'approved']
     if (!validStages.includes(stage)) {
       throw new Error(`Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`)
     }

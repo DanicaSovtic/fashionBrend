@@ -29,6 +29,7 @@ import LabDashboard from './components/LabDashboard'
 import Blog from './components/Blog'
 import BlogDetail from './components/BlogDetail'
 import AdminBlog from './components/AdminBlog'
+import AnalitikaPage from './components/AnalitikaPage'
 import DobavljacMaterijalaPage from './components/DobavljacMaterijalaPage'
 import RazvojModelaPage from './components/RazvojModelaPage'
 import ProizvodnjaPage from './components/ProizvodnjaPage'
@@ -113,6 +114,10 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : isTester ? (
+                <Navigate to="/tester/collections" replace />
               ) : isSupplier ? (
                 <Navigate to="/supplier/inventory" replace />
               ) : isManufacturer ? (
@@ -131,6 +136,10 @@ const AppRoutes = () => {
             element={
               isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
+              ) : isLaborant ? (
+                <Navigate to="/lab/dashboard" replace />
+              ) : isTester ? (
+                <Navigate to="/tester/collections" replace />
               ) : isSupplier ? (
                 <Navigate to="/supplier/inventory" replace />
               ) : isManufacturer ? (
@@ -349,6 +358,20 @@ const AppRoutes = () => {
                 <Navigate to="/accountant/transactions" replace />
               ) : profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
                 <AdminBlog />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/analitika"
+            element={
+              isManufacturer ? (
+                <Navigate to="/manufacturer/proizvodnja" replace />
+              ) : isAccountant ? (
+                <Navigate to="/accountant/transactions" replace />
+              ) : profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
+                <AnalitikaPage />
               ) : (
                 <Navigate to="/" replace />
               )

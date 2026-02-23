@@ -45,11 +45,11 @@ router.get('/inventory', requireAuth, requireRole(['dobavljac_materijala']), asy
 /**
  * POST /api/supplier/inventory
  * Dodaje novu zalihu
- * Očekuje: { material, color, quantity_kg, price_per_kg, lead_time_days }
+ * Očekuje: { material, color, quantity_kg, price_per_kg }
  */
 router.post('/inventory', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
   try {
-    const { material, color, quantity_kg, price_per_kg, lead_time_days, blockchain_tx_hash, blockchain_item_id } = req.body
+    const { material, color, quantity_kg, price_per_kg, blockchain_tx_hash, blockchain_item_id } = req.body
 
     if (!material || !color || quantity_kg === undefined) {
       res.status(400).json({ 
@@ -66,7 +66,6 @@ router.post('/inventory', requireAuth, requireRole(['dobavljac_materijala']), as
         color,
         quantity_kg: parseFloat(quantity_kg),
         price_per_kg: price_per_kg ? parseFloat(price_per_kg) : null,
-        lead_time_days: lead_time_days ? parseInt(lead_time_days) : null,
         blockchain_tx_hash: blockchain_tx_hash || null,
         blockchain_item_id: blockchain_item_id || null,
         status: 'active'
@@ -98,12 +97,12 @@ router.post('/inventory', requireAuth, requireRole(['dobavljac_materijala']), as
 /**
  * PATCH /api/supplier/inventory/:id
  * Ažurira zalihu (najčešće količinu)
- * Očekuje: { quantity_kg, price_per_kg, lead_time_days, status, blockchain_tx_hash }
+ * Očekuje: { quantity_kg, price_per_kg, status, blockchain_tx_hash }
  */
 router.patch('/inventory/:id', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
   try {
     const { id } = req.params
-    const { quantity_kg, price_per_kg, lead_time_days, status, blockchain_tx_hash } = req.body
+    const { quantity_kg, price_per_kg, status, blockchain_tx_hash } = req.body
 
     // Proveri da li stavka pripada dobavljaču
     const { data: existingItem, error: fetchError } = await adminSupabase
@@ -124,7 +123,6 @@ router.patch('/inventory/:id', requireAuth, requireRole(['dobavljac_materijala']
 
     if (quantity_kg !== undefined) updateData.quantity_kg = parseFloat(quantity_kg)
     if (price_per_kg !== undefined) updateData.price_per_kg = price_per_kg ? parseFloat(price_per_kg) : null
-    if (lead_time_days !== undefined) updateData.lead_time_days = lead_time_days ? parseInt(lead_time_days) : null
     if (status !== undefined) updateData.status = status
     if (blockchain_tx_hash !== undefined) updateData.blockchain_tx_hash = blockchain_tx_hash
 
@@ -246,7 +244,7 @@ router.get('/requests/:id', requireAuth, requireRole(['dobavljac_materijala']), 
     // Proveri dostupnost u zalihama
     const { data: inventoryMatch } = await adminSupabase
       .from('inventory_items')
-      .select('quantity_kg, price_per_kg, lead_time_days')
+      .select('quantity_kg, price_per_kg')
       .eq('supplier_id', req.user.id)
       .eq('material', data.material)
       .eq('color', data.color)

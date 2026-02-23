@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
+import { formatMaterialsForDisplay } from '../utils/materialParser'
 import './DesignerCollectionsPage.css'
 
 const ProizvodnjaPage = () => {
@@ -311,6 +312,10 @@ const ProizvodnjaPage = () => {
 
   const handleCompleteSewingOrder = async (orderId) => {
     try {
+      if (!proofDocumentUrl?.trim()) {
+        alert('URL dokaza (slika/dokument) je obavezan da biste završili šivenje.')
+        return
+      }
       const token = localStorage.getItem('auth_access_token')
       const res = await fetch(`/api/manufacturer/sewing-orders/${orderId}/complete`, {
         method: 'PATCH',
@@ -319,7 +324,7 @@ const ProizvodnjaPage = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          proof_document_url: proofDocumentUrl || null
+          proof_document_url: proofDocumentUrl.trim()
         })
       })
 
@@ -567,10 +572,87 @@ const ProizvodnjaPage = () => {
                 )}
               </div>
 
-              {/* Desno: Detalji pošiljke */}
+              {/* Desno: Pregled proizvoda + Detalji pošiljke */}
               <div>
                 {selectedShipment && shipmentDetails ? (
                   <div className="designer-card">
+                    {/* Pregled proizvoda (skica i detalji od dizajnera) */}
+                    {shipmentDetails.product_model && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <h3 style={{ marginBottom: '8px' }}>Pregled webshop prikaza</h3>
+                        <p className="designer-muted" style={{ marginBottom: '16px', fontSize: '0.9rem' }}>
+                          Provera kako je dizajner predstavio proizvod – na osnovu ovoga potvrdite da ste primili ispravan materijal.
+                        </p>
+                        <div className="designer-webshop">
+                          <div className="designer-webshop-preview">
+                            <div className="designer-webshop-image">
+                              {shipmentDetails.product_model.product_model_media?.length > 0 ? (
+                                <img
+                                  src={
+                                    shipmentDetails.product_model.product_model_media.find((m) => m.is_primary)?.image_url ||
+                                    shipmentDetails.product_model.product_model_media[0]?.image_url
+                                  }
+                                  alt={shipmentDetails.product_model.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                'Preview foto'
+                              )}
+                            </div>
+                            <div className="designer-webshop-details">
+                              <h4>{shipmentDetails.product_model.name}</h4>
+                              <div className="designer-webshop-block">
+                                <span className="designer-tech-label">Opis:</span>
+                                <p className="designer-muted designer-tech-content">
+                                  {shipmentDetails.product_model.concept || '—'}
+                                </p>
+                              </div>
+                              <div className="designer-webshop-block">
+                                <span className="designer-tech-label">Materijali:</span>
+                                <span className="designer-tech-content">
+                                  {shipmentDetails.product_model.materials
+                                    ? formatMaterialsForDisplay(shipmentDetails.product_model.materials)
+                                    : 'Nema informacija'}
+                                </span>
+                              </div>
+                              <div className="designer-webshop-block">
+                                <span className="designer-tech-label">Varijante:</span>
+                                <span className="designer-tech-content">
+                                  {shipmentDetails.product_model.variants || 'Nema varijanti'}
+                                </span>
+                              </div>
+                              <div className="designer-webshop-block">
+                                <span className="designer-tech-label">Paleta:</span>
+                                <span className="designer-tech-content">
+                                  {shipmentDetails.product_model.color_palette || 'Nema palete'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="designer-webshop-meta">
+                            <div className="designer-webshop-meta-row">
+                              <span className="designer-muted">Naziv proizvoda:</span>
+                              <strong>{shipmentDetails.product_model.name}</strong>
+                            </div>
+                            <div className="designer-webshop-meta-row">
+                              <span className="designer-muted">SKU:</span>
+                              <strong>{shipmentDetails.product_model.sku}</strong>
+                            </div>
+                            <div className="designer-webshop-meta-row">
+                              <span className="designer-muted">Istaknute karakteristike:</span>
+                              <strong>Premium materijal, ručna obrada</strong>
+                            </div>
+                            <div className="designer-webshop-meta-row">
+                              <span className="designer-muted">Tabela veličina:</span>
+                              <strong style={{ whiteSpace: 'pre-wrap' }}>
+                                {shipmentDetails.product_model.size_table || '—'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <h3 style={{ marginBottom: '20px' }}>Detalji pošiljke</h3>
                     <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
                       <div style={{ marginBottom: '12px' }}>
@@ -802,6 +884,27 @@ const ProizvodnjaPage = () => {
                         </div>
                       </div>
 
+                      {/* Vraćeno na doradu – razlog od dizajnera */}
+                      {(orderDetails.return_for_rework_at || orderDetails.return_for_rework_reason) && (
+                        <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
+                          <h4 style={{ marginBottom: '8px', color: '#b91c1c' }}>Vraćeno na doradu</h4>
+                          <p style={{ fontSize: '0.9rem', margin: 0, color: '#991b1b' }}>
+                            Dizajner je vratio ovaj nalog na doradu. Nalog je ponovo otvoren – potrebno je izvršiti ispravke i ponovo završiti šivenje.
+                          </p>
+                          {orderDetails.return_for_rework_reason && (
+                            <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#fff', borderRadius: '6px', borderLeft: '4px solid #ef4444' }}>
+                              <strong style={{ fontSize: '0.85rem' }}>Razlog:</strong>
+                              <p style={{ margin: '4px 0 0', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{orderDetails.return_for_rework_reason}</p>
+                            </div>
+                          )}
+                          {orderDetails.return_for_rework_at && (
+                            <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#b91c1c' }}>
+                              Vraćeno: {formatDate(orderDetails.return_for_rework_at)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Sekcija 2: Materijal */}
                       {orderDetails.shipment && (
                         <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
@@ -848,13 +951,14 @@ const ProizvodnjaPage = () => {
                             <>
                               <div>
                                 <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                                  Dodaj sliku/dokument (opciono)
+                                  Dodaj sliku/dokument *
                                 </label>
                                 <input
                                   type="url"
                                   value={proofDocumentUrl}
                                   onChange={(e) => setProofDocumentUrl(e.target.value)}
                                   placeholder="URL dokaza"
+                                  required
                                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px', marginBottom: '12px' }}
                                 />
                               </div>

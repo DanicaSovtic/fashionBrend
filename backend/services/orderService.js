@@ -19,7 +19,8 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     postalCode,
     city,
     paymentMethod,
-    walletAddress
+    walletAddress,
+    acquisitionSource
   } = orderData
 
   // Calculate total price
@@ -47,7 +48,8 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     payment_method: paymentMethod,
     user_id: userId,
     ...(walletAddress && { wallet_address: walletAddress }),
-    ...(isBlockchainPayment && { blockchain_network: process.env.BLOCKCHAIN_NETWORK || 'sepolia' })
+    ...(isBlockchainPayment && { blockchain_network: process.env.BLOCKCHAIN_NETWORK || 'sepolia' }),
+    ...(acquisitionSource && { acquisition_source: acquisitionSource })
   }
 
   const { data: order, error: orderError } = await supabase

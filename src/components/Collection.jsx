@@ -192,11 +192,11 @@ const Collection = () => {
                           {collectionStats[collection.id].idea > 0 && (
                             <span style={{ color: '#9ca3af' }}>Ideja: {collectionStats[collection.id].idea}</span>
                           )}
-                          {collectionStats[collection.id].prototype > 0 && (
-                            <span style={{ color: '#3b82f6' }}>Prototip: {collectionStats[collection.id].prototype}</span>
+                          {collectionStats[collection.id].development > 0 && (
+                            <span style={{ color: '#3b82f6' }}>Razvoj: {collectionStats[collection.id].development}</span>
                           )}
                           {collectionStats[collection.id].testing > 0 && (
-                            <span style={{ color: '#f59e0b' }}>Test: {collectionStats[collection.id].testing}</span>
+                            <span style={{ color: '#f59e0b' }}>Testiranje: {collectionStats[collection.id].testing}</span>
                           )}
                           {collectionStats[collection.id].approved > 0 && (
                             <span style={{ color: '#10b981' }}>Odobreno: {collectionStats[collection.id].approved}</span>
@@ -272,11 +272,11 @@ const Collection = () => {
                           {collectionStats[collection.id].idea > 0 && (
                             <span style={{ color: '#9ca3af' }}>Ideja: {collectionStats[collection.id].idea}</span>
                           )}
-                          {collectionStats[collection.id].prototype > 0 && (
-                            <span style={{ color: '#3b82f6' }}>Prototip: {collectionStats[collection.id].prototype}</span>
+                          {collectionStats[collection.id].development > 0 && (
+                            <span style={{ color: '#3b82f6' }}>Razvoj: {collectionStats[collection.id].development}</span>
                           )}
                           {collectionStats[collection.id].testing > 0 && (
-                            <span style={{ color: '#f59e0b' }}>Test: {collectionStats[collection.id].testing}</span>
+                            <span style={{ color: '#f59e0b' }}>Testiranje: {collectionStats[collection.id].testing}</span>
                           )}
                           {collectionStats[collection.id].approved > 0 && (
                             <span style={{ color: '#10b981' }}>Odobreno: {collectionStats[collection.id].approved}</span>

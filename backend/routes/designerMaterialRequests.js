@@ -118,9 +118,9 @@ router.post('/', requireAuth, requireRole(['modni_dizajner']), async (req, res, 
   try {
     const { product_model_id, material, color, quantity_kg, deadline, supplier_id, notes } = req.body
 
-    if (!material || !color || !quantity_kg) {
+    if (!material || !color || !quantity_kg || !supplier_id) {
       res.status(400).json({ 
-        error: 'material, color i quantity_kg su obavezni' 
+        error: 'Materijal, boja, količina i dobavljač su obavezni' 
       })
       return
     }
@@ -150,7 +150,7 @@ router.post('/', requireAuth, requireRole(['modni_dizajner']), async (req, res, 
         product_model_id: product_model_id || null,
         collection_id: collectionId,
         requested_by: req.user.id,
-        supplier_id: supplier_id || null,
+        supplier_id,
         model_name: modelName,
         model_sku: modelSku,
         material,
@@ -171,6 +171,17 @@ router.post('/', requireAuth, requireRole(['modni_dizajner']), async (req, res, 
         return
       }
       throw error
+    }
+
+    // Kada dizajner pošalje zahtev za materijal, proizvod prelazi u fazu Razvoj
+    if (product_model_id) {
+      await adminSupabase
+        .from('product_models')
+        .update({
+          development_stage: 'development',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', product_model_id)
     }
 
     res.json({
@@ -278,6 +289,86 @@ router.get('/completed-products', requireAuth, requireRole(['modni_dizajner']), 
 })
 
 /**
+ * POST /api/designer/material-requests/completed-products/:sewing_order_id/return-for-rework
+ * Dizajner vraća proizvod na doradu: development_stage -> 'development', nalog za šivenje ponovo otvoren (in_progress), sa razlogom
+ * Body: { reason: string } (razlog vraćanja – opciono ali preporučeno)
+ */
+router.post('/completed-products/:sewing_order_id/return-for-rework', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { sewing_order_id } = req.params
+    const { reason } = req.body || {}
+    const reasonText = reason != null ? String(reason).trim() : null
+
+    const { data: completedProduct, error: checkError } = await adminSupabase
+      .from('completed_products_from_manufacturer')
+      .select('product_model_id')
+      .eq('sewing_order_id', sewing_order_id)
+      .eq('designer_id', req.user.id)
+      .single()
+    if (checkError || !completedProduct?.product_model_id) {
+      res.status(404).json({ error: 'Završeni proizvod nije pronađen ili ne pripada vama' })
+      return
+    }
+
+    const now = new Date().toISOString()
+
+    const { error: updateModelError } = await adminSupabase
+      .from('product_models')
+      .update({ development_stage: 'development', updated_at: now })
+      .eq('id', completedProduct.product_model_id)
+    if (updateModelError) throw updateModelError
+
+    const { error: updateOrderError } = await adminSupabase
+      .from('sewing_orders')
+      .update({
+        status: 'in_progress',
+        return_for_rework_reason: reasonText || null,
+        return_for_rework_at: now,
+        updated_at: now
+      })
+      .eq('id', sewing_order_id)
+    if (updateOrderError) throw updateOrderError
+
+    res.json({
+      success: true,
+      message: 'Proizvod je vraćen na doradu. Proizvođač će ponovo videti nalog za šivenje i razlog.'
+    })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error return-for-rework:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/designer/material-requests/completed-products/:sewing_order_id/approve-for-testing
+ * Dizajner potvrđuje da je zadovoljan – model prelazi u Testiranje (laborant/tester kvaliteta ga odobravaju)
+ */
+router.post('/completed-products/:sewing_order_id/approve-for-testing', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { sewing_order_id } = req.params
+    const { data: completedProduct, error: checkError } = await adminSupabase
+      .from('completed_products_from_manufacturer')
+      .select('product_model_id')
+      .eq('sewing_order_id', sewing_order_id)
+      .eq('designer_id', req.user.id)
+      .single()
+    if (checkError || !completedProduct?.product_model_id) {
+      res.status(404).json({ error: 'Završeni proizvod nije pronađen ili ne pripada vama' })
+      return
+    }
+    const { error: updateError } = await adminSupabase
+      .from('product_models')
+      .update({ development_stage: 'testing', updated_at: new Date().toISOString() })
+      .eq('id', completedProduct.product_model_id)
+    if (updateError) throw updateError
+    res.json({ success: true, message: 'Proizvod je pušten na testiranje – laborant i tester kvaliteta će ga odobriti.' })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error approve-for-testing:', error)
+    next(error)
+  }
+})
+
+/**
  * POST /api/designer/material-requests/completed-products/:sewing_order_id/publish
  * Pusti proizvod u prodaju - kreira products zapis i ažurira development_stage na 'approved'
  */
@@ -310,17 +401,12 @@ router.post('/completed-products/:sewing_order_id/publish', requireAuth, require
       return
     }
 
-    // Ažuriraj development_stage na 'approved'
-    const { error: updateError } = await adminSupabase
-      .from('product_models')
-      .update({
-        development_stage: 'approved',
-        updated_at: new Date().toISOString()
+    // Puštanje u prodaju dozvoljeno SAMO kada je tester kvaliteta već odobrio proizvod (development_stage === 'approved')
+    if (completedProduct.development_stage !== 'approved') {
+      res.status(400).json({
+        error: 'Proizvod mora biti odobren od strane testera kvaliteta da bi mogao u prodaju. Trenutna faza: ' + (completedProduct.development_stage || '—')
       })
-      .eq('id', completedProduct.product_model_id)
-
-    if (updateError) {
-      throw updateError
+      return
     }
 
     // Kreiraj products zapis koristeći postojeću funkciju iz collectionsService

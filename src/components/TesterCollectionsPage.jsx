@@ -13,7 +13,7 @@ const mapStatus = (status) => {
 }
 
 const mapStage = (stage) => {
-  const stageMap = { 'idea': 'Ideja', 'prototype': 'Prototip', 'testing': 'Testiranje', 'approved': 'Odobreno' }
+  const stageMap = { 'idea': 'Ideja', 'development': 'Razvoj', 'testing': 'Testiranje', 'approved': 'Odobreno' }
   return stageMap[stage] || stage
 }
 
@@ -91,14 +91,14 @@ const TesterCollectionsPage = () => {
           collectionsData.map(async (collection) => {
             try {
               const statsResponse = await fetch(`/api/collections/${collection.id}/stats`)
-              const stats = statsResponse.ok ? await statsResponse.json() : { idea: 0, prototype: 0, testing: 0, approved: 0, total: 0 }
+              const stats = statsResponse.ok ? await statsResponse.json() : { idea: 0, development: 0, testing: 0, approved: 0, total: 0 }
               return {
                 ...collection,
-                phaseSummary: { idea: stats.idea || 0, prototype: stats.prototype || 0, testing: stats.testing || 0, approved: stats.approved || 0 },
+                phaseSummary: { idea: stats.idea || 0, development: stats.development || 0, testing: stats.testing || 0, approved: stats.approved || 0 },
                 modelsCount: stats.total || 0
               }
             } catch {
-              return { ...collection, phaseSummary: { idea: 0, prototype: 0, testing: 0, approved: 0 }, modelsCount: 0 }
+              return { ...collection, phaseSummary: { idea: 0, development: 0, testing: 0, approved: 0 }, modelsCount: 0 }
             }
           })
         )
@@ -383,10 +383,10 @@ const TesterCollectionsPage = () => {
   }
 
   const collectionMetrics = useMemo(() => {
-    if (!selectedCollection) return { totalModels: 0, prototypeModels: 0, approvedModels: 0, totalComments: 0 }
+    if (!selectedCollection) return { totalModels: 0, developmentModels: 0, approvedModels: 0, totalComments: 0 }
     return {
       totalModels: selectedCollection.modelsCount || 0,
-      prototypeModels: selectedCollection.phaseSummary?.prototype || 0,
+      developmentModels: selectedCollection.phaseSummary?.development || 0,
       approvedModels: selectedCollection.phaseSummary?.approved || 0,
       totalComments: comments.length
     }
@@ -457,7 +457,7 @@ const TesterCollectionsPage = () => {
           {selectedCollection && (
             <div className="designer-metrics">
               <div className="designer-metric"><span>Ukupno modela</span><strong>{collectionMetrics.totalModels}</strong></div>
-              <div className="designer-metric"><span>Modeli u prototipu</span><strong>{collectionMetrics.prototypeModels}</strong></div>
+              <div className="designer-metric"><span>Modeli u razvoju</span><strong>{collectionMetrics.developmentModels}</strong></div>
               <div className="designer-metric"><span>Odobreno</span><strong>{collectionMetrics.approvedModels}</strong></div>
               <div className="designer-metric"><span>Komentari</span><strong>{collectionMetrics.totalComments}</strong></div>
             </div>
@@ -485,8 +485,8 @@ const TesterCollectionsPage = () => {
               </div>
               <div className="designer-phase-grid">
                 <div><strong>{selectedCollection.phaseSummary?.idea || 0}</strong><span>Ideja</span></div>
-                <div><strong>{selectedCollection.phaseSummary?.prototype || 0}</strong><span>Prototip</span></div>
-                <div><strong>{selectedCollection.phaseSummary?.testing || 0}</strong><span>Test</span></div>
+                <div><strong>{selectedCollection.phaseSummary?.development || 0}</strong><span>Razvoj</span></div>
+                <div><strong>{selectedCollection.phaseSummary?.testing || 0}</strong><span>Testiranje</span></div>
                 <div><strong>{selectedCollection.phaseSummary?.approved || 0}</strong><span>Odobreno</span></div>
               </div>
             </div>

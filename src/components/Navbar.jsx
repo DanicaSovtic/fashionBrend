@@ -62,6 +62,14 @@ const Navbar = ({ activePath }) => {
                   Upravljanje Blogom
                 </Link>
               </li>
+              <li className="navbar-item">
+                <Link
+                  to="/analitika"
+                  className={`navbar-link ${isActive('/analitika') ? 'active' : ''}`}
+                >
+                  Analitika
+                </Link>
+              </li>
             </>
           ) : isAccountant ? (
             <>
@@ -164,7 +172,7 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
-              {user && profile?.role !== 'krajnji_korisnik' && profile?.role !== 'superadmin' && !isSupplier && !isManufacturer && (
+              {user && profile?.role !== 'krajnji_korisnik' && profile?.role !== 'superadmin' && !isLaborant && !isTester && !isSupplier && !isManufacturer && (
                 <li className="navbar-item">
                   <Link
                     to="/collection"
@@ -199,6 +207,14 @@ const Navbar = ({ activePath }) => {
                       className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
                     >
                       Upravljanje Blogom
+                    </Link>
+                  </li>
+                  <li className="navbar-item">
+                    <Link
+                      to="/analitika"
+                      className={`navbar-link ${isActive('/analitika') ? 'active' : ''}`}
+                    >
+                      Analitika
                     </Link>
                   </li>
                   <li className="navbar-item navbar-dropdown">

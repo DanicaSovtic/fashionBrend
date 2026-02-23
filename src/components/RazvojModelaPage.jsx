@@ -22,6 +22,9 @@ const RazvojModelaPage = () => {
   
   // Modal state
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [showReturnForReworkModal, setShowReturnForReworkModal] = useState(false)
+  const [returnForReworkOrderId, setReturnForReworkOrderId] = useState(null)
+  const [returnForReworkReason, setReturnForReworkReason] = useState('')
   const [selectedModel, setSelectedModel] = useState(null)
   const [requestForm, setRequestForm] = useState({
     material: '',
@@ -181,6 +184,83 @@ const RazvojModelaPage = () => {
     }
   }
 
+  const openReturnForReworkModal = (sewingOrderId) => {
+    setReturnForReworkOrderId(sewingOrderId)
+    setReturnForReworkReason('')
+    setShowReturnForReworkModal(true)
+  }
+
+  const handleReturnForRework = async () => {
+    if (!returnForReworkOrderId) return
+    try {
+      const token = localStorage.getItem('auth_access_token')
+      const res = await fetch(`/api/designer/material-requests/completed-products/${returnForReworkOrderId}/return-for-rework`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason: returnForReworkReason || undefined })
+      })
+      const text = await res.text()
+      if (!res.ok) {
+        let errMsg = 'Greška pri vraćanju na doradu'
+        try {
+          if (text) {
+            const err = JSON.parse(text)
+            errMsg = err.error || err.message || errMsg
+          }
+        } catch (_) {
+          if (text) errMsg = text.slice(0, 200)
+        }
+        throw new Error(errMsg)
+      }
+      setShowReturnForReworkModal(false)
+      setReturnForReworkOrderId(null)
+      setReturnForReworkReason('')
+      alert('Proizvod je vraćen na doradu. Proizvođač će ponovo videti nalog za šivenje i razlog.')
+      await fetchCompletedProducts()
+      await fetchModels()
+    } catch (error) {
+      alert(error.message || 'Greška pri vraćanju na doradu')
+    }
+  }
+
+  const handleApproveForTesting = async (sewingOrderId) => {
+    if (!confirm('Potvrdite da ste zadovoljni proizvodom i da ga šaljete na testiranje (laborant i tester kvaliteta)?')) return
+    try {
+      const token = localStorage.getItem('auth_access_token')
+      const res = await fetch(`/api/designer/material-requests/completed-products/${sewingOrderId}/approve-for-testing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const text = await res.text()
+      if (!res.ok) {
+        let errMsg = 'Greška'
+        try {
+          const err = text ? JSON.parse(text) : {}
+          errMsg = err.error || err.message || errMsg
+        } catch (_) {
+          if (text) errMsg = text.slice(0, 200)
+        }
+        throw new Error(errMsg)
+      }
+      try {
+        if (text) JSON.parse(text)
+      } catch (_) {
+        // odgovor nije JSON, ali status je ok – smatramo uspehom
+      }
+      alert('Proizvod je pušten na testiranje. Kada ga laborant i tester kvaliteta odobre, moći ćete da ga pustite u prodaju.')
+      await fetchCompletedProducts()
+      await fetchModels()
+    } catch (error) {
+      alert(error.message || 'Greška')
+    }
+  }
+
   const handleRequestMaterial = (model) => {
     setSelectedModel(model)
     setRequestForm({
@@ -197,8 +277,8 @@ const RazvojModelaPage = () => {
   const handleSubmitRequest = async (e) => {
     e.preventDefault()
     
-    if (!requestForm.material || !requestForm.color || !requestForm.quantity_kg) {
-      alert('Materijal, boja i količina su obavezni')
+    if (!requestForm.material || !requestForm.color || !requestForm.quantity_kg || !requestForm.supplier_id) {
+      alert('Materijal, boja, količina i dobavljač su obavezni')
       return
     }
 
@@ -217,7 +297,7 @@ const RazvojModelaPage = () => {
           color: requestForm.color,
           quantity_kg: parseFloat(requestForm.quantity_kg),
           deadline: requestForm.deadline || null,
-          supplier_id: requestForm.supplier_id || null,
+          supplier_id: requestForm.supplier_id,
           notes: requestForm.notes || null
         })
       })
@@ -450,7 +530,7 @@ const RazvojModelaPage = () => {
                       <td style={{ padding: '12px' }}>
                         <span className="designer-status-chip">
                           {model.development_stage === 'idea' ? 'Ideja' :
-                           model.development_stage === 'prototype' ? 'Prototip' :
+                           model.development_stage === 'development' ? 'Razvoj' :
                            model.development_stage === 'testing' ? 'Testiranje' :
                            model.development_stage === 'approved' ? 'Odobreno' : model.development_stage}
                         </span>
@@ -586,11 +666,16 @@ const RazvojModelaPage = () => {
                         <th style={{ padding: '12px', textAlign: 'left' }}>Status materijala</th>
                         <th style={{ padding: '12px', textAlign: 'right' }}>Količina (kom)</th>
                         <th style={{ padding: '12px', textAlign: 'left' }}>Završeno</th>
+                        <th style={{ padding: '12px', textAlign: 'center' }}>Dokaz od proizvođača</th>
                         <th style={{ padding: '12px', textAlign: 'center' }}>Akcija</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {completedProducts.map((product) => (
+                      {completedProducts.map((product) => {
+                        const stage = product.development_stage || 'development'
+                        const stageLabel = stage === 'idea' ? 'Ideja' : stage === 'development' ? 'Razvoj' : stage === 'testing' ? 'Testiranje' : stage === 'approved' ? 'Odobreno' : stage
+                        const stageColor = stage === 'idea' ? '#9ca3af' : stage === 'development' ? '#3b82f6' : stage === 'testing' ? '#f59e0b' : '#10b981'
+                        return (
                         <tr key={product.sewing_order_id} style={{ borderBottom: '1px solid #f0f0f0' }}>
                           <td style={{ padding: '12px' }}>
                             <div>
@@ -610,8 +695,8 @@ const RazvojModelaPage = () => {
                             )}
                           </td>
                           <td style={{ padding: '12px' }}>
-                            <span className="designer-status-chip" style={{ backgroundColor: '#10b98120', color: '#10b981' }}>
-                              Odobreno
+                            <span className="designer-status-chip" style={{ backgroundColor: `${stageColor}20`, color: stageColor }}>
+                              {stageLabel}
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
@@ -635,11 +720,31 @@ const RazvojModelaPage = () => {
                             {product.completed_at ? formatDate(product.completed_at) : '-'}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
+                            {product.proof_document_url ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                {/\.(jpe?g|png|gif|webp)$/i.test(product.proof_document_url) ? (
+                                  <a href={product.proof_document_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                                    <img
+                                      src={product.proof_document_url}
+                                      alt="Dokaz"
+                                      style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #eee' }}
+                                    />
+                                  </a>
+                                ) : null}
+                                <a href={product.proof_document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--color-olive-dark)' }}>
+                                  {/\.(jpe?g|png|gif|webp)$/i.test(product.proof_document_url) ? 'Pogledaj' : 'Otvori dokaz'}
+                                </a>
+                              </div>
+                            ) : (
+                              <span className="designer-muted" style={{ fontSize: '0.85rem' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
                             {product.product_id ? (
                               <span className="designer-muted" style={{ fontSize: '0.85rem' }}>
                                 U prodaji
                               </span>
-                            ) : (
+                            ) : stage === 'approved' ? (
                               <button
                                 onClick={() => handlePublishProduct(product.sewing_order_id)}
                                 className="designer-primary-button"
@@ -647,10 +752,47 @@ const RazvojModelaPage = () => {
                               >
                                 Pusti u prodaju
                               </button>
+                            ) : stage === 'testing' ? (
+                              <span className="designer-muted" style={{ fontSize: '0.85rem' }}>U testiranju</span>
+                            ) : (stage === 'development' || stage === 'idea') ? (
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                  onClick={() => openReturnForReworkModal(product.sewing_order_id)}
+                                  style={{
+                                    fontSize: '0.85rem',
+                                    padding: '6px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #ef4444',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  Vrati na doradu
+                                </button>
+                                <button
+                                  onClick={() => handleApproveForTesting(product.sewing_order_id)}
+                                  style={{
+                                    fontSize: '0.85rem',
+                                    padding: '6px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #10b981',
+                                    background: '#10b981',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  Pusti na testiranje
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="designer-muted" style={{ fontSize: '0.85rem' }}>—</span>
                             )}
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -731,7 +873,7 @@ const RazvojModelaPage = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Rok (datum)
+                    Rok za isporuku
                   </label>
                   <input
                     type="date"
@@ -742,14 +884,15 @@ const RazvojModelaPage = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Dobavljač
+                    Dobavljač *
                   </label>
                   <select
                     value={requestForm.supplier_id}
                     onChange={(e) => setRequestForm({ ...requestForm, supplier_id: e.target.value })}
+                    required
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
                   >
-                    <option value="">Izaberi dobavljača (opciono)</option>
+                    <option value="">Izaberi dobavljača</option>
                     {suppliers.map((supplier) => (
                       <option key={supplier.user_id} value={supplier.user_id}>
                         {supplier.full_name}
@@ -787,6 +930,57 @@ const RazvojModelaPage = () => {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal za razlog vraćanja na doradu */}
+      {showReturnForReworkModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowReturnForReworkModal(false)}
+        >
+          <div
+            className="designer-card"
+            style={{ maxWidth: '480px', width: '90%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: '8px' }}>Vrati na doradu</h3>
+            <p className="designer-muted" style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
+              Nalog za šivenje će se ponovo otvoriti kod proizvođača. Unesite razlog (opciono, ali preporučeno):
+            </p>
+            <textarea
+              value={returnForReworkReason}
+              onChange={(e) => setReturnForReworkReason(e.target.value)}
+              placeholder="npr. Krivi rez, potrebna ispravka šava na leđima..."
+              rows={4}
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '8px', fontFamily: 'inherit', resize: 'vertical', marginBottom: '16px' }}
+            />
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => { setShowReturnForReworkModal(false); setReturnForReworkOrderId(null); setReturnForReworkReason('') }}
+                className="designer-secondary-button"
+              >
+                Otkaži
+              </button>
+              <button
+                type="button"
+                onClick={handleReturnForRework}
+                className="designer-primary-button"
+                style={{ background: '#ef4444', borderColor: '#ef4444' }}
+              >
+                Vrati na doradu
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -11,7 +11,7 @@ const adminSupabase = createAdminClient()
 // Create new order
 router.post('/orders', requireAuth, requireRole(['krajnji_korisnik']), async (req, res, next) => {
   try {
-    const { deliveryInfo, paymentMethod, items, walletAddress } = req.body
+    const { deliveryInfo, paymentMethod, items, walletAddress, acquisitionSource } = req.body
 
     if (!deliveryInfo || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: 'Missing required fields: deliveryInfo, paymentMethod, and items are required' })
@@ -24,7 +24,8 @@ router.post('/orders', requireAuth, requireRole(['krajnji_korisnik']), async (re
       {
         ...deliveryInfo,
         paymentMethod,
-        walletAddress
+        walletAddress,
+        acquisitionSource: acquisitionSource || null
       },
       items
     )

@@ -10,7 +10,7 @@ const CollectionDetail = () => {
   const [productModels, setProductModels] = useState([])
   const [modelsByStage, setModelsByStage] = useState({
     idea: [],
-    prototype: [],
+    development: [],
     testing: [],
     approved: []
   })
@@ -34,7 +34,7 @@ const CollectionDetail = () => {
         setProductModels(data.productModels || [])
         setModelsByStage(data.modelsByStage || {
           idea: [],
-          prototype: [],
+          development: [],
           testing: [],
           approved: []
         })
@@ -54,7 +54,7 @@ const CollectionDetail = () => {
   const getStageLabel = (stage) => {
     const labels = {
       idea: 'Ideja',
-      prototype: 'Prototip',
+      development: 'Razvoj',
       testing: 'Testiranje',
       approved: 'Odobreno'
     }
@@ -64,7 +64,7 @@ const CollectionDetail = () => {
   const getStageColor = (stage) => {
     const colors = {
       idea: '#9ca3af',
-      prototype: '#3b82f6',
+      development: '#3b82f6',
       testing: '#f59e0b',
       approved: '#10b981'
     }

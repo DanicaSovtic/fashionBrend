@@ -344,7 +344,7 @@ alter table product_models
 
 alter table product_models
   add constraint product_models_stage_check check (
-    development_stage in ('idea', 'prototype', 'testing', 'approved')
+    development_stage in ('idea', 'development', 'testing', 'approved')
   );
 
 create table if not exists product_model_versions (
@@ -449,7 +449,7 @@ values
     'Silk Drape Dress',
     'MD-SS26-014',
     'Haljine',
-    'prototype',
+    'development',
     'Fluidna silueta inspirisana pokretom svetlosti.',
     'Skandinavska arhitektura, minimalizam.',
     'pearl, misty rose, soft lilac',

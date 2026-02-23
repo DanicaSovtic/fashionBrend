@@ -9,7 +9,6 @@ create table if not exists inventory_items (
   color text not null,
   quantity_kg numeric not null default 0,
   price_per_kg numeric,
-  lead_time_days integer,
   status text not null default 'active',
   blockchain_item_id text, -- ID stavke na blockchainu (ako se koristi)
   blockchain_tx_hash text, -- Hash transakcije za dodavanje/izmenu

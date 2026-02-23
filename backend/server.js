@@ -16,6 +16,7 @@ import supplierRouter from './routes/supplier.js'
 import designerMaterialRequestsRouter from './routes/designerMaterialRequests.js'
 import manufacturerRouter from './routes/manufacturer.js'
 import accountantRouter from './routes/accountant.js'
+import analyticsRouter from './routes/analytics.js'
 
 dotenv.config()
 
@@ -59,18 +60,19 @@ configRouter.get('/config/blockchain', (req, res) => {
 app.use('/api', configRouter)
 
 // Tester i Designer rute – montirane na tačne putanje, pre cart/favorites
-// Dodaj logging middleware pre designer ruta
+// VAŽNO: material-requests MORA pre /api/designer da POST /api/designer/material-requests/... stigne do pravog handlera
+app.use('/api/designer/material-requests', designerMaterialRequestsRouter)
 app.use('/api/designer', (req, res, next) => {
   console.log('[Server] Designer route hit:', req.method, req.path, req.originalUrl)
   next()
 })
 app.use('/api/tester', testerRouter)
 app.use('/api/designer', designerRouter)
-app.use('/api/designer/material-requests', designerMaterialRequestsRouter)
 app.use('/api/lab', labRouter)
 app.use('/api/supplier', supplierRouter)
 app.use('/api/manufacturer', manufacturerRouter)
 app.use('/api', accountantRouter)
+app.use('/api', analyticsRouter)
 
 // Collections router
 app.use('/api', (req, res, next) => {

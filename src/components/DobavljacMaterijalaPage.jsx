@@ -24,8 +24,7 @@ const DobavljacMaterijalaPage = () => {
     material: '',
     color: '',
     quantity_kg: '',
-    price_per_kg: '',
-    lead_time_days: ''
+    price_per_kg: ''
   })
   const [blockchainConfig, setBlockchainConfig] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -241,15 +240,13 @@ const DobavljacMaterijalaPage = () => {
       if (blockchainConfig?.inventoryContract) {
         try {
           const pricePerKg = newItem.price_per_kg ? parseFloat(newItem.price_per_kg) : 0
-          const leadTimeDays = newItem.lead_time_days ? parseInt(newItem.lead_time_days) : 0
-          
           const result = await addInventoryItemOnBlockchain(
             blockchainConfig.inventoryContract,
             newItem.material,
             newItem.color,
             parseFloat(newItem.quantity_kg),
             pricePerKg,
-            leadTimeDays
+            0
           )
           blockchainTxHash = result.txHash
           blockchainItemId = result.itemId
@@ -269,7 +266,6 @@ const DobavljacMaterijalaPage = () => {
           ...newItem,
           quantity_kg: parseFloat(newItem.quantity_kg),
           price_per_kg: newItem.price_per_kg ? parseFloat(newItem.price_per_kg) : null,
-          lead_time_days: newItem.lead_time_days ? parseInt(newItem.lead_time_days) : null,
           blockchain_tx_hash: blockchainTxHash,
           blockchain_item_id: blockchainItemId
         })
@@ -286,8 +282,7 @@ const DobavljacMaterijalaPage = () => {
         material: '',
         color: '',
         quantity_kg: '',
-        price_per_kg: '',
-        lead_time_days: ''
+        price_per_kg: ''
       })
       if (blockchainTxHash) {
         alert('Upisano na blockchain ✅')
@@ -685,7 +680,6 @@ const DobavljacMaterijalaPage = () => {
                         <th style={{ padding: '12px', textAlign: 'left' }}>Boja</th>
                         <th style={{ padding: '12px', textAlign: 'right' }}>Količina (kg)</th>
                         <th style={{ padding: '12px', textAlign: 'right' }}>Cena/kg</th>
-                        <th style={{ padding: '12px', textAlign: 'right' }}>Rok (dana)</th>
                         <th style={{ padding: '12px', textAlign: 'center' }}>Status</th>
                         <th style={{ padding: '12px', textAlign: 'center' }}>Akcije</th>
                       </tr>
@@ -730,9 +724,6 @@ const DobavljacMaterijalaPage = () => {
                             ) : (
                               item.price_per_kg ? `${item.price_per_kg} RSD` : '-'
                             )}
-                          </td>
-                          <td style={{ padding: '12px', textAlign: 'right' }}>
-                            {item.lead_time_days ? `${item.lead_time_days} dana` : '-'}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
                             <span
@@ -886,8 +877,6 @@ const DobavljacMaterijalaPage = () => {
                 <div>
                   {selectedRequest && requestDetails ? (
                     <div className="designer-card">
-                      <h3 style={{ marginBottom: '20px' }}>Detalji zahteva</h3>
-
                       {/* Korak 1: Prihvati/Odbij */}
                       {requestStep === 1 && selectedRequest.status === 'new' && (
                         <div>
@@ -965,62 +954,10 @@ const DobavljacMaterijalaPage = () => {
                         </div>
                       )}
 
-                      {/* Korak 2: Priprema pošiljke */}
-                      {requestStep === 2 && selectedRequest.status === 'in_progress' && (
-                        <div>
-                          <h4 style={{ marginBottom: '16px' }}>Spremam pošiljku</h4>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            <div>
-                              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                                Količina koju šaljem (kg) *
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={requestForm.quantity_sent_kg}
-                                onChange={(e) => setRequestForm({ ...requestForm, quantity_sent_kg: e.target.value })}
-                                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                                placeholder={requestDetails.request.quantity_kg}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                                Batch/Lot ID (opciono)
-                              </label>
-                              <input
-                                type="text"
-                                value={requestForm.batch_lot_id}
-                                onChange={(e) => setRequestForm({ ...requestForm, batch_lot_id: e.target.value })}
-                                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                                Dokument URL (opciono)
-                              </label>
-                              <input
-                                type="url"
-                                value={requestForm.document_url}
-                                onChange={(e) => setRequestForm({ ...requestForm, document_url: e.target.value })}
-                                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                                placeholder="https://..."
-                              />
-                            </div>
-                            <button
-                              className="designer-primary-button"
-                              onClick={handlePrepareShipment}
-                              style={{ alignSelf: 'flex-start' }}
-                            >
-                              Sačuvaj pripremu
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       {/* Sekcija: Pošalji proizvođaču (prikazuje se kada je status 'in_progress') */}
                       {selectedRequest.status === 'in_progress' && (
-                        <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '2px solid #eee' }}>
-                          <h4 style={{ marginBottom: '16px', color: 'var(--color-olive-dark)' }}>Pošalji proizvođaču</h4>
+                        <div>
+                          <h3 style={{ marginBottom: '20px', color: 'var(--color-olive-dark)' }}>Pošalji proizvođaču</h3>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                             <div>
                               <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
@@ -1204,18 +1141,6 @@ const DobavljacMaterijalaPage = () => {
                     value={newItem.price_per_kg}
                     onChange={(e) => setNewItem({ ...newItem, price_per_kg: e.target.value })}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Rok isporuke (dana) (opciono)
-                  </label>
-                  <input
-                    type="number"
-                    value={newItem.lead_time_days}
-                    onChange={(e) => setNewItem({ ...newItem, lead_time_days: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                    placeholder="npr. 2-3"
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
