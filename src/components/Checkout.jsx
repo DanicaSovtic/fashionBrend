@@ -40,6 +40,11 @@ const Checkout = () => {
 
   const [errors, setErrors] = useState({})
 
+  // Loyalty: moj status i preview iskoristi
+  const [loyaltyMe, setLoyaltyMe] = useState(null)
+  const [loyaltyPreview, setLoyaltyPreview] = useState(null)
+  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(0)
+
   // Izvor posete za analitiku (utm_source iz URL-a ili sessionStorage)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -55,6 +60,33 @@ const Checkout = () => {
   const getAcquisitionSource = () => {
     return sessionStorage.getItem('checkout_acquisition_source') || 'website'
   }
+
+  // Učitaj loyalty kada pređe na korak 2 (način plaćanja)
+  useEffect(() => {
+    if (step !== 2 || !user) return
+    const token = localStorage.getItem('auth_access_token')
+    if (!token) return
+    fetch('/api/loyalty/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setLoyaltyMe(data))
+      .catch(() => {})
+  }, [step, user])
+
+  useEffect(() => {
+    if (step !== 2 || total <= 0) return
+    const token = localStorage.getItem('auth_access_token')
+    if (!token) return
+    fetch(`/api/loyalty/redeem-preview?orderTotal=${total}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setLoyaltyPreview(data))
+      .catch(() => {})
+  }, [step, total])
+
+  const maxPointsUsable = loyaltyPreview ? Math.min(loyaltyPreview.max_points_usable || 0, loyaltyPreview.points_balance || 0) : 0
+  const loyaltyDiscountRsd = loyaltyPreview && useLoyaltyPoints > 0
+    ? Math.min(useLoyaltyPoints, maxPointsUsable) * (loyaltyPreview.value_per_point_rsd || 0)
+    : 0
+  const effectiveTotal = Math.max(0, total - loyaltyDiscountRsd)
 
   // Provera da li je Metamask instaliran
   const isMetamaskInstalled = () => {
@@ -276,18 +308,21 @@ const Checkout = () => {
       throw new Error('MetaMask mora biti na Sepolia testnet mreži.')
     }
 
-    // 3. Konfiguracija i izračun iznosa
+    // 3. Konfiguracija i izračun iznosa (sa popustom od poena ako je izabran)
     const configRes = await fetch('/api/config/blockchain')
     const config = await configRes.json()
-    const amountWei = rsdToWei(total, config.rsdRate)
+    const amountToPay = loyaltyDiscountRsd > 0 ? effectiveTotal : total
+    const amountWei = rsdToWei(amountToPay, config.rsdRate)
     const ethAmount = weiToEth(amountWei)
 
     // 4. Kreiraj narudžbinu u bazi (status: pending_blockchain)
+    const pointsToSend = useLoyaltyPoints > 0 && maxPointsUsable >= useLoyaltyPoints ? useLoyaltyPoints : 0
     const requestData = {
       deliveryInfo: formData,
       paymentMethod: 'metamask',
       walletAddress: metamaskAccount,
       acquisitionSource: getAcquisitionSource(),
+      ...(pointsToSend > 0 && { useLoyaltyPoints: pointsToSend }),
       items: items.map(item => ({
         product_id: item.product_id,
         title: item.title,
@@ -380,10 +415,12 @@ const Checkout = () => {
   }
 
   const handleOtherPayment = async (token) => {
+    const pointsToSend = useLoyaltyPoints > 0 && maxPointsUsable >= useLoyaltyPoints ? useLoyaltyPoints : 0
     const requestData = {
       deliveryInfo: formData,
       paymentMethod,
       acquisitionSource: getAcquisitionSource(),
+      ...(pointsToSend > 0 && { useLoyaltyPoints: pointsToSend }),
       items: items.map(item => ({
         product_id: item.product_id,
         title: item.title,
@@ -687,6 +724,33 @@ const Checkout = () => {
                   </div>
                 </div>
 
+                {loyaltyMe && loyaltyPreview && maxPointsUsable > 0 && (
+                  <div className="checkout-loyalty-section" style={{ marginTop: '20px', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <h3 style={{ marginBottom: '8px', fontSize: '1rem' }}>Iskoristi poene</h3>
+                    <p style={{ fontSize: '0.9rem', color: '#555', marginBottom: '12px' }}>
+                      Imate <strong>{loyaltyPreview.points_balance}</strong> poena. Nivo: <strong>{loyaltyMe.tier}</strong>.
+                      Maksimalno možete iskoristiti <strong>{maxPointsUsable}</strong> poena (popust do {loyaltyPreview.max_redeem_percent}% vrednosti).
+                    </p>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <input
+                        type="number"
+                        min={0}
+                        max={maxPointsUsable}
+                        value={useLoyaltyPoints || ''}
+                        onChange={(e) => setUseLoyaltyPoints(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                        placeholder="0"
+                        style={{ width: '80px', padding: '6px 8px', border: '1px solid #ddd', borderRadius: '6px' }}
+                      />
+                      <span>poena</span>
+                      {useLoyaltyPoints > 0 && (
+                        <span style={{ color: '#0a0', fontWeight: '600' }}>
+                          Popust: {loyaltyDiscountRsd} RSD
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                )}
+
                 <div className="checkout-form-actions">
                   <button
                     type="button"
@@ -717,9 +781,15 @@ const Checkout = () => {
                 </div>
               ))}
             </div>
+            {loyaltyDiscountRsd > 0 && (
+              <div className="checkout-summary-row" style={{ marginTop: '8px', color: '#0a0', fontSize: '0.9rem' }}>
+                <span>Popust (poeni)</span>
+                <span>- {formatPrice(loyaltyDiscountRsd)}</span>
+              </div>
+            )}
             <div className="checkout-summary-total">
               <span>Ukupno</span>
-              <strong>{formatPrice(total)}</strong>
+              <strong>{formatPrice(loyaltyDiscountRsd > 0 ? effectiveTotal : total)}</strong>
             </div>
           </aside>
         </div>

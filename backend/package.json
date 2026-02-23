@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "backfill-loyalty": "node scripts/backfill-loyalty.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

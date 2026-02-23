@@ -67,9 +67,13 @@ export const requireRole = (allowedRoles = []) => {
       }
 
       const userRole = req.profile?.role ?? null
-      // Normalizuj ulogu - trim i lowercase za poređenje
-      const normalizedUserRole = userRole ? userRole.trim().toLowerCase() : null
-      const normalizedAllowedRoles = allowedRoles.map(r => r.trim().toLowerCase())
+      // Normalizuj ulogu - trim, lowercase i razmak -> donja crta (npr. "marketing asistent" === "marketing_asistent")
+      const normalizedUserRole = userRole
+        ? userRole.trim().toLowerCase().replace(/\s+/g, '_')
+        : null
+      const normalizedAllowedRoles = allowedRoles.map((r) =>
+        r.trim().toLowerCase().replace(/\s+/g, '_')
+      )
       
       console.log('[AuthMiddleware] requireRole - Checking role:', { 
         userRole, 
@@ -80,7 +84,7 @@ export const requireRole = (allowedRoles = []) => {
       })
       
       if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
-        if (userRole === 'superadmin') {
+        if (normalizedUserRole === 'superadmin') {
           console.log('[AuthMiddleware] requireRole - Superadmin access granted')
           next()
           return

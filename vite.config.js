@@ -15,6 +15,9 @@ export default defineConfig({
             console.log('[Vite Proxy] Proxy error:', err.message)
           })
           proxy.on('proxyReq', (proxyReq, req, _res) => {
+            if (req.headers.authorization) {
+              proxyReq.setHeader('Authorization', req.headers.authorization)
+            }
             console.log('[Vite Proxy] Proxying request:', req.method, req.url)
           })
           proxy.on('proxyRes', (proxyRes, req, _res) => {

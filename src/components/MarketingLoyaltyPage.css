@@ -1,0 +1,233 @@
+/* Klub lojalnosti – pregled (Marketing asistent) */
+
+.marketing-loyalty-page {
+  min-height: 100vh;
+  position: relative;
+  background: linear-gradient(180deg, #f8f9fa 0%, #fff 100%);
+  background-image: url('/club-labels-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.marketing-loyalty-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(250, 249, 247, 0.75) 0%, rgba(255, 255, 255, 0.82) 100%);
+  pointer-events: none;
+}
+
+.marketing-loyalty-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.marketing-loyalty-header {
+  margin-bottom: 2rem;
+}
+
+.marketing-loyalty-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.marketing-loyalty-header p {
+  font-size: 1rem;
+  color: #4a5568;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.marketing-loyalty-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e8eaed;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.marketing-loyalty-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fafafa;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.marketing-loyalty-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.marketing-loyalty-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.marketing-loyalty-select:focus {
+  outline: none;
+  border-color: var(--color-olive-dark, #2d5016);
+  box-shadow: 0 0 0 2px rgba(45, 80, 22, 0.15);
+}
+
+.marketing-loyalty-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.marketing-loyalty-loading,
+.marketing-loyalty-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+
+.marketing-loyalty-table-wrap {
+  overflow-x: auto;
+}
+
+.marketing-loyalty-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.marketing-loyalty-table thead {
+  background: #f8f9fa;
+}
+
+.marketing-loyalty-table th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.marketing-loyalty-table th:nth-child(3),
+.marketing-loyalty-table th:nth-child(4),
+.marketing-loyalty-table th:nth-child(6) {
+  text-align: right;
+}
+
+.marketing-loyalty-table th:nth-child(2),
+.marketing-loyalty-table th:nth-child(5) {
+  text-align: center;
+}
+
+.marketing-loyalty-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s ease;
+}
+
+.marketing-loyalty-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.marketing-loyalty-table td {
+  padding: 0.875rem 1rem;
+  color: #1a1a1a;
+  vertical-align: middle;
+}
+
+.marketing-loyalty-table td:nth-child(3),
+.marketing-loyalty-table td:nth-child(4),
+.marketing-loyalty-table td:nth-child(6) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.marketing-loyalty-table td:nth-child(2),
+.marketing-loyalty-table td:nth-child(5) {
+  text-align: center;
+}
+
+.marketing-loyalty-name {
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.marketing-loyalty-num {
+  color: #374151;
+}
+
+.marketing-loyalty-date {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.marketing-loyalty-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.marketing-loyalty-badge--silver {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.marketing-loyalty-badge--gold {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.marketing-loyalty-badge--platinum {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.marketing-loyalty-config {
+  max-width: 380px;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e8eaed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.marketing-loyalty-config h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.75rem 0;
+}
+
+.marketing-loyalty-config ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.7;
+  color: #4a5568;
+  font-size: 0.9rem;
+}
+
+.marketing-loyalty-config li {
+  margin-bottom: 0.25rem;
+}
+
+.marketing-loyalty-config strong {
+  color: #1a1a1a;
+}

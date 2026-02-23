@@ -56,6 +56,14 @@ const Navbar = ({ activePath }) => {
               </li>
               <li className="navbar-item">
                 <Link
+                  to="/marketing/loyalty"
+                  className={`navbar-link ${isActive('/marketing/loyalty') ? 'active' : ''}`}
+                >
+                  Klub (pregled)
+                </Link>
+              </li>
+              <li className="navbar-item">
+                <Link
                   to="/admin/blog"
                   className={`navbar-link ${isActive('/admin/blog') ? 'active' : ''}`}
                 >
@@ -159,11 +167,18 @@ const Navbar = ({ activePath }) => {
                 </li>
               )}
               {profile?.role === 'krajnji_korisnik' && (
-                <li className="navbar-item">
-                  <Link to="/new-collections" className={`navbar-link ${isActive('/new-collections') ? 'active' : ''}`}>
-                    Nove kolekcije
-                  </Link>
-                </li>
+                <>
+                  <li className="navbar-item">
+                    <Link to="/klub" className={`navbar-link ${isActive('/klub') ? 'active' : ''}`}>
+                      Klub
+                    </Link>
+                  </li>
+                  <li className="navbar-item">
+                    <Link to="/new-collections" className={`navbar-link ${isActive('/new-collections') ? 'active' : ''}`}>
+                      Nove kolekcije
+                    </Link>
+                  </li>
+                </>
               )}
               {!isDesigner && !isTester && !isLaborant && !isSupplier && !isManufacturer && (
                 <li className="navbar-item">
@@ -182,7 +197,7 @@ const Navbar = ({ activePath }) => {
                   </Link>
                 </li>
               )}
-              {profile?.role !== 'superadmin' && !isDesigner && !isTester && !isLaborant && !isSupplier && !isManufacturer && (
+              {profile?.role !== 'superadmin' && profile?.role !== 'krajnji_korisnik' && !isDesigner && !isTester && !isLaborant && !isSupplier && !isManufacturer && (
                 <li className="navbar-item">
                   <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
                     O nama

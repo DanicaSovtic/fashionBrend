@@ -2,33 +2,73 @@ import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { createOrder, getUserOrders, confirmBlockchainPayment } from '../services/orderService.js'
 import { createAdminClient } from '../services/supabaseClient.js'
+import {
+  getOrCreateAccount,
+  getMaxRedeemAmount,
+  awardPointsForOrder,
+  redeemPoints,
+  REDEEM_VALUE_PER_POINT_RSD
+} from '../services/loyaltyService.js'
 
 const router = Router()
-
-// Use admin client to bypass RLS
 const adminSupabase = createAdminClient()
 
 // Create new order
 router.post('/orders', requireAuth, requireRole(['krajnji_korisnik']), async (req, res, next) => {
   try {
-    const { deliveryInfo, paymentMethod, items, walletAddress, acquisitionSource } = req.body
+    const { deliveryInfo, paymentMethod, items, walletAddress, acquisitionSource, useLoyaltyPoints } = req.body
 
     if (!deliveryInfo || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: 'Missing required fields: deliveryInfo, paymentMethod, and items are required' })
       return
     }
 
-    const order = await createOrder(
-      adminSupabase,
-      req.user.id,
-      {
-        ...deliveryInfo,
-        paymentMethod,
-        walletAddress,
-        acquisitionSource: acquisitionSource || null
-      },
-      items
-    )
+    const orderData = {
+      ...deliveryInfo,
+      paymentMethod,
+      walletAddress,
+      acquisitionSource: acquisitionSource || null
+    }
+
+    if (useLoyaltyPoints != null && Number(useLoyaltyPoints) > 0) {
+      const account = await getOrCreateAccount(adminSupabase, req.user.id)
+      const subtotal = items.reduce((s, i) => s + (Number(i.price) || 0) * i.quantity, 0)
+      const max = getMaxRedeemAmount(account.points_balance, subtotal)
+      const actualPoints = Math.min(Number(useLoyaltyPoints), max.pointsUsed)
+      if (actualPoints > 0) {
+        const loyaltyDiscountRsd = actualPoints * REDEEM_VALUE_PER_POINT_RSD
+        orderData.loyaltyDiscountRsd = loyaltyDiscountRsd
+        orderData.loyaltyPointsUsed = actualPoints
+      }
+    }
+
+    const order = await createOrder(adminSupabase, req.user.id, orderData, items)
+
+    if (orderData.loyaltyPointsUsed > 0) {
+      try {
+        const subtotal = items.reduce((s, i) => s + (Number(i.price) || 0) * i.quantity, 0)
+        await redeemPoints(adminSupabase, {
+          userId: req.user.id,
+          orderId: order.id,
+          pointsToRedeem: orderData.loyaltyPointsUsed,
+          orderTotalRsd: subtotal
+        })
+      } catch (e) {
+        console.error('[OrderRoute] Loyalty redeem failed:', e)
+      }
+    }
+
+    if (order.status === 'ready_for_shipping' && order.user_id) {
+      try {
+        await awardPointsForOrder(adminSupabase, {
+          orderId: order.id,
+          userId: order.user_id,
+          totalPrice: order.total_price
+        })
+      } catch (e) {
+        console.error('[OrderRoute] Loyalty award failed:', e)
+      }
+    }
 
     res.status(201).json(order)
   } catch (error) {
@@ -49,6 +89,18 @@ router.patch('/orders/:orderId/confirm-payment', requireAuth, requireRole(['kraj
       req.user.id,
       { txHash, amountWei, blockNumber, contractAddress }
     )
+
+    if (order && order.status === 'ready_for_shipping' && order.user_id) {
+      try {
+        await awardPointsForOrder(adminSupabase, {
+          orderId: order.id,
+          userId: order.user_id,
+          totalPrice: order.total_price
+        })
+      } catch (e) {
+        console.error('[OrderRoute] Loyalty award on confirm-payment failed:', e)
+      }
+    }
 
     res.json(order)
   } catch (error) {

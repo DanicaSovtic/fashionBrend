@@ -34,6 +34,8 @@ import DobavljacMaterijalaPage from './components/DobavljacMaterijalaPage'
 import RazvojModelaPage from './components/RazvojModelaPage'
 import ProizvodnjaPage from './components/ProizvodnjaPage'
 import RacunovodjaPage from './components/RacunovodjaPage'
+import LoyaltyClubPage from './components/LoyaltyClubPage'
+import MarketingLoyaltyPage from './components/MarketingLoyaltyPage'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
@@ -76,7 +78,9 @@ const AppRoutes = () => {
           <Route
             path="/about"
             element={
-              isMarketingAsistent ? (
+              isEndUser ? (
+                <Navigate to="/" replace />
+              ) : isMarketingAsistent ? (
                 <Navigate to="/blog" replace />
               ) : isTester ? (
                 <Navigate to="/tester/collections" replace />
@@ -372,6 +376,26 @@ const AppRoutes = () => {
                 <Navigate to="/accountant/transactions" replace />
               ) : profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
                 <AnalitikaPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/marketing/loyalty"
+            element={
+              profile?.role === 'superadmin' || profile?.role === 'marketing_asistent' ? (
+                <MarketingLoyaltyPage />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/klub"
+            element={
+              profile?.role === 'krajnji_korisnik' ? (
+                <LoyaltyClubPage />
               ) : (
                 <Navigate to="/" replace />
               )

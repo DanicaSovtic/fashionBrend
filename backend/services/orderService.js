@@ -23,11 +23,14 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     acquisitionSource
   } = orderData
 
-  // Calculate total price
+  // Calculate total price (subtotal)
   const totalPrice = items.reduce(
     (sum, item) => sum + (Number(item.price) || 0) * item.quantity,
     0
   )
+  const loyaltyDiscountRsd = Number(orderData.loyaltyDiscountRsd) || 0
+  const loyaltyPointsUsed = Number(orderData.loyaltyPointsUsed) || 0
+  const finalTotal = Math.max(0, totalPrice - loyaltyDiscountRsd)
 
   // Za MetaMask/blockchain: status pending dok ne potvrdimo transakciju
   const isBlockchainPayment = paymentMethod === 'metamask'
@@ -35,7 +38,7 @@ export const createOrder = async (supabase, userId, orderData, items) => {
 
   // Create order
   const dbOrderData = {
-    total_price: totalPrice,
+    total_price: finalTotal,
     status,
     recipient_name: `${firstName} ${lastName}`.trim(),
     recipient_email: email,
@@ -49,7 +52,8 @@ export const createOrder = async (supabase, userId, orderData, items) => {
     user_id: userId,
     ...(walletAddress && { wallet_address: walletAddress }),
     ...(isBlockchainPayment && { blockchain_network: process.env.BLOCKCHAIN_NETWORK || 'sepolia' }),
-    ...(acquisitionSource && { acquisition_source: acquisitionSource })
+    ...(acquisitionSource && { acquisition_source: acquisitionSource }),
+    ...(loyaltyPointsUsed > 0 && { loyalty_points_used: loyaltyPointsUsed, loyalty_discount_rsd: loyaltyDiscountRsd })
   }
 
   const { data: order, error: orderError } = await supabase

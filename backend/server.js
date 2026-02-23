@@ -17,6 +17,8 @@ import designerMaterialRequestsRouter from './routes/designerMaterialRequests.js
 import manufacturerRouter from './routes/manufacturer.js'
 import accountantRouter from './routes/accountant.js'
 import analyticsRouter from './routes/analytics.js'
+import loyaltyRouter from './routes/loyalty.js'
+import marketingLoyaltyRouter from './routes/marketingLoyalty.js'
 
 dotenv.config()
 
@@ -101,6 +103,8 @@ app.use('/api', favoritesRouter)
 console.log('[Server] Favorites router registered')
 app.use('/api', ordersRouter)
 console.log('[Server] Orders router registered')
+app.use('/api/loyalty', loyaltyRouter)
+app.use('/api/marketing/loyalty', marketingLoyaltyRouter)
 
 // Catch-all za nepostojeće rute
 app.use('/api/*', (req, res, next) => {
