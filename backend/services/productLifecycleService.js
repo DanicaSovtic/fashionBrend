@@ -88,15 +88,19 @@ async function buildRichLifecycle(product) {
   const modelId = product.product_model_id
   const events = []
 
+  // Admin klijent da lifecycle vidi sve podatke (material_shipments, sewing_orders, lab_test_results)
+  // bez obzira na RLS – prikazuju se laborant, tester, dobavljač, proizvođač.
+  const admin = createAdminClient()
+
   const [modelRes, collectionRes, versionsRes, approvalsRes, matReqRes, matShipRes, sewingRes, labRes] = await Promise.all([
-    supabase.from('product_models').select('created_at, updated_at').eq('id', modelId).maybeSingle(),
-    supabase.from('collections').select('created_by').eq('id', product.product_model?.collection_id).maybeSingle(),
-    supabase.from('product_model_versions').select('created_by, created_at, change_summary, version_number').eq('model_id', modelId).order('created_at', { ascending: true }),
-    supabase.from('product_model_approvals').select('approved_by, approval_item, status, updated_at, note').eq('model_id', modelId).order('updated_at', { ascending: true }),
-    supabase.from('material_requests').select('requested_by, supplier_id, created_at, updated_at, material, color, quantity_kg').eq('product_model_id', modelId).order('created_at', { ascending: true }),
-    supabase.from('material_shipments').select('supplier_id, manufacturer_id, confirmed_at, received_at, material, color').eq('product_model_id', modelId).order('confirmed_at', { ascending: false }),
-    supabase.from('sewing_orders').select('manufacturer_id, started_at, completed_at, notes, quantity_pieces').eq('product_model_id', modelId).order('completed_at', { ascending: false }),
-    supabase.from('lab_test_results').select('tested_by, lab_name, created_at, material_name, percentage').eq('product_model_id', modelId).order('created_at', { ascending: true })
+    admin.from('product_models').select('created_at, updated_at').eq('id', modelId).maybeSingle(),
+    admin.from('collections').select('created_by').eq('id', product.product_model?.collection_id).maybeSingle(),
+    admin.from('product_model_versions').select('created_by, created_at, change_summary, version_number').eq('model_id', modelId).order('created_at', { ascending: true }),
+    admin.from('product_model_approvals').select('approved_by, approval_item, status, updated_at, note').eq('model_id', modelId).order('updated_at', { ascending: true }),
+    admin.from('material_requests').select('requested_by, supplier_id, created_at, updated_at, material, color, quantity_kg').eq('product_model_id', modelId).order('created_at', { ascending: true }),
+    admin.from('material_shipments').select('supplier_id, manufacturer_id, confirmed_at, received_at, material, color').eq('product_model_id', modelId).order('confirmed_at', { ascending: false }),
+    admin.from('sewing_orders').select('manufacturer_id, started_at, completed_at, notes, quantity_pieces').eq('product_model_id', modelId).order('completed_at', { ascending: false }),
+    admin.from('lab_test_results').select('tested_by, lab_name, created_at, material_name, percentage').eq('product_model_id', modelId).order('created_at', { ascending: true })
   ])
 
   const model = modelRes.data
@@ -280,14 +284,17 @@ async function buildRichLifecycle(product) {
     })
   })
 
+  const designerId = collection?.created_by
+  const designerProfile = profileMap[designerId]
+
   events.push({
     id: `rich-shop-${product.id}`,
     stepKey: 'added_to_shop',
     label: STEP_LABELS.added_to_shop,
     occurredAt: product.created_at,
     description: 'Proizvod je dodat u prodavnicu i dostupan kupcima.',
-    actorRole: null,
-    actorName: null,
+    actorRole: designerProfile?.roleLabel || 'Modni dizajner',
+    actorName: designerProfile?.name || null,
     extraDetail: null,
     details: { productSku: product.sku, productTitle: product.title },
     verifiedOnBlockchain: false

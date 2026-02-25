@@ -225,11 +225,10 @@ router.patch('/shipments/:id/confirm', requireAuth, requireRole(['proizvodjac'])
 
     let sewingOrder
     if (existingOrder) {
-      // Ažuriraj postojeći nalog
+      // Ažuriraj samo material_status – NE menjaj shipment_id (jedan nalog = svi materijali za model)
       const { data: updatedOrder, error: orderError } = await adminSupabase
         .from('sewing_orders')
         .update({
-          shipment_id: id,
           material_status: 'ready',
           updated_at: new Date().toISOString()
         })
@@ -242,7 +241,7 @@ router.patch('/shipments/:id/confirm', requireAuth, requireRole(['proizvodjac'])
       }
       sewingOrder = updatedOrder
     } else {
-      // Kreiraj novi nalog
+      // Kreiraj novi nalog (jedan po modelu; svi materijali će biti prikazani u detalju naloga)
       const { data: newOrder, error: orderError } = await adminSupabase
         .from('sewing_orders')
         .insert({
@@ -254,7 +253,7 @@ router.patch('/shipments/:id/confirm', requireAuth, requireRole(['proizvodjac'])
           quantity_pieces: quantity_pieces ? parseInt(quantity_pieces) : 1, // Default: 1
           deadline: deadline,
           status: 'new',
-          shipment_id: id,
+          shipment_id: id, // referenca na prvi potvrđeni materijal (opciono za prikaz)
           material_status: 'ready',
           notes: null // Napomena dizajnera će se dobiti iz material_request
         })
@@ -407,30 +406,18 @@ router.get('/sewing-orders', requireAuth, requireRole(['proizvodjac']), async (r
 
 /**
  * GET /api/manufacturer/sewing-orders/:id
- * Dobija detalje naloga za šivenje sa informacijama o materijalu
+ * Dobija detalje naloga za šivenje sa SVIM materijalima (pošiljkama) za taj model
  */
 router.get('/sewing-orders/:id', requireAuth, requireRole(['proizvodjac']), async (req, res, next) => {
   try {
     const { id } = req.params
 
-    const { data, error } = await adminSupabase
+    const { data: orderRow, error } = await adminSupabase
       .from('sewing_orders')
       .select(`
         *,
         product_model:product_models(name, sku),
-        collection:collections(name, season),
-        shipment:material_shipments(
-          id,
-          material,
-          color,
-          quantity_kg,
-          quantity_sent_kg,
-          status,
-          confirmed_at,
-          material_request:material_requests(
-            notes
-          )
-        )
+        collection:collections(name, season)
       `)
       .eq('id', id)
       .eq('manufacturer_id', req.user.id)
@@ -444,8 +431,54 @@ router.get('/sewing-orders/:id', requireAuth, requireRole(['proizvodjac']), asyn
       throw error
     }
 
+    // Svi materijali (pošiljke) za ovaj model i proizvođača – jedan nalog = svi materijali
+    const { data: allShipments } = await adminSupabase
+      .from('material_shipments')
+      .select(`
+        id,
+        material,
+        color,
+        quantity_kg,
+        quantity_sent_kg,
+        status,
+        confirmed_at,
+        material_request_id
+      `)
+      .eq('product_model_id', orderRow.product_model_id)
+      .eq('manufacturer_id', req.user.id)
+      .order('created_at', { ascending: true })
+
+    // Napomene iz material_requests za svaki shipment
+    const shipmentIds = (allShipments || []).map(s => s.material_request_id).filter(Boolean)
+    let requestNotes = {}
+    if (shipmentIds.length > 0) {
+      const { data: requests } = await adminSupabase
+        .from('material_requests')
+        .select('id, notes')
+        .in('id', [...new Set(shipmentIds)])
+      if (requests) {
+        requests.forEach(r => { requestNotes[r.id] = r.notes })
+      }
+    }
+
+    const shipments = (allShipments || []).map(s => ({
+      ...s,
+      notes: requestNotes[s.material_request_id] || null
+    }))
+
+    // Za kompatibilnost: shipment = prvi potvrđeni ili onaj sa shipment_id
+    const shipment = orderRow.shipment_id
+      ? shipments.find(s => s.id === orderRow.shipment_id)
+      : shipments.find(s => s.status === 'confirmed') || shipments[0]
+
+    const order = {
+      ...orderRow,
+      shipment,
+      shipments
+    }
+
     res.json({
-      order: data
+      order
     })
   } catch (error) {
     console.error('[Manufacturer] Error fetching sewing order details:', error)

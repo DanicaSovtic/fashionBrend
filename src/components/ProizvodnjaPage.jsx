@@ -205,6 +205,26 @@ const ProizvodnjaPage = () => {
   const handleConfirmShipment = async () => {
     if (!selectedShipment) return
 
+    // Korak 1: pitaj koliko komada treba da se sašije za ovaj model (za nalog)
+    let quantityInput = window.prompt(
+      'Koliko komada ovog modela želite da šijete u ovom nalogu?',
+      '1'
+    )
+
+    // Ako je korisnik kliknuo Cancel – prekini
+    if (quantityInput === null) {
+      return
+    }
+
+    quantityInput = quantityInput.trim()
+    const quantityNumber = parseInt(quantityInput, 10)
+
+    if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) {
+      alert('Molimo unesite pozitivan ceo broj komada (npr. 10).')
+      return
+    }
+
+    // Korak 2: potvrda akcije
     if (!confirm('Da li ste sigurni da želite da potvrdite prijem materijala?')) {
       return
     }
@@ -218,7 +238,8 @@ const ProizvodnjaPage = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          quantity_pieces: 1 // Default, može se dodati input polje kasnije
+          // Broj komada za nalog – backend ga koristi samo kada kreira prvi nalog za taj model
+          quantity_pieces: quantityNumber
         })
       })
 
@@ -1013,31 +1034,57 @@ const ProizvodnjaPage = () => {
                         </div>
                       )}
 
-                      {/* Sekcija 2: Materijal */}
-                      {orderDetails.shipment && (
+                      {/* Sekcija 2: Materijali (svi za ovaj model – jedan nalog) */}
+                      {(orderDetails.shipments?.length > 0 || orderDetails.shipment) && (
                         <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
-                          <h4 style={{ marginBottom: '12px', color: 'var(--color-olive-dark)' }}>Materijal</h4>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <div>
-                              <strong>Materijal + boja:</strong> {orderDetails.shipment.material} / {orderDetails.shipment.color}
-                            </div>
-                            <div>
-                              <strong>Primljeno kg:</strong> {orderDetails.shipment.quantity_sent_kg} kg
-                            </div>
-                            <div>
-                              <strong>Status:</strong> 
-                              <span style={{ 
-                                marginLeft: '8px',
-                                padding: '4px 12px',
-                                borderRadius: '999px',
-                                fontSize: '0.85rem',
-                                fontWeight: '600',
-                                backgroundColor: '#10b98120',
-                                color: '#10b981'
-                              }}>
-                                Spreman ✅
-                              </span>
-                            </div>
+                          <h4 style={{ marginBottom: '12px', color: 'var(--color-olive-dark)' }}>Materijali za ovaj model</h4>
+                          <p className="designer-muted" style={{ fontSize: '0.85rem', marginBottom: '12px' }}>
+                            Jedan nalog za šivenje obuhvata sve navedene materijale.
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {(orderDetails.shipments && orderDetails.shipments.length > 0
+                              ? orderDetails.shipments
+                              : orderDetails.shipment ? [orderDetails.shipment] : []
+                            ).map((s) => (
+                              <div
+                                key={s.id}
+                                style={{
+                                  padding: '12px',
+                                  backgroundColor: '#fff',
+                                  borderRadius: '8px',
+                                  border: '1px solid #eee'
+                                }}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: '8px' }}>
+                                  <div>
+                                    <strong>{s.material}</strong> / {s.color}
+                                  </div>
+                                  <span
+                                    style={{
+                                      padding: '4px 10px',
+                                      borderRadius: '999px',
+                                      fontSize: '0.8rem',
+                                      fontWeight: '600',
+                                      backgroundColor: s.status === 'confirmed' ? '#10b98120' : '#f59e0b20',
+                                      color: s.status === 'confirmed' ? '#10b981' : '#f59e0b'
+                                    }}
+                                  >
+                                    {s.status === 'confirmed' ? 'Potvrđeno' : getStatusLabel(s.status)}
+                                  </span>
+                                </div>
+                                <div className="designer-muted" style={{ fontSize: '0.9rem', marginTop: '4px' }}>
+                                  Primljeno: {s.quantity_sent_kg ?? s.quantity_kg ?? '—'} kg
+                                  {s.notes && (
+                                    <span style={{ display: 'block', marginTop: '4px' }}>
+                                      Napomena: {s.notes}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#10b981', fontWeight: '600' }}>
+                            Materijal spreman za šivenje
                           </div>
                         </div>
                       )}

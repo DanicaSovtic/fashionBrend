@@ -427,7 +427,9 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
 
     console.log('[CollectionsService] Successfully updated product model stage:', data)
 
-    // Ako je odobren, dodaj zapis u product_model_approvals i kreiraj proizvod u products tabeli
+    // Ako je odobren, dodaj zapis u product_model_approvals.
+    // Kreiranje products zapisa SE VIŠE NE RADI AUTOMATSKI ovde,
+    // već eksplicitno kada dizajner klikne "Pusti u prodaju" u svom interfejsu.
     if (stage === 'approved' && approvedBy) {
       try {
         const { error: approvalError } = await dbClient
@@ -447,27 +449,6 @@ export const updateProductModelStage = async (modelId, stage, approvedBy = null)
       } catch (err) {
         console.error('[CollectionsService] Exception creating approval record:', err)
         // Ne bacamo grešku - glavna operacija je uspešna
-      }
-
-      // Automatski kreiraj proizvod u products tabeli
-      try {
-        console.log('[CollectionsService] Attempting to create product from approved model:', modelId)
-        const createdProduct = await createProductFromModel(modelId)
-        console.log('[CollectionsService] Product successfully created in store:', {
-          productId: createdProduct.id,
-          title: createdProduct.title,
-          category: createdProduct.category,
-          price: createdProduct.price
-        })
-      } catch (productErr) {
-        console.error('[CollectionsService] Error creating product in store:', {
-          modelId,
-          error: productErr.message,
-          stack: productErr.stack,
-          details: productErr.details || productErr.hint || 'No additional details'
-        })
-        // Ne bacamo grešku - glavna operacija (odobrenje) je uspešna
-        // Proizvod može biti kreiran ručno kasnije ako je potrebno
       }
     }
 
@@ -688,7 +669,7 @@ export const getApprovedProductsFromCollection = async (collectionId) => {
       throw new Error('Kolekcija nije pronađena ili nije aktivna')
     }
 
-    // Dobijamo sve odobrene proizvode iz kolekcije
+    // Dobijamo sve odobrene modele iz kolekcije
     const { data: approvedModels, error: modelsError } = await dbClient
       .from('product_models')
       .select(`
@@ -706,8 +687,10 @@ export const getApprovedProductsFromCollection = async (collectionId) => {
 
     console.log(`[CollectionsService] Found ${approvedModels?.length || 0} approved models for collection ${collectionId}`)
 
-    // Za svaki model, proveri da li postoji proizvod u products tabeli i kreiraj ga ako ne postoji
-    const formattedProducts = await Promise.all(
+    // Za svaki model, proveri da li postoji proizvod u products tabeli.
+    // VAŽNO: više NE kreiramo proizvod automatski ovde – proizvod nastaje
+    // isključivo kada dizajner klikne „Pusti u prodaju“.
+    const formattedProducts = (await Promise.all(
       (approvedModels || []).map(async (model) => {
         console.log(`[CollectionsService] Processing model: ${model.id} (${model.name})`)
         
@@ -725,33 +708,16 @@ export const getApprovedProductsFromCollection = async (collectionId) => {
         
         existingProduct = productCheck
 
-        if (existingProduct) {
-          console.log(`[CollectionsService] Product already exists for model ${model.id}: ${existingProduct.id}`)
-        } else {
-          // Ako proizvod ne postoji, automatski ga kreiram
-          try {
-            console.log(`[CollectionsService] Auto-creating product for approved model: ${model.id}`)
-            const createdProduct = await createProductFromModel(model.id)
-            if (createdProduct && createdProduct.id) {
-              existingProduct = { id: createdProduct.id }
-              console.log(`[CollectionsService] Successfully auto-created product: ${createdProduct.id} for model ${model.id}`)
-            } else {
-              console.error(`[CollectionsService] Created product but no ID returned for model ${model.id}`)
-            }
-          } catch (createErr) {
-            console.error(`[CollectionsService] Error auto-creating product for model ${model.id}:`, {
-              error: createErr.message,
-              stack: createErr.stack,
-              details: createErr.details || createErr.hint
-            })
-            // Nastavljamo sa model.id ako kreiranje ne uspe
-          }
+        if (!existingProduct) {
+          console.log(`[CollectionsService] Product does NOT exist yet for approved model ${model.id} – skipping (nije pušten u prodaju).`)
+          // Vraćamo null – ovaj model neće ući u listu proizvoda za shop
+          return null
         }
 
         const primaryImage = model.media?.find(m => m.is_primary) || model.media?.[0]
         
-        const productId = existingProduct?.id || model.id
-        console.log(`[CollectionsService] Returning product with ID: ${productId} (hasProduct: ${!!existingProduct})`)
+        const productId = existingProduct.id
+        console.log(`[CollectionsService] Returning product with ID: ${productId} (hasProduct: true)`)
         
         return {
           id: productId, // Koristi ID iz products ako postoji, inače ID iz modela
@@ -768,10 +734,10 @@ export const getApprovedProductsFromCollection = async (collectionId) => {
           created_at: model.created_at,
           color_palette: model.color_palette || '',
           variants: model.variants || '',
-          hasProduct: !!existingProduct // Flag da znamo da li proizvod postoji u products tabeli
+          hasProduct: true // Proizvod postoji u products tabeli
         }
       })
-    )
+    )).filter(Boolean)
 
     console.log(`[CollectionsService] Returning ${formattedProducts.length} products for collection ${collectionId}`)
 
