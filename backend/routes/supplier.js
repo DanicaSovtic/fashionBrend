@@ -32,9 +32,42 @@ router.get('/inventory', requireAuth, requireRole(['dobavljac_materijala']), asy
       throw error
     }
 
+    const items = data || []
+    if (items.length === 0) {
+      res.json({ inventory: [], count: 0 })
+      return
+    }
+
+    // Ukupno poslato po (materijal, boja) iz material_shipments – da bi "dostupno" bilo realna brojka
+    const { data: shipments } = await adminSupabase
+      .from('material_shipments')
+      .select('material, color, quantity_sent_kg')
+      .eq('supplier_id', req.user.id)
+
+    const sentByKey = {}
+    for (const row of shipments || []) {
+      const key = `${row.material}|${row.color}`
+      sentByKey[key] = (sentByKey[key] || 0) + (Number(row.quantity_sent_kg) || 0)
+    }
+
+    // Po (materijal, boja): zbir u inventaru i dostupno = zbir - poslato
+    const invByKey = {}
+    for (const row of items) {
+      const key = `${row.material}|${row.color}`
+      invByKey[key] = (invByKey[key] || 0) + (Number(row.quantity_kg) || 0)
+    }
+    const availableByKey = {}
+    for (const key of Object.keys(invByKey)) {
+      availableByKey[key] = Math.max(0, (invByKey[key] || 0) - (sentByKey[key] || 0))
+    }
+    const inventoryWithAvailable = items.map((item) => {
+      const key = `${item.material}|${item.color}`
+      return { ...item, available_kg: availableByKey[key] ?? (Number(item.quantity_kg) || 0) }
+    })
+
     res.json({
-      inventory: data || [],
-      count: data?.length || 0
+      inventory: inventoryWithAvailable,
+      count: inventoryWithAvailable.length
     })
   } catch (error) {
     console.error('[Supplier] Error fetching inventory:', error)
@@ -241,20 +274,34 @@ router.get('/requests/:id', requireAuth, requireRole(['dobavljac_materijala']), 
       throw error
     }
 
-    // Proveri dostupnost u zalihama
-    const { data: inventoryMatch } = await adminSupabase
+    // Realna dostupna količina: zbir zaliha minus sve što je već poslato (iz baze)
+    const { data: inventoryRows } = await adminSupabase
       .from('inventory_items')
       .select('quantity_kg, price_per_kg')
       .eq('supplier_id', req.user.id)
       .eq('material', data.material)
       .eq('color', data.color)
       .eq('status', 'active')
-      .single()
+
+    const totalInInventory = (inventoryRows || []).reduce((sum, row) => sum + (Number(row.quantity_kg) || 0), 0)
+
+    const { data: shipments } = await adminSupabase
+      .from('material_shipments')
+      .select('quantity_sent_kg')
+      .eq('supplier_id', req.user.id)
+      .eq('material', data.material)
+      .eq('color', data.color)
+
+    const totalSent = (shipments || []).reduce((sum, row) => sum + (Number(row.quantity_sent_kg) || 0), 0)
+    const totalAvailable = Math.max(0, totalInInventory - totalSent)
+    const available_inventory = totalAvailable >= 0
+      ? { quantity_kg: totalAvailable, price_per_kg: inventoryRows?.[0]?.price_per_kg }
+      : null
 
     res.json({
       request: data,
-      available_inventory: inventoryMatch || null,
-      has_enough: inventoryMatch ? inventoryMatch.quantity_kg >= data.quantity_kg : false
+      available_inventory,
+      has_enough: totalAvailable >= (data.quantity_kg || 0)
     })
   } catch (error) {
     console.error('[Supplier] Error fetching request details:', error)
@@ -663,6 +710,9 @@ router.post('/requests/:id/send-to-manufacturer', requireAuth, requireRole(['dob
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+
+    // Zalihe se ne umanjuju ovde – "dostupno" se računa kao sum(inventory) - sum(material_shipments)
+    // tako da i ranije poslate pošiljke ulaze u obzir.
 
     res.json({
       success: true,

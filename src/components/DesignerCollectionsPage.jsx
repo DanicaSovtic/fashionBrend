@@ -551,7 +551,8 @@ const DesignerCollectionsPage = () => {
               </div>
             )}
           </div>
-          {selectedCollection && (
+          {/* Ljubičaste kockice (metrike) — privremeno sakriveno */}
+          {false && selectedCollection && (
             <div className="designer-metrics">
               <div className="designer-metric">
                 <span>Ukupno modela</span>
@@ -919,28 +920,32 @@ const DesignerCollectionsPage = () => {
           </div>
 
             <div className="designer-card">
-              <h3>Saradnja i odobrenja</h3>
-            <div className="designer-approvals">
-              {approvals.length === 0 ? (
-                <div className="designer-muted" style={{ padding: '1rem' }}>
-                  Nema odobrenja za ovaj model
-                </div>
-              ) : (
-                approvals.map((approval) => (
-                  <div key={approval.id} className="designer-approval-item">
-                    <div>
-                      <strong>{approval.approval_item}</strong>
-                      <span className="designer-muted">{approval.note || 'Nema napomene'}</span>
-                    </div>
-                    <span className="designer-status">{mapApprovalStatus(approval.status)}</span>
+              {/* Saradnja i odobrenja — privremeno sakriveno */}
+              {false && (
+                <>
+                  <h3>Saradnja i odobrenja</h3>
+                  <div className="designer-approvals">
+                    {approvals.length === 0 ? (
+                      <div className="designer-muted" style={{ padding: '1rem' }}>
+                        Nema odobrenja za ovaj model
+                      </div>
+                    ) : (
+                      approvals.map((approval) => (
+                        <div key={approval.id} className="designer-approval-item">
+                          <div>
+                            <strong>{approval.approval_item}</strong>
+                            <span className="designer-muted">{approval.note || 'Nema napomene'}</span>
+                          </div>
+                          <span className="designer-status">{mapApprovalStatus(approval.status)}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))
+                </>
               )}
-            </div>
             <div className="designer-comments">
               <h4>Komentari tima</h4>
               
-              {/* Forma za dodavanje komentara */}
               <form onSubmit={handleAddComment} style={{ marginBottom: '20px' }}>
                 <div style={{ marginBottom: '12px' }}>
                   <textarea
@@ -975,7 +980,6 @@ const DesignerCollectionsPage = () => {
                 </button>
               </form>
 
-              {/* Lista komentara */}
               {comments.length === 0 ? (
                 <div className="designer-muted" style={{ padding: '1rem', textAlign: 'center' }}>
                   Nema komentara za ovaj model. Budite prvi koji će dodati komentar!
@@ -1009,36 +1013,7 @@ const DesignerCollectionsPage = () => {
                   Provera kako će proizvod biti predstavljen krajnjim kupcima.
                 </p>
               </div>
-              {selectedModel ? (
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <label htmlFor="stage-select" style={{ fontWeight: '500', color: '#5a5463', fontSize: '14px' }}>
-                    Status proizvoda:
-                  </label>
-                  <select
-                    id="stage-select"
-                    value={selectedModel.development_stage || 'idea'}
-                    onChange={(e) => handleStageChange(e.target.value)}
-                    disabled={isUpdatingStage}
-                    style={{
-                      padding: '8px 12px',
-                      fontSize: '14px',
-                      border: '1px solid #ddd',
-                      borderRadius: '6px',
-                      backgroundColor: isUpdatingStage ? '#f5f5f5' : '#fff',
-                      cursor: isUpdatingStage ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                      minWidth: '150px'
-                    }}
-                  >
-                    <option value="idea">Ideja</option>
-                    <option value="development">Razvoj</option>
-                    <option value="testing">Testiranje</option>
-                  </select>
-                  {isUpdatingStage && (
-                    <span style={{ fontSize: '14px', color: '#5a5463' }}>Čuvanje...</span>
-                  )}
-                </div>
-              ) : (
+              {selectedModel ? null : (
                 <button type="button" className="designer-primary-button" disabled>
                   Izaberite proizvod
                 </button>

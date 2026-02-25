@@ -454,7 +454,8 @@ const TesterCollectionsPage = () => {
               </div>
             )}
           </div>
-          {selectedCollection && (
+          {/* Ljubičaste kockice (metrike) — privremeno sakriveno za ulogu tester kvaliteta */}
+          {false && selectedCollection && (
             <div className="designer-metrics">
               <div className="designer-metric"><span>Ukupno modela</span><strong>{collectionMetrics.totalModels}</strong></div>
               <div className="designer-metric"><span>Modeli u razvoju</span><strong>{collectionMetrics.developmentModels}</strong></div>
@@ -672,22 +673,27 @@ const TesterCollectionsPage = () => {
             </div>
 
             <div className="designer-card">
-              <h3>Odobrenja i komentari</h3>
-              <div className="designer-approvals">
-                {approvals.length === 0 ? (
-                  <div className="designer-muted" style={{ padding: '1rem' }}>Nema odobrenja za ovaj model</div>
-                ) : (
-                  approvals.map((approval) => (
-                    <div key={approval.id} className="designer-approval-item">
-                      <div>
-                        <strong>{approval.approval_item}</strong>
-                        <span className="designer-muted">{approval.note || 'Nema napomene'}</span>
-                      </div>
-                      <span className="designer-status">{mapApprovalStatus(approval.status)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
+              {/* Odobrenja — privremeno sakriveno za testera kvaliteta */}
+              {false && (
+                <>
+                  <h3>Odobrenja</h3>
+                  <div className="designer-approvals">
+                    {approvals.length === 0 ? (
+                      <div className="designer-muted" style={{ padding: '1rem' }}>Nema odobrenja za ovaj model</div>
+                    ) : (
+                      approvals.map((approval) => (
+                        <div key={approval.id} className="designer-approval-item">
+                          <div>
+                            <strong>{approval.approval_item}</strong>
+                            <span className="designer-muted">{approval.note || 'Nema napomene'}</span>
+                          </div>
+                          <span className="designer-status">{mapApprovalStatus(approval.status)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
               <div className="designer-comments">
                 <h4>Komentari tima</h4>
                 <form onSubmit={handleAddComment} style={{ marginBottom: '20px' }}>

@@ -142,7 +142,7 @@
 
 .designer-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
@@ -404,6 +404,10 @@
 }
 
 @media (max-width: 900px) {
+  .designer-grid {
+    grid-template-columns: 1fr;
+  }
+
   .designer-models,
   .designer-webshop {
     grid-template-columns: 1fr;

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { getProductById, getProducts, seedProducts } from '../services/productsService.js'
+import { getProductLifecycle } from '../services/productLifecycleService.js'
 
 const router = Router()
 
@@ -20,6 +21,19 @@ router.get('/products/:id', async (req, res, next) => {
       return
     }
     res.json(product)
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/products/:id/lifecycle', async (req, res, next) => {
+  try {
+    const lifecycle = await getProductLifecycle(req.params.id)
+    if (!lifecycle) {
+      res.status(404).json({ error: 'Product not found' })
+      return
+    }
+    res.json(lifecycle)
   } catch (error) {
     next(error)
   }

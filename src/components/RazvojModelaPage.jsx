@@ -740,7 +740,7 @@ const RazvojModelaPage = () => {
                             )}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
-                            {product.product_id ? (
+                            {product.product_id && stage === 'approved' ? (
                               <span className="designer-muted" style={{ fontSize: '0.85rem' }}>
                                 U prodaji
                               </span>

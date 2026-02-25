@@ -169,12 +169,10 @@ const Navbar = ({ activePath }) => {
               {profile?.role === 'krajnji_korisnik' && (
                 <>
                   <li className="navbar-item">
-                    <Link to="/klub" className={`navbar-link ${isActive('/klub') ? 'active' : ''}`}>
-                      Klub
-                    </Link>
-                  </li>
-                  <li className="navbar-item">
-                    <Link to="/new-collections" className={`navbar-link ${isActive('/new-collections') ? 'active' : ''}`}>
+                    <Link
+                      to="/new-collections"
+                      className={`navbar-link ${isActive('/new-collections') ? 'active' : ''}`}
+                    >
                       Nove kolekcije
                     </Link>
                   </li>
@@ -260,9 +258,34 @@ const Navbar = ({ activePath }) => {
             </span>
           )}
           {user ? (
-            <button type="button" className="navbar-auth-button" onClick={handleLogout}>
-              Logout
-            </button>
+            <>
+              <button
+                type="button"
+                className="navbar-auth-button navbar-auth-logout-icon"
+                onClick={handleLogout}
+                aria-label="Odjava"
+              >
+                <svg
+                  className="navbar-logout-icon-svg"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M9 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+                  <path d="M16 17l5-5-5-5" />
+                  <path d="M11 12h10" />
+                </svg>
+              </button>
+              {profile?.role === 'krajnji_korisnik' && (
+                <Link
+                  to="/klub"
+                  className={`navbar-auth-klub-icon ${isActive('/klub') ? 'active' : ''}`}
+                  aria-label="Klub lojalnosti"
+                >
+                  ★
+                </Link>
+              )}
+            </>
           ) : (
             <Link to="/auth" className="navbar-auth-link">
               Login

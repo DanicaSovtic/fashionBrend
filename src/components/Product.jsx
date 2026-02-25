@@ -11,6 +11,10 @@ const Product = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [isShippingOpen, setIsShippingOpen] = useState(false)
+  const [isLifecycleOpen, setIsLifecycleOpen] = useState(false)
+  const [lifecycleData, setLifecycleData] = useState(null)
+  const [lifecycleLoading, setLifecycleLoading] = useState(false)
+  const [lifecycleError, setLifecycleError] = useState('')
   const [addedMessage, setAddedMessage] = useState('')
   const [sizeMessage, setSizeMessage] = useState('')
   const [selectedSize, setSelectedSize] = useState('')
@@ -123,6 +127,77 @@ const Product = () => {
     setSizeMessage('')
   }, [product?.id])
 
+  const openLifecycleModal = async () => {
+    if (!resolvedId) return
+    setIsLifecycleOpen(true)
+    setLifecycleError('')
+    setLifecycleData(null)
+    setLifecycleLoading(true)
+    try {
+      const response = await fetch(`/api/products/${resolvedId}/lifecycle`)
+      if (!response.ok) {
+        if (response.status === 404) throw new Error('Proizvod nije pronađen.')
+        throw new Error('Greška prilikom učitavanja životnog ciklusa.')
+      }
+      const data = await response.json()
+      setLifecycleData(data)
+    } catch (err) {
+      setLifecycleError(err.message || 'Došlo je do greške.')
+    } finally {
+      setLifecycleLoading(false)
+    }
+  }
+
+  const formatLifecycleDate = (dateStr) => {
+    if (!dateStr) return '—'
+    return new Intl.DateTimeFormat('sr-RS', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(dateStr))
+  }
+
+  const detailLabels = {
+    modelSku: 'Šifra modela',
+    modelName: 'Naziv modela',
+    version: 'Verzija',
+    changeSummary: 'Opis izmene',
+    approvalItem: 'Stavka odobrenja',
+    note: 'Napomena',
+    material: 'Materijal',
+    color: 'Boja',
+    quantityKg: 'Količina (kg)',
+    supplier: 'Dobavljač',
+    manufacturerReceiver: 'Proizvođač (primalac)',
+    manufacturer: 'Proizvođač',
+    quantityPieces: 'Broj komada',
+    notes: 'Napomena',
+    materialName: 'Materijal (test)',
+    percentage: 'Procenat',
+    labName: 'Laboratorija',
+    laborant: 'Laborant',
+    productSku: 'Šifra proizvoda',
+    productTitle: 'Naziv proizvoda'
+  }
+
+  const renderEventDetails = (details) => {
+    if (!details || typeof details !== 'object') return null
+    const entries = Object.entries(details).filter(([, v]) => v != null && v !== '')
+    if (entries.length === 0) return null
+    return (
+      <dl className="product-lifecycle-details-list">
+        {entries.map(([key, value]) => (
+          <React.Fragment key={key}>
+            <dt>{detailLabels[key] || key}</dt>
+            <dd>{String(value)}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
+    )
+  }
+
   return (
     <div className="product-page">
       <Navbar activePath="/shop" />
@@ -220,6 +295,14 @@ const Product = () => {
                   Dostava, zamena i povraćaj
                 </button>
 
+                <button
+                  type="button"
+                  className="product-lifecycle-button"
+                  onClick={openLifecycleModal}
+                >
+                  Pregled životnog ciklusa proizvoda
+                </button>
+
                 <div className="product-section">
                   <h2 className="product-section-title">Sastav</h2>
                   {sastavItems.length > 0 ? (
@@ -265,6 +348,129 @@ const Product = () => {
           ) : null}
         </div>
       </div>
+
+      {/* Modal životnog ciklusa */}
+      {isLifecycleOpen && (
+        <>
+          <button
+            type="button"
+            className="product-lifecycle-overlay"
+            onClick={() => setIsLifecycleOpen(false)}
+            aria-label="Zatvori pregled životnog ciklusa"
+          />
+          <div className="product-lifecycle-modal" role="dialog" aria-labelledby="lifecycle-title">
+            <div className="product-lifecycle-header">
+              <h2 id="lifecycle-title">Životni ciklus i poreklo proizvoda</h2>
+              <button
+                type="button"
+                className="product-lifecycle-close"
+                onClick={() => setIsLifecycleOpen(false)}
+                aria-label="Zatvori"
+              >
+                ×
+              </button>
+            </div>
+            <div className="product-lifecycle-body">
+              {lifecycleLoading && (
+                <p className="product-lifecycle-state">Učitavanje...</p>
+              )}
+              {lifecycleError && (
+                <p className="product-lifecycle-error">{lifecycleError}</p>
+              )}
+              {!lifecycleLoading && !lifecycleError && lifecycleData && (
+                <>
+                  <section className="product-lifecycle-identity">
+                    <h3>Digitalni identitet proizvoda</h3>
+                    <dl className="product-lifecycle-identity-list">
+                      <dt>Jedinstveni ID</dt>
+                      <dd>{lifecycleData.digitalIdentity?.digitalId || '—'}</dd>
+                      <dt>Model</dt>
+                      <dd>{lifecycleData.digitalIdentity?.modelName || '—'}</dd>
+                      <dt>Šifra modela</dt>
+                      <dd>{lifecycleData.digitalIdentity?.modelSku || '—'}</dd>
+                      <dt>Status autentičnosti</dt>
+                      <dd>
+                        <span className={`product-lifecycle-status product-lifecycle-status--${lifecycleData.digitalIdentity?.authenticityStatus || 'verified'}`}>
+                          {lifecycleData.digitalIdentity?.authenticityStatus === 'verified' && 'Verifikovano'}
+                          {lifecycleData.digitalIdentity?.authenticityStatus === 'pending' && 'U obradi'}
+                          {lifecycleData.digitalIdentity?.authenticityStatus === 'unavailable' && 'Nije dostupno'}
+                          {!['verified', 'pending', 'unavailable'].includes(lifecycleData.digitalIdentity?.authenticityStatus) && (lifecycleData.digitalIdentity?.authenticityStatus || 'Verifikovano')}
+                        </span>
+                      </dd>
+                    </dl>
+                    <p className="product-lifecycle-identity-note">
+                      Proizvod je prošao sve interne faze pre nego što je ponuđen kupcu.
+                    </p>
+                  </section>
+                  <section className="product-lifecycle-timeline-section">
+                    <h3>Put proizvoda — od ideje do prodaje</h3>
+                    {lifecycleData.events?.length > 0 ? (
+                      <ol className="product-lifecycle-timeline">
+                        {lifecycleData.events.map((event) => (
+                          <li key={event.id} className="product-lifecycle-timeline-item">
+                            <div className="product-lifecycle-timeline-marker" />
+                            <div className="product-lifecycle-timeline-content">
+                              <time dateTime={event.occurredAt} className="product-lifecycle-timeline-date">
+                                {formatLifecycleDate(event.occurredAt)}
+                              </time>
+                              <p className="product-lifecycle-timeline-actor">
+                                <span className="product-lifecycle-actor-label">Odgovoran: </span>
+                                {event.actorRole || event.actorName ? (
+                                  <>
+                                    {event.actorRole && <span className="product-lifecycle-actor-role">{event.actorRole}</span>}
+                                    {event.actorName && <span className="product-lifecycle-actor-name">{event.actorRole ? ` — ${event.actorName}` : event.actorName}</span>}
+                                  </>
+                                ) : (
+                                  <span className="product-lifecycle-actor-empty">—</span>
+                                )}
+                              </p>
+                              <strong className="product-lifecycle-timeline-label">{event.label}</strong>
+                              {event.description && (
+                                <p className="product-lifecycle-timeline-desc">{event.description}</p>
+                              )}
+                              {event.extraDetail && (
+                                <p className="product-lifecycle-timeline-extra">{event.extraDetail}</p>
+                              )}
+                              {renderEventDetails(event.details)}
+                              {event.verifiedOnBlockchain && (
+                                <span className="product-lifecycle-badge">Verifikovano na blockchain-u</span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="product-lifecycle-no-events">
+                        Nema dostupne istorije životnog ciklusa za ovaj proizvod.
+                      </p>
+                    )}
+                  </section>
+
+                  {/* Linija života — horizontalni timeline sa skrolovanjem */}
+                  {lifecycleData.events?.length > 0 && (
+                    <section className="product-lifecycle-lifeline">
+                      <h3>Linija života proizvoda</h3>
+                      <p className="product-lifecycle-lifeline-hint">Pomerite u stranu da vidite sve korake</p>
+                      <div className="product-lifecycle-lifeline-track">
+                        <div className="product-lifecycle-lifeline-track-inner">
+                          <div className="product-lifecycle-lifeline-line" aria-hidden="true" />
+                          {lifecycleData.events.map((event) => (
+                            <div key={`lifeline-${event.id}`} className="product-lifecycle-lifeline-dot-wrap">
+                              <div className="product-lifecycle-lifeline-dot" title={event.label} />
+                              <span className="product-lifecycle-lifeline-label">{event.label}</span>
+                              <span className="product-lifecycle-lifeline-date">{formatLifecycleDate(event.occurredAt)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {isShippingOpen && (
         <>

@@ -24,6 +24,11 @@ const ProizvodnjaPage = () => {
   })
   const [showProblemModal, setShowProblemModal] = useState(false)
   
+  // Komentari za pošiljku (model)
+  const [shipmentComments, setShipmentComments] = useState([])
+  const [newShipmentComment, setNewShipmentComment] = useState('')
+  const [isSubmittingShipmentComment, setIsSubmittingShipmentComment] = useState(false)
+  
   // Sewing orders state
   const [sewingOrders, setSewingOrders] = useState([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(true)
@@ -93,6 +98,23 @@ const ProizvodnjaPage = () => {
       setNewSewingOrderId(null)
     }
   }, [selectedShipment])
+
+  // Učitaj komentare za model pošiljke (po product_model_id)
+  useEffect(() => {
+    const modelId = shipmentDetails?.product_model_id
+    if (!modelId) {
+      setShipmentComments([])
+      return
+    }
+    const token = localStorage.getItem('auth_access_token')
+    if (!token) return
+    fetch(`/api/product-models/${modelId}/comments`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setShipmentComments)
+      .catch(() => setShipmentComments([]))
+  }, [shipmentDetails?.product_model_id])
 
   const fetchStats = async () => {
     try {
@@ -342,6 +364,37 @@ const ProizvodnjaPage = () => {
       alert('Nalog za šivenje je završen')
     } catch (error) {
       alert(error.message || 'Greška pri završavanju naloga')
+    }
+  }
+
+  const handleAddShipmentComment = async (e) => {
+    e.preventDefault()
+    const modelId = shipmentDetails?.product_model_id ?? shipmentDetails?.product_model?.id
+    if (!modelId || !newShipmentComment?.trim()) return
+    const token = localStorage.getItem('auth_access_token')
+    if (!token) return
+    try {
+      setIsSubmittingShipmentComment(true)
+      const res = await fetch(`/api/product-models/${modelId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          body: newShipmentComment.trim(),
+          author_name: profile?.full_name,
+          role: profile?.role
+        })
+      })
+      if (!res.ok) throw new Error('Greška pri dodavanju komentara')
+      const created = await res.json()
+      setShipmentComments((prev) => [...prev, created])
+      setNewShipmentComment('')
+    } catch (err) {
+      alert(err.message || 'Nije moguće dodati komentar.')
+    } finally {
+      setIsSubmittingShipmentComment(false)
     }
   }
 
@@ -730,6 +783,61 @@ const ProizvodnjaPage = () => {
                         >
                           Otvori nalog za šivenje
                         </button>
+                      </div>
+                    )}
+
+                    {/* Komentari tima — ispod detalja pošiljke */}
+                    {shipmentDetails.product_model_id && (
+                      <div className="designer-comments" style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
+                        <h4>Komentari tima</h4>
+                        <form onSubmit={handleAddShipmentComment} style={{ marginBottom: '20px' }}>
+                          <div style={{ marginBottom: '12px' }}>
+                            <textarea
+                              value={newShipmentComment}
+                              onChange={(e) => setNewShipmentComment(e.target.value)}
+                              placeholder="Unesite vaš komentar..."
+                              disabled={isSubmittingShipmentComment}
+                              required
+                              style={{
+                                width: '100%',
+                                minHeight: '100px',
+                                padding: '12px',
+                                fontSize: '14px',
+                                border: '1px solid #ddd',
+                                borderRadius: '8px',
+                                fontFamily: 'inherit',
+                                resize: 'vertical',
+                                backgroundColor: isSubmittingShipmentComment ? '#f5f5f5' : '#fff'
+                              }}
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            className="designer-secondary-button"
+                            disabled={isSubmittingShipmentComment || !newShipmentComment.trim()}
+                          >
+                            {isSubmittingShipmentComment ? 'Dodavanje...' : 'Dodaj komentar'}
+                          </button>
+                        </form>
+                        {shipmentComments.length === 0 ? (
+                          <div className="designer-muted" style={{ padding: '1rem', textAlign: 'center' }}>
+                            Nema komentara za ovaj model. Budite prvi koji će dodati komentar!
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {shipmentComments.map((comment) => (
+                              <div key={comment.id} className="designer-comment">
+                                <div className="designer-comment-header">
+                                  <strong>{comment.author_name || 'Anonimni korisnik'}</strong>
+                                  <span className="designer-muted">
+                                    {comment.role || 'Nepoznata uloga'} • {formatDate(comment.created_at)}
+                                  </span>
+                                </div>
+                                <p>{comment.body}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -507,6 +507,7 @@ const DobavljacMaterijalaPage = () => {
       alert('Materijal je uspešno poslat proizvođaču!')
       await fetchRequests()
       await fetchRequestDetails(selectedRequest.id)
+      await fetchInventory()
       setSendToManufacturerForm({
         manufacturer_id: '',
         quantity_sent_kg: '',
@@ -678,7 +679,7 @@ const DobavljacMaterijalaPage = () => {
                       <tr style={{ borderBottom: '2px solid #eee' }}>
                         <th style={{ padding: '12px', textAlign: 'left' }}>Materijal</th>
                         <th style={{ padding: '12px', textAlign: 'left' }}>Boja</th>
-                        <th style={{ padding: '12px', textAlign: 'right' }}>Količina (kg)</th>
+                        <th style={{ padding: '12px', textAlign: 'right' }}>Dostupno (kg)</th>
                         <th style={{ padding: '12px', textAlign: 'right' }}>Cena/kg</th>
                         <th style={{ padding: '12px', textAlign: 'center' }}>Status</th>
                         <th style={{ padding: '12px', textAlign: 'center' }}>Akcije</th>
@@ -704,7 +705,7 @@ const DobavljacMaterijalaPage = () => {
                                 style={{ width: '80px', padding: '4px', border: '1px solid #ddd', borderRadius: '4px' }}
                               />
                             ) : (
-                              item.quantity_kg
+                              (item.available_kg ?? item.quantity_kg)
                             )}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'right' }}>

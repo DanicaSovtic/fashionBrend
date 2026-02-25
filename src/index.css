@@ -73,9 +73,50 @@ body {
   transition: all 0.2s ease;
 }
 
+.navbar-auth-logout-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.navbar-logout-icon-svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .navbar-auth-link:hover,
 .navbar-auth-button:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.navbar-auth-klub-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #ffffff;
+  text-decoration: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navbar-auth-klub-icon:hover,
+.navbar-auth-klub-icon.active {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .navbar-dropdown {
