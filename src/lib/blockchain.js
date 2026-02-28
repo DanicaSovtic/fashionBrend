@@ -438,6 +438,262 @@ export const approveProductOnBlockchain = async (
   }
 }
 
+// ----- DesignerSupplierContract (zahtev za materijal: dizajner -> dobavljač) -----
+
+const DESIGNER_SUPPLIER_ABI = [
+  {
+    "inputs": [
+      { "internalType": "bytes32", "name": "requestId", "type": "bytes32" },
+      { "internalType": "address", "name": "supplier", "type": "address" },
+      { "internalType": "uint256", "name": "totalPriceWei", "type": "uint256" },
+      {
+        "components": [
+          { "internalType": "string", "name": "materialName", "type": "string" },
+          { "internalType": "uint256", "name": "quantityKg", "type": "uint256" }
+        ],
+        "internalType": "struct DesignerSupplierContract.MaterialLine[]",
+        "name": "materials",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "createRequest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "requestId", "type": "bytes32" }],
+    "name": "fundRequest",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "requestId", "type": "bytes32" }],
+    "name": "acceptRequest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "requestId", "type": "bytes32" }],
+    "name": "getRequest",
+    "outputs": [
+      { "internalType": "address", "name": "designer", "type": "address" },
+      { "internalType": "address", "name": "supplier", "type": "address" },
+      { "internalType": "uint256", "name": "totalPriceWei", "type": "uint256" },
+      { "internalType": "uint8", "name": "status", "type": "uint8" },
+      { "internalType": "uint256", "name": "createdAt", "type": "uint256" },
+      { "internalType": "uint256", "name": "updatedAt", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "bytes32", "name": "requestId", "type": "bytes32" }],
+    "name": "getRequestLines",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "string", "name": "materialName", "type": "string" },
+          { "internalType": "uint256", "name": "quantityKg", "type": "uint256" }
+        ],
+        "internalType": "struct DesignerSupplierContract.MaterialLine[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
+
+// Podešavanja za gas za DesignerSupplierContract
+// Pokušavamo prvo da procenimo gas, pa ga pomnožimo sa ovim faktorom.
+// Ako procena padne, koristimo fallback vrednost.
+const DESIGNER_SUPPLIER_GAS_MULTIPLIER = 2n
+const DESIGNER_SUPPLIER_FALLBACK_GAS = 600000n
+
+/**
+ * Jedan zahtev (bundle) = jedan requestId. Iz bundle UUID-a (string) dobija bytes32 za ugovor.
+ * @param {string} bundleId UUID bundle-a iz baze
+ * @returns {string} Hex string bytes32 (0x...)
+ */
+export const requestIdFromBundleId = (bundleId) => {
+  const hash = ethers.keccak256(ethers.toUtf8Bytes(bundleId))
+  return hash
+}
+
+/**
+ * Kreira zahtev na DesignerSupplierContract (poziva dizajner).
+ * @param {string} contractAddress Adresa DesignerSupplierContract
+ * @param {string} bundleId UUID bundle-a (isti za sve linije zahteva)
+ * @param {string} supplierWallet Ethereum adresa dobavljača
+ * @param {bigint|string} totalPriceWei Ukupna cena u wei
+ * @param {Array<{ materialName: string, quantityKg: number }>} materials Linije materijala (naziv + kg)
+ */
+export const createMaterialRequestOnBlockchain = async (
+  contractAddress,
+  bundleId,
+  supplierWallet,
+  totalPriceWei,
+  materials
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`DesignerSupplierContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_SUPPLIER_ABI, signer)
+  const requestIdBytes32 = requestIdFromBundleId(bundleId)
+  const totalWei = typeof totalPriceWei === 'string' ? BigInt(totalPriceWei) : totalPriceWei
+  const materialsStruct = (materials || []).map((m) => ({
+    materialName: m.materialName || m.material_name || '',
+    quantityKg: BigInt(m.quantityKg ?? m.quantity_kg ?? 0)
+  }))
+  // Proceni gas pa ga uvećaj, ili koristi fallback
+  let gasLimit
+  try {
+    const estimated = await contract.createRequest.estimateGas(
+      requestIdBytes32,
+      supplierWallet,
+      totalWei,
+      materialsStruct
+    )
+    gasLimit = estimated * DESIGNER_SUPPLIER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for createRequest, using fallback.', err)
+    gasLimit = DESIGNER_SUPPLIER_FALLBACK_GAS
+  }
+
+  const tx = await contract.createRequest(requestIdBytes32, supplierWallet, totalWei, materialsStruct, {
+    gasLimit
+  })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber, requestIdHex: requestIdBytes32 }
+}
+
+/**
+ * Dizajner deponuje sredstva za zahtev (tačno totalPriceWei).
+ */
+export const fundMaterialRequestOnBlockchain = async (
+  contractAddress,
+  bundleId,
+  totalPriceWei
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`DesignerSupplierContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_SUPPLIER_ABI, signer)
+  const requestIdBytes32 = requestIdFromBundleId(bundleId)
+  const value = typeof totalPriceWei === 'string' ? BigInt(totalPriceWei) : totalPriceWei
+  // Proceni gas pa ga uvećaj, ili fallback
+  let gasLimit
+  try {
+    const estimated = await contract.fundRequest.estimateGas(requestIdBytes32, { value })
+    gasLimit = estimated * DESIGNER_SUPPLIER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for fundRequest, using fallback.', err)
+    gasLimit = DESIGNER_SUPPLIER_FALLBACK_GAS
+  }
+
+  const tx = await contract.fundRequest(requestIdBytes32, {
+    value,
+    gasLimit
+  })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
+}
+
+/**
+ * Dobavljač prihvata zahtev; ugovor prebacuje sredstva na njegov wallet.
+ * Nakon uspeha backend umanjuje zalihe u bazi.
+ */
+export const acceptMaterialRequestOnBlockchain = async (contractAddress, bundleId) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`DesignerSupplierContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_SUPPLIER_ABI, signer)
+  const requestIdBytes32 = requestIdFromBundleId(bundleId)
+  // Proceni gas pa ga uvećaj, ili fallback
+  let gasLimit
+  try {
+    const estimated = await contract.acceptRequest.estimateGas(requestIdBytes32)
+    gasLimit = estimated * DESIGNER_SUPPLIER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for acceptRequest, using fallback.', err)
+    gasLimit = DESIGNER_SUPPLIER_FALLBACK_GAS
+  }
+
+  const tx = await contract.acceptRequest(requestIdBytes32, {
+    gasLimit
+  })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
+}
+
+/**
+ * Čita status zahteva sa ugovora (0=None, 1=Pending, 2=Funded, 3=Accepted, 4=Rejected, 5=Refunded).
+ */
+export const getMaterialRequestOnBlockchain = async (contractAddress, bundleId) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    return null
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_SUPPLIER_ABI, provider)
+  const requestIdBytes32 = requestIdFromBundleId(bundleId)
+  const [designer, supplier, totalPriceWei, status, createdAt, updatedAt] = await contract.getRequest(requestIdBytes32)
+  const lines = await contract.getRequestLines(requestIdBytes32)
+  return {
+    designer,
+    supplier,
+    totalPriceWei: totalPriceWei.toString(),
+    status: Number(status),
+    createdAt: Number(createdAt),
+    updatedAt: Number(updatedAt),
+    lines: lines.map((l) => ({ materialName: l.materialName, quantityKg: Number(l.quantityKg) }))
+  }
+}
+
+
 /**
  * Inventory Contract ABI
  */

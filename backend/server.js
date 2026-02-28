@@ -54,6 +54,7 @@ configRouter.get('/config/blockchain', (req, res) => {
     network: process.env.BLOCKCHAIN_NETWORK || 'sepolia',
     contractAddress: process.env.ORDER_PAYMENT_CONTRACT || '',
     productApprovalContract: process.env.PRODUCT_APPROVAL_CONTRACT || process.env.ORDER_PAYMENT_CONTRACT || '',
+    designerSupplierContract: process.env.DESIGNER_SUPPLIER_CONTRACT || '',
     inventoryContract: process.env.INVENTORY_CONTRACT || '',
     brandOwnerWallet: process.env.BRAND_OWNER_WALLET || '',
     rsdRate: Number(process.env.RSD_RATE) || 118

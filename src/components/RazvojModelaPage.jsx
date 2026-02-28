@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
 import './DesignerCollectionsPage.css'
+import {
+  createMaterialRequestOnBlockchain,
+  fundMaterialRequestOnBlockchain
+} from '../lib/blockchain'
+import { parseMaterials } from '../utils/materialParser'
 
 const RazvojModelaPage = () => {
   const navigate = useNavigate()
@@ -19,6 +24,7 @@ const RazvojModelaPage = () => {
   const [completedProducts, setCompletedProducts] = useState([])
   const [isLoadingCompletedProducts, setIsLoadingCompletedProducts] = useState(true)
   const [suppliers, setSuppliers] = useState([])
+  const [blockchainConfig, setBlockchainConfig] = useState(null)
   
   // Modal state
   const [showRequestModal, setShowRequestModal] = useState(false)
@@ -26,14 +32,16 @@ const RazvojModelaPage = () => {
   const [returnForReworkOrderId, setReturnForReworkOrderId] = useState(null)
   const [returnForReworkReason, setReturnForReworkReason] = useState('')
   const [selectedModel, setSelectedModel] = useState(null)
+  // Zajednički podaci za ceo bundle
   const [requestForm, setRequestForm] = useState({
-    material: '',
-    color: '',
-    quantity_kg: '',
     deadline: '',
     supplier_id: '',
     notes: ''
   })
+  // Lista materijala u jednom zahtevu (bundle)
+  const [requestMaterials, setRequestMaterials] = useState([
+    { material: '', color: '', quantity_kg: '' }
+  ])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Učitaj kolekcije
@@ -53,6 +61,20 @@ const RazvojModelaPage = () => {
       }
     }
     fetchCollections()
+  }, [])
+
+  // Učitaj blockchain config (DesignerSupplierContract adresa)
+  useEffect(() => {
+    const fetchBlockchainConfig = async () => {
+      try {
+        const res = await fetch('/api/config/blockchain')
+        const config = await res.json()
+        setBlockchainConfig(config)
+      } catch (error) {
+        console.error('Error fetching blockchain config:', error)
+      }
+    }
+    fetchBlockchainConfig()
   }, [])
 
   // Učitaj dobavljače
@@ -263,10 +285,25 @@ const RazvojModelaPage = () => {
 
   const handleRequestMaterial = (model) => {
     setSelectedModel(model)
+    // Inicijalno popuni listu materijala na osnovu tehničkih podataka modela,
+    // ali samo sa imenom materijala (bez % i brojeva)
+    if (model?.materials) {
+      const parsed = parseMaterials(String(model.materials))
+      if (parsed.length > 0) {
+        setRequestMaterials(
+          parsed.map((m) => ({
+            material: m.name, // npr. "Lan", "Pamuk"
+            color: '',
+            quantity_kg: ''
+          }))
+        )
+      } else {
+        setRequestMaterials([{ material: '', color: '', quantity_kg: '' }])
+      }
+    } else {
+      setRequestMaterials([{ material: '', color: '', quantity_kg: '' }])
+    }
     setRequestForm({
-      material: '',
-      color: '',
-      quantity_kg: '',
       deadline: '',
       supplier_id: '',
       notes: ''
@@ -277,15 +314,41 @@ const RazvojModelaPage = () => {
   const handleSubmitRequest = async (e) => {
     e.preventDefault()
     
-    if (!requestForm.material || !requestForm.color || !requestForm.quantity_kg || !requestForm.supplier_id) {
-      alert('Materijal, boja, količina i dobavljač su obavezni')
+    const filledMaterials = requestMaterials
+      .map((m) => ({
+        material: m.material.trim(),
+        color: m.color.trim(),
+        quantity_kg: m.quantity_kg
+      }))
+      .filter((m) => m.material || m.color || m.quantity_kg)
+
+    if (!requestForm.supplier_id || filledMaterials.length === 0) {
+      alert('Dobavljač i bar jedan red sa materijalom/bojom/količinom su obavezni.')
+      return
+    }
+
+    for (const m of filledMaterials) {
+      if (!m.material || !m.color || !m.quantity_kg) {
+        alert('Za svaki materijal morate uneti naziv, boju i količinu (kg).')
+        return
+      }
+      const qty = parseFloat(m.quantity_kg)
+      if (Number.isNaN(qty) || qty <= 0) {
+        alert('Količina (kg) mora biti pozitivan broj.')
+        return
+      }
+    }
+
+    if (!blockchainConfig?.designerSupplierContract) {
+      alert('Adresa DesignerSupplierContract nije podešena na backendu. Proveri DESIGNER_SUPPLIER_CONTRACT u .env fajlu.')
       return
     }
 
     setIsSubmitting(true)
     try {
       const token = localStorage.getItem('auth_access_token')
-      const res = await fetch('/api/designer/material-requests', {
+      // 1) Backend bundle – jedan model, više materijala
+      const bundleRes = await fetch('/api/designer/material-requests/bundle', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,24 +356,73 @@ const RazvojModelaPage = () => {
         },
         body: JSON.stringify({
           product_model_id: selectedModel?.id || null,
-          material: requestForm.material,
-          color: requestForm.color,
-          quantity_kg: parseFloat(requestForm.quantity_kg),
-          deadline: requestForm.deadline || null,
           supplier_id: requestForm.supplier_id,
-          notes: requestForm.notes || null
+          deadline: requestForm.deadline || null,
+          notes: requestForm.notes || null,
+          materials: filledMaterials.map((m) => ({
+            material: m.material,
+            color: m.color,
+            quantity_kg: parseFloat(m.quantity_kg)
+          }))
         })
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Greška pri slanju zahteva')
+      if (!bundleRes.ok) {
+        const error = await bundleRes.json().catch(() => ({}))
+        throw new Error(error.error || 'Greška pri slanju zahteva (bundle)')
       }
 
-      const data = await res.json()
-      alert('Zahtev je uspešno poslat!')
+      const bundleData = await bundleRes.json()
+      const bundleId = bundleData.bundle_id
+      const totalPriceWei = bundleData.total_price_wei
+      const supplierWallet = bundleData.supplier_wallet
+
+      // 2) Smart contract – kreiranje zahteva
+      const contractAddress = blockchainConfig.designerSupplierContract
+      const materialsForContract = (bundleData.materials || []).map((m) => ({
+        materialName: m.materialName || m.material || '',
+        quantityKg: m.quantity_kg
+      }))
+
+      const txCreate = await createMaterialRequestOnBlockchain(
+        contractAddress,
+        bundleId,
+        supplierWallet,
+        totalPriceWei,
+        materialsForContract
+      )
+
+      // 3) Smart contract – deponovanje sredstava
+      const txFund = await fundMaterialRequestOnBlockchain(
+        contractAddress,
+        bundleId,
+        totalPriceWei
+      )
+
+      // 4) Backend – potvrdi da je bundle finansiran (zapiši contract info)
+      const confirmRes = await fetch(`/api/designer/material-requests/bundle/${bundleId}/confirm-funded`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          contract_address: contractAddress,
+          request_id_hex: txCreate.requestIdHex,
+          tx_hash_fund: txFund.txHash
+        })
+      })
+
+      if (!confirmRes.ok) {
+        const error = await confirmRes.json().catch(() => ({}))
+        console.error('[RazvojModelaPage] Greška pri confirm-funded:', error)
+        throw new Error(error.error || 'Greška pri snimanju blockchain transakcije u bazu')
+      }
+
+      alert('Zahtev je uspešno poslat i zabeležen na blockchainu!')
       setShowRequestModal(false)
       setSelectedModel(null)
+      setRequestMaterials([{ material: '', color: '', quantity_kg: '' }])
       await fetchModels()
       await fetchRequests()
     } catch (error) {
@@ -829,47 +941,200 @@ const RazvojModelaPage = () => {
                 </span>
               )}
             </h3>
+            {selectedModel && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '16px',
+                  marginBottom: '16px',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#f9fafb'
+                }}
+              >
+                <div
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    backgroundColor: '#e5e7eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.8rem',
+                    color: '#6b7280'
+                  }}
+                >
+                  {selectedModel.media && selectedModel.media.length > 0 ? (
+                    <img
+                      src={
+                        selectedModel.media.find((m) => m.is_primary)?.image_url ||
+                        selectedModel.media[0].image_url
+                      }
+                      alt={selectedModel.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    'Skica / foto'
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        color: '#4b5563',
+                        marginBottom: '4px'
+                      }}
+                    >
+                      Paleta boja iz skice:
+                    </span>
+                    {selectedModel.color_palette ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {selectedModel.color_palette
+                          .split(',')
+                          .map((tone) => tone.trim())
+                          .filter(Boolean)
+                          .map((tone, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '999px',
+                                backgroundColor: '#e5e7eb',
+                                fontSize: '0.8rem',
+                                color: '#374151'
+                              }}
+                            >
+                              {tone}
+                            </span>
+                          ))}
+                      </div>
+                    ) : (
+                      <span className="designer-muted" style={{ fontSize: '0.85rem' }}>
+                        Nema definisane palete za ovaj model.
+                      </span>
+                    )}
+                  </div>
+                  {selectedModel.materials && (
+                    <div>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: '0.85rem',
+                          fontWeight: '500',
+                          color: '#4b5563',
+                          marginBottom: '2px'
+                        }}
+                      >
+                        Materijali iz skice:
+                      </span>
+                      <span className="designer-muted" style={{ fontSize: '0.85rem' }}>
+                        {selectedModel.materials}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSubmitRequest}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Dinamička lista materijala u jednom zahtevu (bundle) */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Materijal *
+                    Materijali u ovom zahtevu *
                   </label>
-                  <input
-                    type="text"
-                    value={requestForm.material}
-                    onChange={(e) => setRequestForm({ ...requestForm, material: e.target.value })}
-                    required
-                    placeholder="npr. Likra"
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Boja *
-                  </label>
-                  <input
-                    type="text"
-                    value={requestForm.color}
-                    onChange={(e) => setRequestForm({ ...requestForm, color: e.target.value })}
-                    required
-                    placeholder="npr. Crna"
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Količina (kg) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={requestForm.quantity_kg}
-                    onChange={(e) => setRequestForm({ ...requestForm, quantity_kg: e.target.value })}
-                    required
-                    placeholder="npr. 100"
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {requestMaterials.map((row, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2fr 2fr 1fr auto',
+                          gap: '8px',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={row.material}
+                          onChange={(e) => {
+                            const next = [...requestMaterials]
+                            next[idx] = { ...next[idx], material: e.target.value }
+                            setRequestMaterials(next)
+                          }}
+                          placeholder="Materijal (npr. Lan 280g)"
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                        />
+                        <input
+                          type="text"
+                          value={row.color}
+                          onChange={(e) => {
+                            const next = [...requestMaterials]
+                            next[idx] = { ...next[idx], color: e.target.value }
+                            setRequestMaterials(next)
+                          }}
+                          placeholder="Boja (npr. bela)"
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={row.quantity_kg}
+                          onChange={(e) => {
+                            const next = [...requestMaterials]
+                            next[idx] = { ...next[idx], quantity_kg: e.target.value }
+                            setRequestMaterials(next)
+                          }}
+                          placeholder="Kg"
+                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (requestMaterials.length === 1) return
+                            setRequestMaterials(requestMaterials.filter((_, i) => i !== idx))
+                          }}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#ef4444',
+                            cursor: requestMaterials.length === 1 ? 'not-allowed' : 'pointer',
+                            fontSize: '1.2rem',
+                            padding: 0
+                          }}
+                          disabled={requestMaterials.length === 1}
+                          title="Ukloni red"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRequestMaterials([
+                          ...requestMaterials,
+                          { material: '', color: '', quantity_kg: '' }
+                        ])
+                      }
+                      style={{
+                        marginTop: '4px',
+                        alignSelf: 'flex-start',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px dashed #ccc',
+                        background: 'white',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      + Dodaj još materijala
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>

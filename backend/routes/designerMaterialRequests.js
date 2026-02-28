@@ -10,6 +10,20 @@ import { createAdminClient } from '../services/supabaseClient.js'
 const router = Router()
 const adminSupabase = createAdminClient()
 
+// Pomoćne funkcije za normalizaciju naziva materijala/boje pri poređenju sa zalihama
+const normalizeMaterialName = (name) => {
+  if (!name) return ''
+  const lower = name.toLowerCase().trim()
+  // Ukloni sve od prve cifre ili znaka % nadalje (procenti, gramaže)
+  const match = lower.match(/^[^0-9%]+/)
+  return (match ? match[0] : lower).trim()
+}
+
+const normalizeColorName = (color) => {
+  if (!color) return ''
+  return color.toLowerCase().trim()
+}
+
 /**
  * GET /api/designer/material-requests/models
  * Dobija listu modela sa statusom materijala
@@ -29,6 +43,8 @@ router.get('/models', requireAuth, requireRole(['modni_dizajner']), async (req, 
         collection_id,
         development_stage,
         materials,
+        color_palette,
+        media:product_model_media!product_model_media_model_id_fkey(image_url, label, is_primary),
         created_at,
         collection:collections(name, season)
       `)
@@ -191,6 +207,269 @@ router.post('/', requireAuth, requireRole(['modni_dizajner']), async (req, res, 
     })
   } catch (error) {
     console.error('[DesignerMaterialRequests] Error creating request:', error)
+    next(error)
+  }
+})
+
+const RSD_RATE = Number(process.env.RSD_RATE) || 118
+const ETH_PER_USD_TESTNET = 0.0005
+function rsdToWeiBackend (totalRsd) {
+  const usd = totalRsd / RSD_RATE
+  const eth = usd * ETH_PER_USD_TESTNET
+  return BigInt(Math.floor(eth * 1e18))
+}
+
+/**
+ * POST /api/designer/material-requests/bundle
+ * Kreira jedan logički zahtev (bundle) sa više materijala – jedan requestId za ugovor.
+ * Body: { product_model_id, supplier_id, deadline, notes, materials: [{ material, color, quantity_kg }] }
+ */
+router.post('/bundle', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { product_model_id, supplier_id, deadline, notes, materials } = req.body
+
+    if (!supplier_id || !materials || !Array.isArray(materials) || materials.length === 0) {
+      res.status(400).json({
+        error: 'supplier_id i materials (niz sa bar jednim { material, color, quantity_kg }) su obavezni'
+      })
+      return
+    }
+
+    for (const m of materials) {
+      if (!m.material || !m.color || m.quantity_kg == null) {
+        res.status(400).json({
+          error: 'Svaka stavka u materials mora imati material, color i quantity_kg'
+        })
+        return
+      }
+    }
+
+    const { data: supplierProfile, error: supplierError } = await adminSupabase
+      .from('profiles')
+      .select('user_id, full_name, wallet_address')
+      .eq('user_id', supplier_id)
+      .single()
+
+    if (supplierError || !supplierProfile) {
+      res.status(400).json({ error: 'Dobavljač nije pronađen' })
+      return
+    }
+
+    if (!supplierProfile.wallet_address || !supplierProfile.wallet_address.trim()) {
+      res.status(400).json({
+        error: 'Dobavljač nije postavio Ethereum adresu (wallet). Molimo kontaktirajte dobavljača.'
+      })
+      return
+    }
+
+    let modelName = null
+    let modelSku = null
+    let collectionId = null
+    if (product_model_id) {
+      const { data: model } = await adminSupabase
+        .from('product_models')
+        .select('name, sku, collection_id')
+        .eq('id', product_model_id)
+        .single()
+      if (model) {
+        modelName = model.name
+        modelSku = model.sku
+        collectionId = model.collection_id
+      }
+    }
+
+    let totalPriceRsd = 0
+    const materialsWithPrice = []
+    for (const m of materials) {
+      const materialName = (m.material || '').trim()
+      const colorName = (m.color || '').trim()
+      const normMaterial = normalizeMaterialName(materialName)
+      const normColor = normalizeColorName(colorName)
+
+      const { data: invRows } = await adminSupabase
+        .from('inventory_items')
+        .select('id, material, color, quantity_kg, price_per_kg')
+        .eq('supplier_id', supplier_id)
+        .eq('status', 'active')
+        // case-insensitive i tolerantno na razlike tipa "Lan 95%" vs "Lan"
+        .ilike('material', `%${normMaterial}%`)
+        .ilike('color', `%${normColor}%`)
+
+      const totalAvailable = (invRows || []).reduce((s, r) => s + (Number(r.quantity_kg) || 0), 0)
+      const qty = parseFloat(m.quantity_kg)
+      if (totalAvailable < qty) {
+        res.status(400).json({
+          error: `Nedovoljno zaliha kod dobavljača za ${materialName} / ${colorName}. Dostupno: ${totalAvailable} kg, traženo: ${qty} kg`
+        })
+        return
+      }
+      const pricePerKg = invRows?.[0]?.price_per_kg != null ? parseFloat(invRows[0].price_per_kg) : 0
+      const lineTotal = qty * pricePerKg
+      totalPriceRsd += lineTotal
+      materialsWithPrice.push({
+        material: materialName,
+        color: colorName,
+        quantity_kg: qty,
+        price_per_kg: pricePerKg,
+        line_total_rsd: lineTotal
+      })
+    }
+
+    const bundleId = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const rows = materialsWithPrice.map((m) => ({
+      request_bundle_id: bundleId,
+      product_model_id: product_model_id || null,
+      collection_id: collectionId,
+      requested_by: req.user.id,
+      supplier_id,
+      model_name: modelName,
+      model_sku: modelSku,
+      material: m.material,
+      color: m.color,
+      quantity_kg: m.quantity_kg,
+      deadline: deadline || null,
+      notes: notes || null,
+      status: 'new',
+      created_at: now,
+      updated_at: now
+    }))
+
+    const { data: inserted, error: insertError } = await adminSupabase
+      .from('material_requests')
+      .insert(rows)
+      .select()
+
+    if (insertError) {
+      if (insertError.code === '42P01') {
+        res.status(500).json({
+          error: 'Tabela material_requests ne postoji. Pokreni migraciju: create_supplier_tables.sql i add_designer_supplier_contract_fields.sql'
+        })
+        return
+      }
+      throw insertError
+    }
+
+    if (product_model_id) {
+      await adminSupabase
+        .from('product_models')
+        .update({ development_stage: 'development', updated_at: now })
+        .eq('id', product_model_id)
+    }
+
+    const totalPriceWei = rsdToWeiBackend(totalPriceRsd)
+
+    res.json({
+      success: true,
+      bundle_id: bundleId,
+      requests: inserted,
+      materials: materialsWithPrice.map((m) => ({
+        materialName: m.material,
+        color: m.color,
+        quantity_kg: m.quantity_kg,
+        price_per_kg: m.price_per_kg,
+        line_total_rsd: m.line_total_rsd
+      })),
+      total_price_rsd: totalPriceRsd,
+      total_price_wei: totalPriceWei.toString(),
+      supplier_wallet: supplierProfile.wallet_address.trim(),
+      message: 'Bundle zahteva je kreiran. Sledeći korak: createRequest + fundRequest na blockchainu (MetaMask).'
+    })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error creating bundle:', error)
+    next(error)
+  }
+})
+
+/**
+ * GET /api/designer/material-requests/bundle/:bundleId
+ */
+router.get('/bundle/:bundleId', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { bundleId } = req.params
+
+    const { data: rows, error } = await adminSupabase
+      .from('material_requests')
+      .select(`
+        *,
+        supplier_profile:profiles!material_requests_supplier_id_fkey(full_name, wallet_address),
+        product_model:product_models(name, sku, materials),
+        collection:collections(name, season)
+      `)
+      .eq('request_bundle_id', bundleId)
+      .eq('requested_by', req.user.id)
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({ error: 'Bundle nije pronađen' })
+        return
+      }
+      throw error
+    }
+
+    if (!rows || rows.length === 0) {
+      res.status(404).json({ error: 'Bundle nije pronađen' })
+      return
+    }
+
+    res.json({
+      bundle_id: bundleId,
+      requests: rows,
+      contract_address: rows[0]?.contract_address || null,
+      contract_request_id_hex: rows[0]?.contract_request_id_hex || null,
+      fund_tx_hash: rows[0]?.fund_tx_hash || null
+    })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error fetching bundle:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/designer/material-requests/bundle/:bundleId/confirm-funded
+ * Body: { contract_address, request_id_hex, tx_hash_fund }
+ */
+router.post('/bundle/:bundleId/confirm-funded', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
+  try {
+    const { bundleId } = req.params
+    const { contract_address, request_id_hex, tx_hash_fund } = req.body
+
+    if (!contract_address || !request_id_hex || !tx_hash_fund) {
+      res.status(400).json({
+        error: 'contract_address, request_id_hex i tx_hash_fund su obavezni'
+      })
+      return
+    }
+
+    const { data: rows, error: fetchError } = await adminSupabase
+      .from('material_requests')
+      .select('id')
+      .eq('request_bundle_id', bundleId)
+      .eq('requested_by', req.user.id)
+
+    if (fetchError || !rows || rows.length === 0) {
+      res.status(404).json({ error: 'Bundle nije pronađen' })
+      return
+    }
+
+    const { error: updateError } = await adminSupabase
+      .from('material_requests')
+      .update({
+        contract_address: contract_address.trim(),
+        contract_request_id_hex: request_id_hex,
+        fund_tx_hash: tx_hash_fund,
+        updated_at: new Date().toISOString()
+      })
+      .eq('request_bundle_id', bundleId)
+
+    if (updateError) throw updateError
+
+    res.json({
+      success: true,
+      message: 'Depozit je zabeležen. Dobavljač može prihvatiti zahtev na blockchainu.'
+    })
+  } catch (error) {
+    console.error('[DesignerMaterialRequests] Error confirm-funded:', error)
     next(error)
   }
 })
