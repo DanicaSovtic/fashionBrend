@@ -56,6 +56,7 @@ configRouter.get('/config/blockchain', (req, res) => {
     productApprovalContract: process.env.PRODUCT_APPROVAL_CONTRACT || process.env.ORDER_PAYMENT_CONTRACT || '',
     designerSupplierContract: process.env.DESIGNER_SUPPLIER_CONTRACT || '',
     supplierManufacturerContract: process.env.SUPPLIER_MANUFACTURER_CONTRACT || '',
+    designerManufacturerContract: process.env.DESIGNER_MANUFACTURER_CONTRACT || '',
     inventoryContract: process.env.INVENTORY_CONTRACT || '',
     brandOwnerWallet: process.env.BRAND_OWNER_WALLET || '',
     rsdRate: Number(process.env.RSD_RATE) || 118

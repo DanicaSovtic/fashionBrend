@@ -959,6 +959,164 @@ export const getShipmentOnBlockchain = async (contractAddress, bundleId) => {
   }
 }
 
+// ----- DesignerManufacturerContract (završetak šivenja: dizajner plaća proizvođača) -----
+
+const DESIGNER_MANUFACTURER_GAS_MULTIPLIER = 2n
+const DESIGNER_MANUFACTURER_FALLBACK_GAS = 400000n
+
+const DESIGNER_MANUFACTURER_ABI = [
+  {
+    inputs: [
+      { internalType: 'bytes32', name: 'completionId', type: 'bytes32' },
+      { internalType: 'address', name: 'designer', type: 'address' },
+      { internalType: 'uint256', name: 'quantityPieces', type: 'uint256' },
+      { internalType: 'uint256', name: 'pricePerPieceWei', type: 'uint256' }
+    ],
+    name: 'createSewingCompletion',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'bytes32', name: 'completionId', type: 'bytes32' }],
+    name: 'designerApproveForTesting',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { internalType: 'bytes32', name: 'completionId', type: 'bytes32' },
+      { internalType: 'string', name: 'reason', type: 'string' }
+    ],
+    name: 'designerReturnForRework',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'bytes32', name: 'completionId', type: 'bytes32' }],
+    name: 'getCompletion',
+    outputs: [
+      { internalType: 'address', name: 'designer', type: 'address' },
+      { internalType: 'address', name: 'manufacturer', type: 'address' },
+      { internalType: 'uint256', name: 'quantityPieces', type: 'uint256' },
+      { internalType: 'uint256', name: 'pricePerPieceWei', type: 'uint256' },
+      { internalType: 'uint256', name: 'totalAmountWei', type: 'uint256' },
+      { internalType: 'uint8', name: 'status', type: 'uint8' },
+      { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
+      { internalType: 'uint256', name: 'updatedAt', type: 'uint256' }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'string', name: 'sewingOrderId', type: 'string' }],
+    name: 'completionIdFromString',
+    outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
+    stateMutability: 'pure',
+    type: 'function'
+  }
+]
+
+/**
+ * completionId za ugovor = keccak256(sewing_order_id string)
+ */
+export const completionIdFromSewingOrderId = (sewingOrderId) => {
+  return ethers.keccak256(ethers.toUtf8Bytes(sewingOrderId))
+}
+
+/**
+ * Proizvođač kreira zapis o završenom šivenju na DesignerManufacturerContract.
+ * Poziva se nakon PATCH complete; potpisuje proizvođač (msg.sender = manufacturer).
+ *
+ * @param {string} contractAddress Adresa DesignerManufacturerContract
+ * @param {string} sewingOrderId UUID naloga za šivenje
+ * @param {string} designerWallet Adresa dizajnera (platioca)
+ * @param {number} quantityPieces Broj komada
+ * @param {bigint|string} pricePerPieceWei Cena po komadu u wei
+ */
+export const createSewingCompletionOnBlockchain = async (
+  contractAddress,
+  sewingOrderId,
+  designerWallet,
+  quantityPieces,
+  pricePerPieceWei
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`DesignerManufacturerContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_MANUFACTURER_ABI, signer)
+  const completionIdBytes32 = completionIdFromSewingOrderId(sewingOrderId)
+  const qty = BigInt(quantityPieces)
+  const priceWei = typeof pricePerPieceWei === 'string' ? BigInt(pricePerPieceWei) : pricePerPieceWei
+
+  let gasLimit
+  try {
+    const estimated = await contract.createSewingCompletion.estimateGas(
+      completionIdBytes32,
+      designerWallet,
+      qty,
+      priceWei
+    )
+    gasLimit = estimated * DESIGNER_MANUFACTURER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for createSewingCompletion, using fallback.', err)
+    gasLimit = DESIGNER_MANUFACTURER_FALLBACK_GAS
+  }
+
+  const tx = await contract.createSewingCompletion(
+    completionIdBytes32,
+    designerWallet,
+    qty,
+    priceWei,
+    { gasLimit }
+  )
+  const receipt = await tx.wait()
+  return {
+    txHash: receipt.hash,
+    blockNumber: receipt.blockNumber,
+    completionIdHex: completionIdBytes32
+  }
+}
+
+/**
+ * Čita stanje completion-a sa ugovora (0=None, 1=PendingDesignerReview, 2=ApprovedForTesting, 3=ReturnedForRework).
+ */
+export const getSewingCompletionOnBlockchain = async (contractAddress, sewingOrderId) => {
+  if (typeof window === 'undefined' || !window.ethereum) return null
+  await switchToSepolia()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') return null
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_MANUFACTURER_ABI, provider)
+  const completionIdBytes32 = completionIdFromSewingOrderId(sewingOrderId)
+  const [designer, manufacturer, quantityPieces, pricePerPieceWei, totalAmountWei, status, createdAt, updatedAt] =
+    await contract.getCompletion(completionIdBytes32)
+  return {
+    designer,
+    manufacturer,
+    quantityPieces: Number(quantityPieces),
+    pricePerPieceWei: pricePerPieceWei.toString(),
+    totalAmountWei: totalAmountWei.toString(),
+    status: Number(status),
+    createdAt: Number(createdAt),
+    updatedAt: Number(updatedAt)
+  }
+}
 
 /**
  * Inventory Contract ABI

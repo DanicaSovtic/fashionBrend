@@ -434,6 +434,7 @@ router.get('/sewing-orders', requireAuth, requireRole(['proizvodjac']), async (r
 /**
  * GET /api/manufacturer/sewing-orders/:id
  * Dobija detalje naloga za šivenje sa SVIM materijalima (pošiljkama) za taj model
+ * Uključuje designer_wallet_address (iz kolekcije created_by) za pametni ugovor.
  */
 router.get('/sewing-orders/:id', requireAuth, requireRole(['proizvodjac']), async (req, res, next) => {
   try {
@@ -444,7 +445,7 @@ router.get('/sewing-orders/:id', requireAuth, requireRole(['proizvodjac']), asyn
       .select(`
         *,
         product_model:product_models(name, sku),
-        collection:collections(name, season)
+        collection:collections(id, name, season, created_by)
       `)
       .eq('id', id)
       .eq('manufacturer_id', req.user.id)
@@ -456,6 +457,19 @@ router.get('/sewing-orders/:id', requireAuth, requireRole(['proizvodjac']), asyn
         return
       }
       throw error
+    }
+
+    // Dizajner (vlasnik kolekcije) – wallet za DesignerManufacturerContract
+    let designerWalletAddress = null
+    if (orderRow.collection?.created_by) {
+      const { data: designerProfile } = await adminSupabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('user_id', orderRow.collection.created_by)
+        .single()
+      if (designerProfile?.wallet_address) {
+        designerWalletAddress = designerProfile.wallet_address.trim()
+      }
     }
 
     // Svi materijali (pošiljke) za ovaj model i proizvođača – jedan nalog = svi materijali
@@ -500,6 +514,7 @@ router.get('/sewing-orders/:id', requireAuth, requireRole(['proizvodjac']), asyn
 
     const order = {
       ...orderRow,
+      designer_wallet_address: designerWalletAddress,
       shipment,
       shipments
     }
@@ -555,26 +570,31 @@ router.patch('/sewing-orders/:id/start', requireAuth, requireRole(['proizvodjac'
 /**
  * PATCH /api/manufacturer/sewing-orders/:id/complete
  * Završava nalog za šivenje
- * Očekuje: { proof_document_url } (obavezno – URL slike/dokumenta dokaza)
+ * Očekuje: { proof_document_url } (obavezno), { price_per_piece_rsd } (obavezno za pametni ugovor)
  */
 router.patch('/sewing-orders/:id/complete', requireAuth, requireRole(['proizvodjac']), async (req, res, next) => {
   try {
     const { id } = req.params
-    const { proof_document_url } = req.body
+    const { proof_document_url, price_per_piece_rsd } = req.body
 
     if (!proof_document_url || !String(proof_document_url).trim()) {
       res.status(400).json({ error: 'URL dokaza (slika/dokument) je obavezan da biste završili šivenje.' })
       return
     }
 
+    const updatePayload = {
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      proof_document_url: String(proof_document_url).trim(),
+      updated_at: new Date().toISOString()
+    }
+    if (price_per_piece_rsd != null && !Number.isNaN(Number(price_per_piece_rsd))) {
+      updatePayload.price_per_piece_rsd = Number(price_per_piece_rsd)
+    }
+
     const { data, error } = await adminSupabase
       .from('sewing_orders')
-      .update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-        proof_document_url: String(proof_document_url).trim(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', id)
       .eq('manufacturer_id', req.user.id)
       .select()
@@ -597,6 +617,50 @@ router.patch('/sewing-orders/:id/complete', requireAuth, requireRole(['proizvodj
     })
   } catch (error) {
     console.error('[Manufacturer] Error completing order:', error)
+    next(error)
+  }
+})
+
+/**
+ * PATCH /api/manufacturer/sewing-orders/:id/contract-completion
+ * Čuva contract_completion_id_hex nakon uspešnog kreiranja zapisa na DesignerManufacturerContract.
+ * Body: { contract_completion_id_hex }
+ */
+router.patch('/sewing-orders/:id/contract-completion', requireAuth, requireRole(['proizvodjac']), async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { contract_completion_id_hex } = req.body
+    if (!contract_completion_id_hex || !String(contract_completion_id_hex).trim()) {
+      res.status(400).json({ error: 'contract_completion_id_hex je obavezan.' })
+      return
+    }
+
+    const { data, error } = await adminSupabase
+      .from('sewing_orders')
+      .update({
+        contract_completion_id_hex: String(contract_completion_id_hex).trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('manufacturer_id', req.user.id)
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({ error: 'Nalog nije pronađen' })
+        return
+      }
+      throw error
+    }
+
+    res.json({
+      success: true,
+      order: data,
+      message: 'Referenca na ugovor je sačuvana'
+    })
+  } catch (error) {
+    console.error('[Manufacturer] Error saving contract completion:', error)
     next(error)
   }
 })

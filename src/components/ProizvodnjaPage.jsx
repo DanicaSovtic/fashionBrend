@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
 import { formatMaterialsForDisplay } from '../utils/materialParser'
-import { acceptShipmentOnBlockchain } from '../lib/blockchain'
+import { acceptShipmentOnBlockchain, createSewingCompletionOnBlockchain, rsdToWei } from '../lib/blockchain'
 import './DesignerCollectionsPage.css'
 
 const ProizvodnjaPage = () => {
@@ -36,6 +36,7 @@ const ProizvodnjaPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [orderDetails, setOrderDetails] = useState(null)
   const [proofDocumentUrl, setProofDocumentUrl] = useState('')
+  const [pricePerPieceRsd, setPricePerPieceRsd] = useState('')
   const [showSewingOrderSuccess, setShowSewingOrderSuccess] = useState(false)
   const [newSewingOrderId, setNewSewingOrderId] = useState(null)
   
@@ -376,22 +377,61 @@ const ProizvodnjaPage = () => {
         alert('URL dokaza (slika/dokument) je obavezan da biste završili šivenje.')
         return
       }
+      const contractAddress = blockchainConfig?.designerManufacturerContract?.trim()
+      const useContract = !!contractAddress && !!orderDetails?.designer_wallet_address?.trim()
+      if (useContract) {
+        const priceRsd = Number(pricePerPieceRsd)
+        if (!Number.isFinite(priceRsd) || priceRsd <= 0) {
+          alert('Unesite cenu po komadu (RSD) – potrebna je za pametni ugovor.')
+          return
+        }
+      }
 
       const token = localStorage.getItem('auth_access_token')
+      const body = {
+        proof_document_url: proofDocumentUrl.trim()
+      }
+      if (pricePerPieceRsd !== '' && Number.isFinite(Number(pricePerPieceRsd))) {
+        body.price_per_piece_rsd = Number(pricePerPieceRsd)
+      }
+
       const res = await fetch(`/api/manufacturer/sewing-orders/${orderId}/complete`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          proof_document_url: proofDocumentUrl.trim()
-        })
+        body: JSON.stringify(body)
       })
 
       if (!res.ok) {
         const error = await res.json()
         throw new Error(error.error || 'Greška pri završavanju naloga')
+      }
+
+      // Ako je ugovor podešen i dizajner ima wallet, kreiraj zapis na blockchainu
+      if (useContract) {
+        const designerWallet = orderDetails.designer_wallet_address.trim()
+        const quantityPieces = orderDetails.quantity_pieces || 1
+        const pricePerPieceWei = rsdToWei(Number(pricePerPieceRsd))
+        const result = await createSewingCompletionOnBlockchain(
+          contractAddress,
+          orderId,
+          designerWallet,
+          quantityPieces,
+          pricePerPieceWei
+        )
+        // Sačuvaj referencu na ugovor u bazi
+        await fetch(`/api/manufacturer/sewing-orders/${orderId}/contract-completion`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            contract_completion_id_hex: result.completionIdHex
+          })
+        })
       }
 
       await fetchSewingOrders()
@@ -400,7 +440,8 @@ const ProizvodnjaPage = () => {
         await fetchOrderDetails(orderId)
       }
       setProofDocumentUrl('')
-      alert('Nalog za šivenje je završen')
+      setPricePerPieceRsd('')
+      alert(useContract ? 'Nalog je završen i pametni ugovor je kreiran. Dizajner može sada da potvrdi ili vrati na doradu.' : 'Nalog za šivenje je završen')
     } catch (error) {
       alert(error.message || 'Greška pri završavanju naloga')
     }
@@ -1156,6 +1197,25 @@ const ProizvodnjaPage = () => {
                                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px', marginBottom: '12px' }}
                                 />
                               </div>
+                              {blockchainConfig?.designerManufacturerContract && orderDetails.designer_wallet_address && (
+                                <div>
+                                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
+                                    Cena po komadu (RSD) *
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    value={pricePerPieceRsd}
+                                    onChange={(e) => setPricePerPieceRsd(e.target.value)}
+                                    placeholder="npr. 2500"
+                                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px', marginBottom: '12px' }}
+                                  />
+                                  <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '-8px', marginBottom: '12px' }}>
+                                    Pri potvrdi dizajnera (Pusti na testiranje) iznos {orderDetails.quantity_pieces || 1} × cena biće prebačen na vaš wallet.
+                                  </p>
+                                </div>
+                              )}
                               <button
                                 onClick={() => handleCompleteSewingOrder(orderDetails.id)}
                                 className="designer-primary-button"
