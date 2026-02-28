@@ -1118,6 +1118,103 @@ export const getSewingCompletionOnBlockchain = async (contractAddress, sewingOrd
   }
 }
 
+/** Statusi u ugovoru: 0=None, 1=PendingDesignerReview, 2=ApprovedForTesting, 3=ReturnedForRework */
+export const SEWING_COMPLETION_STATUS = {
+  None: 0,
+  PendingDesignerReview: 1,
+  ApprovedForTesting: 2,
+  ReturnedForRework: 3
+}
+
+/**
+ * Dizajner odobrava proizvod za testiranje i plaća proizvođača (msg.value = totalAmountWei).
+ * Poziva se sa strane dizajnera u "Pristigli proizvodi" → "Pusti na testiranje".
+ */
+export const designerApproveForTestingOnBlockchain = async (
+  contractAddress,
+  sewingOrderId,
+  totalAmountWei
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`DesignerManufacturerContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_MANUFACTURER_ABI, signer)
+  const completionIdBytes32 = completionIdFromSewingOrderId(sewingOrderId)
+  const value = typeof totalAmountWei === 'string' ? BigInt(totalAmountWei) : BigInt(totalAmountWei)
+
+  let gasLimit
+  try {
+    const estimated = await contract.designerApproveForTesting.estimateGas(completionIdBytes32, { value })
+    gasLimit = estimated * DESIGNER_MANUFACTURER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for designerApproveForTesting, using fallback.', err)
+    gasLimit = DESIGNER_MANUFACTURER_FALLBACK_GAS
+  }
+
+  const tx = await contract.designerApproveForTesting(completionIdBytes32, {
+    value,
+    gasLimit
+  })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
+}
+
+/**
+ * Dizajner vraća proizvod na doradu (bez prenosa novca).
+ * Poziva se sa strane dizajnera u "Pristigli proizvodi" → "Vrati na doradu".
+ */
+export const designerReturnForReworkOnBlockchain = async (
+  contractAddress,
+  sewingOrderId,
+  reason
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`DesignerManufacturerContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, DESIGNER_MANUFACTURER_ABI, signer)
+  const completionIdBytes32 = completionIdFromSewingOrderId(sewingOrderId)
+
+  let gasLimit
+  try {
+    const estimated = await contract.designerReturnForRework.estimateGas(
+      completionIdBytes32,
+      reason || ''
+    )
+    gasLimit = estimated * DESIGNER_MANUFACTURER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for designerReturnForRework, using fallback.', err)
+    gasLimit = DESIGNER_MANUFACTURER_FALLBACK_GAS
+  }
+
+  const tx = await contract.designerReturnForRework(completionIdBytes32, reason || '', {
+    gasLimit
+  })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
+}
+
 /**
  * Inventory Contract ABI
  */

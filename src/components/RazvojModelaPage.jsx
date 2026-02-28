@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
 import './DesignerCollectionsPage.css'
 import {
   createMaterialRequestOnBlockchain,
-  fundMaterialRequestOnBlockchain
+  fundMaterialRequestOnBlockchain,
+  getSewingCompletionOnBlockchain,
+  designerApproveForTestingOnBlockchain,
+  designerReturnForReworkOnBlockchain,
+  SEWING_COMPLETION_STATUS,
+  weiToEth
 } from '../lib/blockchain'
 import { parseMaterials } from '../utils/materialParser'
 
@@ -178,6 +183,19 @@ const RazvojModelaPage = () => {
     }
   }
 
+  // Jedan red po nalogu za šivenje (grupiši po sewing_order_id ako view vraća više redova po materijalu)
+  const completedProductsGrouped = useMemo(() => {
+    const list = completedProducts || []
+    if (list.length === 0) return []
+    const byOrder = {}
+    for (const p of list) {
+      const id = p.sewing_order_id
+      if (!id) continue
+      if (!byOrder[id]) byOrder[id] = p
+    }
+    return Object.values(byOrder)
+  }, [completedProducts])
+
   const handlePublishProduct = async (sewingOrderId) => {
     if (!confirm('Da li ste sigurni da želite da pustite ovaj proizvod u prodaju?')) {
       return
@@ -216,6 +234,19 @@ const RazvojModelaPage = () => {
     if (!returnForReworkOrderId) return
     try {
       const token = localStorage.getItem('auth_access_token')
+      const contractAddress = blockchainConfig?.designerManufacturerContract?.trim()
+
+      if (contractAddress) {
+        const completion = await getSewingCompletionOnBlockchain(contractAddress, returnForReworkOrderId)
+        if (completion && completion.status === SEWING_COMPLETION_STATUS.PendingDesignerReview) {
+          await designerReturnForReworkOnBlockchain(
+            contractAddress,
+            returnForReworkOrderId,
+            returnForReworkReason || ''
+          )
+        }
+      }
+
       const res = await fetch(`/api/designer/material-requests/completed-products/${returnForReworkOrderId}/return-for-rework`, {
         method: 'POST',
         headers: {
@@ -249,9 +280,23 @@ const RazvojModelaPage = () => {
   }
 
   const handleApproveForTesting = async (sewingOrderId) => {
-    if (!confirm('Potvrdite da ste zadovoljni proizvodom i da ga šaljete na testiranje (laborant i tester kvaliteta)?')) return
+    const contractAddress = blockchainConfig?.designerManufacturerContract?.trim()
+    let completion = null
+    if (contractAddress) {
+      completion = await getSewingCompletionOnBlockchain(contractAddress, sewingOrderId).catch(() => null)
+    }
+    const amountEthMsg = (completion && completion.status === SEWING_COMPLETION_STATUS.PendingDesignerReview)
+      ? `\n\nPri potvrdi u MetaMask-u potrebno je poslati ${weiToEth(completion.totalAmountWei)} ETH (iznos za uslugu šivenja).`
+      : ''
+    if (!confirm(`Potvrdite da ste zadovoljni proizvodom i da ga šaljete na testiranje (laborant i tester kvaliteta)?${amountEthMsg}`)) return
+
     try {
       const token = localStorage.getItem('auth_access_token')
+
+      if (contractAddress && completion && completion.status === SEWING_COMPLETION_STATUS.PendingDesignerReview) {
+        await designerApproveForTestingOnBlockchain(contractAddress, sewingOrderId, completion.totalAmountWei)
+      }
+
       const res = await fetch(`/api/designer/material-requests/completed-products/${sewingOrderId}/approve-for-testing`, {
         method: 'POST',
         headers: {
@@ -265,6 +310,7 @@ const RazvojModelaPage = () => {
         try {
           const err = text ? JSON.parse(text) : {}
           errMsg = err.error || err.message || errMsg
+          if (err.details) errMsg += ': ' + err.details
         } catch (_) {
           if (text) errMsg = text.slice(0, 200)
         }
@@ -783,7 +829,7 @@ const RazvojModelaPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {completedProducts.map((product) => {
+                      {completedProductsGrouped.map((product) => {
                         const stage = product.development_stage || 'development'
                         const stageLabel = stage === 'idea' ? 'Ideja' : stage === 'development' ? 'Razvoj' : stage === 'testing' ? 'Testiranje' : stage === 'approved' ? 'Odobreno' : stage
                         const stageColor = stage === 'idea' ? '#9ca3af' : stage === 'development' ? '#3b82f6' : stage === 'testing' ? '#f59e0b' : '#10b981'

@@ -625,25 +625,65 @@ router.post('/completed-products/:sewing_order_id/return-for-rework', requireAut
 router.post('/completed-products/:sewing_order_id/approve-for-testing', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
   try {
     const { sewing_order_id } = req.params
-    const { data: completedProduct, error: checkError } = await adminSupabase
+    let productModelId = null
+
+    const { data: viewRows, error: viewError } = await adminSupabase
       .from('completed_products_from_manufacturer')
       .select('product_model_id')
       .eq('sewing_order_id', sewing_order_id)
       .eq('designer_id', req.user.id)
-      .single()
-    if (checkError || !completedProduct?.product_model_id) {
-      res.status(404).json({ error: 'Završeni proizvod nije pronađen ili ne pripada vama' })
+      .limit(1)
+
+    if (!viewError && viewRows?.length > 0 && viewRows[0]?.product_model_id) {
+      productModelId = viewRows[0].product_model_id
+    }
+
+    if (!productModelId) {
+      const { data: orderRow, error: orderError } = await adminSupabase
+        .from('sewing_orders')
+        .select('product_model_id, collection_id')
+        .eq('id', sewing_order_id)
+        .eq('status', 'completed')
+        .single()
+      if (!orderError && orderRow?.product_model_id) {
+        const { data: col } = await adminSupabase
+          .from('collections')
+          .select('created_by')
+          .eq('id', orderRow.collection_id)
+          .single()
+        if (col?.created_by === req.user.id) productModelId = orderRow.product_model_id
+      }
+    }
+
+    if (!productModelId) {
+      res.status(404).json({
+        error: 'Završeni proizvod nije pronađen ili ne pripada vama',
+        details: viewError ? viewError.message : undefined
+      })
       return
     }
+
     const { error: updateError } = await adminSupabase
       .from('product_models')
       .update({ development_stage: 'testing', updated_at: new Date().toISOString() })
-      .eq('id', completedProduct.product_model_id)
-    if (updateError) throw updateError
+      .eq('id', productModelId)
+
+    if (updateError) {
+      console.error('[DesignerMaterialRequests] approve-for-testing update product_models:', updateError)
+      res.status(500).json({
+        error: 'Greška pri ažuriranju faze proizvoda',
+        details: updateError.message
+      })
+      return
+    }
+
     res.json({ success: true, message: 'Proizvod je pušten na testiranje – laborant i tester kvaliteta će ga odobriti.' })
   } catch (error) {
     console.error('[DesignerMaterialRequests] Error approve-for-testing:', error)
-    next(error)
+    res.status(500).json({
+      error: error.message || 'Greška pri puštanju na testiranje',
+      details: error.details || error.code
+    })
   }
 })
 
