@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
@@ -7,7 +7,9 @@ import {
   addInventoryItemOnBlockchain, 
   updateInventoryItemOnBlockchain,
   pauseInventoryItemOnBlockchain,
-  activateInventoryItemOnBlockchain
+  activateInventoryItemOnBlockchain,
+  acceptMaterialRequestOnBlockchain,
+  createShipmentOnBlockchain
 } from '../lib/blockchain'
 
 const DobavljacMaterijalaPage = () => {
@@ -67,6 +69,50 @@ const DobavljacMaterijalaPage = () => {
     sent: 0,
     completed: 0
   })
+
+  // Grupisani zahtevi po bundle-u: jedan red u listi = jedan bundle ili stari pojedinačni zahtev
+  const groupedRequests = useMemo(() => {
+    if (!requests || requests.length === 0) return []
+    const groups = {}
+    for (const req of requests) {
+      const key = req.request_bundle_id || req.id
+      if (!groups[key]) {
+        groups[key] = {
+          key,
+          bundleId: req.request_bundle_id || null,
+          requests: []
+        }
+      }
+      groups[key].requests.push(req)
+    }
+    return Object.values(groups).map((group) => {
+      const first = group.requests[0]
+      const materialsLabel =
+        group.requests.length === 1
+          ? `${first.material} / ${first.color} / ${first.quantity_kg} kg`
+          : group.requests
+              .map((r) => `${r.material} / ${r.color} / ${r.quantity_kg} kg`)
+              .join(' + ')
+      return {
+        ...group,
+        representative: first,
+        status: first.status,
+        model_name: first.model_name,
+        model_sku: first.model_sku,
+        materialsLabel
+      }
+    })
+  }, [requests])
+
+  // Trenutno selektovana grupa (ako postoji) – koristi se za prikaz svih materijala u detaljima
+  const currentGroup = useMemo(() => {
+    if (!selectedRequest || !groupedRequests || groupedRequests.length === 0) return null
+    return (
+      groupedRequests.find((g) =>
+        g.requests.some((r) => r.id === selectedRequest.id)
+      ) || null
+    )
+  }, [groupedRequests, selectedRequest])
 
   // Učitaj blockchain config
   useEffect(() => {
@@ -130,7 +176,7 @@ const DobavljacMaterijalaPage = () => {
   // Učitaj detalje zahteva
   useEffect(() => {
     if (selectedRequest) {
-      fetchRequestDetails(selectedRequest.id)
+      fetchRequestDetails(selectedRequest.id, selectedRequest.request_bundle_id)
       fetchMessages(selectedRequest.id)
       // Postavi step na osnovu statusa
       if (selectedRequest.status === 'new') {
@@ -183,24 +229,28 @@ const DobavljacMaterijalaPage = () => {
     }
   }
 
-  const fetchRequestDetails = async (requestId) => {
+  const fetchRequestDetails = async (requestId, bundleId) => {
     try {
       const token = localStorage.getItem('auth_access_token')
-      const res = await fetch(`/api/supplier/requests/${requestId}`, {
+      const url = bundleId
+        ? `/api/supplier/requests/bundle/${bundleId}`
+        : `/api/supplier/requests/${requestId}`
+      const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
       const data = await res.json()
       setRequestDetails(data)
-      if (data.request) {
+      const req = data.request
+      if (req) {
         setRequestForm({
-          quantity_sent_kg: data.request.quantity_sent_kg || data.request.quantity_kg || '',
-          batch_lot_id: data.request.batch_lot_id || '',
-          document_url: data.request.document_url || '',
-          shipping_date: data.request.shipping_date || '',
-          tracking_number: data.request.tracking_number || '',
-          manufacturer_address: data.request.manufacturer_address || ''
+          quantity_sent_kg: req.quantity_sent_kg || req.quantity_kg || '',
+          batch_lot_id: req.batch_lot_id || '',
+          document_url: req.document_url || '',
+          shipping_date: req.shipping_date || '',
+          tracking_number: req.tracking_number || '',
+          manufacturer_address: req.manufacturer_address || ''
         })
       }
     } catch (error) {
@@ -371,8 +421,45 @@ const DobavljacMaterijalaPage = () => {
   }
 
   const handleAcceptRequest = async () => {
+    if (!selectedRequest) return
+
     try {
       const token = localStorage.getItem('auth_access_token')
+
+      // Ako je zahtev deo bundle-a i ima blockchain contract, koristi se smart contract tok
+      const bundleId = requestDetails?.request?.request_bundle_id
+      const contractAddress =
+        requestDetails?.request?.contract_address || blockchainConfig?.designerSupplierContract
+
+      if (bundleId && contractAddress) {
+        // 1) Smart contract – dobavljač prihvata zahtev (prenosi sredstva sa ugovora na dobavljača)
+        const tx = await acceptMaterialRequestOnBlockchain(contractAddress, bundleId)
+
+        // 2) Backend – umanji zalihe i ažuriraj statuse za ceo bundle
+        const confirmRes = await fetch(`/api/supplier/requests/bundle/${bundleId}/confirm-accepted`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            tx_hash: tx.txHash
+          })
+        })
+
+        if (!confirmRes.ok) {
+          const error = await confirmRes.json().catch(() => ({}))
+          throw new Error(error.error || 'Greška pri ažuriranju zaliha nakon prihvatanja zahteva')
+        }
+
+        await fetchRequests()
+        await fetchRequestDetails(selectedRequest.id)
+        setRequestStep(2)
+        alert('Zahtev je prihvaćen. Plaćanje je izvršeno na blockchainu i zalihe su ažurirane.')
+        return
+      }
+
+      // Fallback: stari tok bez blockchaina (za stare zahteve)
       const res = await fetch(`/api/supplier/requests/${selectedRequest.id}/accept`, {
         method: 'PATCH',
         headers: {
@@ -481,32 +568,89 @@ const DobavljacMaterijalaPage = () => {
       return
     }
 
+    const bundleId = selectedRequest?.request_bundle_id
+    const isBundleWithContract = bundleId && requestDetails?.requests?.length > 0 && blockchainConfig?.supplierManufacturerContract
+
     setIsSendingToManufacturer(true)
     try {
       const token = localStorage.getItem('auth_access_token')
-      const res = await fetch(`/api/supplier/requests/${selectedRequest.id}/send-to-manufacturer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          manufacturer_id: sendToManufacturerForm.manufacturer_id,
-          quantity_sent_kg: sendToManufacturerForm.quantity_sent_kg || requestDetails?.request?.quantity_kg,
-          shipping_date: sendToManufacturerForm.shipping_date || new Date().toISOString().split('T')[0],
-          tracking_number: sendToManufacturerForm.tracking_number || null
-        })
-      })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Greška pri slanju proizvođaču')
+      if (isBundleWithContract) {
+        // 1) Priprema: podaci za blockchain
+        const prepareRes = await fetch(`/api/supplier/requests/bundle/${bundleId}/send-to-manufacturer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            manufacturer_id: sendToManufacturerForm.manufacturer_id,
+            shipping_date: sendToManufacturerForm.shipping_date || new Date().toISOString().split('T')[0],
+            tracking_number: sendToManufacturerForm.tracking_number || null
+          })
+        })
+        if (!prepareRes.ok) {
+          const err = await prepareRes.json()
+          throw new Error(err.error || 'Greška pri pripremi pošiljke')
+        }
+        const payload = await prepareRes.json()
+        if (!payload.manufacturer_wallet) {
+          throw new Error('Izabrani proizvođač nema podešen wallet (wallet_address).')
+        }
+
+        // 2) Blockchain: createShipment
+        const { txHash, shipmentIdHex } = await createShipmentOnBlockchain(
+          blockchainConfig.supplierManufacturerContract,
+          payload.bundle_id,
+          payload.manufacturer_wallet,
+          payload.product_model_id,
+          payload.expectedMaterialNames,
+          payload.lines
+        )
+
+        // 3) Potvrda u bazi
+        const confirmRes = await fetch(`/api/supplier/requests/bundle/${bundleId}/confirm-shipment-sent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            tx_hash: txHash,
+            shipment_id_hex: shipmentIdHex,
+            manufacturer_id: sendToManufacturerForm.manufacturer_id,
+            shipping_date: sendToManufacturerForm.shipping_date || new Date().toISOString().split('T')[0],
+            tracking_number: sendToManufacturerForm.tracking_number || null
+          })
+        })
+        if (!confirmRes.ok) {
+          const err = await confirmRes.json()
+          throw new Error(err.error || 'Greška pri čuvanju pošiljke')
+        }
+      } else {
+        // Stari tok: pojedinačan zahtev
+        const res = await fetch(`/api/supplier/requests/${selectedRequest.id}/send-to-manufacturer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            manufacturer_id: sendToManufacturerForm.manufacturer_id,
+            quantity_sent_kg: sendToManufacturerForm.quantity_sent_kg || requestDetails?.request?.quantity_kg,
+            shipping_date: sendToManufacturerForm.shipping_date || new Date().toISOString().split('T')[0],
+            tracking_number: sendToManufacturerForm.tracking_number || null
+          })
+        })
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Greška pri slanju proizvođaču')
+        }
       }
 
-      const data = await res.json()
       alert('Materijal je uspešno poslat proizvođaču!')
       await fetchRequests()
-      await fetchRequestDetails(selectedRequest.id)
+      await fetchRequestDetails(selectedRequest.id, selectedRequest.request_bundle_id)
       await fetchInventory()
       setSendToManufacturerForm({
         manufacturer_id: '',
@@ -831,42 +975,42 @@ const DobavljacMaterijalaPage = () => {
                   <h3 style={{ marginBottom: '16px' }}>Zahtevi</h3>
                   {isLoadingRequests ? (
                     <div className="designer-muted">Učitavanje...</div>
-                  ) : requests.length === 0 ? (
+                  ) : groupedRequests.length === 0 ? (
                     <div className="designer-muted" style={{ padding: '2rem', textAlign: 'center' }}>
                       Nema zahteva
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {requests.map((req) => (
+                      {groupedRequests.map((group) => (
                         <button
-                          key={req.id}
-                          onClick={() => setSelectedRequest(req)}
+                          key={group.key}
+                          onClick={() => setSelectedRequest(group.representative)}
                           style={{
                             padding: '12px',
-                            border: selectedRequest?.id === req.id ? '2px solid var(--color-olive)' : '1px solid #ddd',
+                            border: selectedRequest?.id === group.representative.id ? '2px solid var(--color-olive)' : '1px solid #ddd',
                             borderRadius: '8px',
-                            background: selectedRequest?.id === req.id ? '#f5f7f0' : 'white',
+                            background: selectedRequest?.id === group.representative.id ? '#f5f7f0' : 'white',
                             cursor: 'pointer',
                             textAlign: 'left'
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '4px' }}>
-                            <strong>{req.model_name || req.model_sku || 'Bez naziva'}</strong>
+                            <strong>{group.model_name || group.model_sku || 'Bez naziva'}</strong>
                             <span
                               style={{
                                 padding: '2px 8px',
                                 borderRadius: '999px',
                                 fontSize: '0.75rem',
                                 fontWeight: '600',
-                                backgroundColor: getStatusColor(req.status) + '20',
-                                color: getStatusColor(req.status)
+                                backgroundColor: getStatusColor(group.status) + '20',
+                                color: getStatusColor(group.status)
                               }}
                             >
-                              {getStatusLabel(req.status)}
+                              {getStatusLabel(group.status)}
                             </span>
                           </div>
                           <div className="designer-muted" style={{ fontSize: '0.85rem' }}>
-                            {req.material} / {req.color} / {req.quantity_kg} kg
+                            {group.materialsLabel}
                           </div>
                         </button>
                       ))}
@@ -886,7 +1030,18 @@ const DobavljacMaterijalaPage = () => {
                               <strong>Model/SKU:</strong> {requestDetails.request.model_name} ({requestDetails.request.model_sku})
                             </div>
                             <div style={{ marginBottom: '12px' }}>
-                              <strong>Traženo:</strong> {requestDetails.request.material} / {requestDetails.request.color} / {requestDetails.request.quantity_kg} kg
+                              <strong>Traženo:</strong>
+                              {currentGroup && currentGroup.requests.length > 1 ? (
+                                <div style={{ marginTop: '4px' }}>
+                                  {currentGroup.requests.map((r) => (
+                                    <div key={r.id}>
+                                      - {r.material} / {r.color} / {r.quantity_kg} kg
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span> {requestDetails.request.material} / {requestDetails.request.color} / {requestDetails.request.quantity_kg} kg</span>
+                              )}
                             </div>
                             {requestDetails.request.deadline && (
                               <div style={{ marginBottom: '12px' }}>
@@ -900,7 +1055,26 @@ const DobavljacMaterijalaPage = () => {
                             )}
                             <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'white', borderRadius: '6px' }}>
                               <strong>Dostupno kod mene:</strong>
-                              {requestDetails.available_inventory ? (
+                              {requestDetails.requests && requestDetails.requests.length > 0 ? (
+                                <div style={{ marginTop: '6px' }}>
+                                  {requestDetails.requests.map((r) => (
+                                    <div key={r.id}>
+                                      {r.material} / {r.color}:{' '}
+                                      {r.available_inventory
+                                        ? `${r.available_inventory.quantity_kg} kg`
+                                        : '0 kg'}
+                                      {!r.has_enough && (
+                                        <span style={{ color: '#ef4444', marginLeft: '8px' }}>— nema dovoljno</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {!requestDetails.bundle_has_enough && (
+                                    <div style={{ color: '#ef4444', marginTop: '8px' }}>
+                                      Nema dovoljno na stanju za sve stavke. Predloži izmenu količine ili rok.
+                                    </div>
+                                  )}
+                                </div>
+                              ) : requestDetails.available_inventory ? (
                                 <div>
                                   {requestDetails.request.material} / {requestDetails.request.color}: {requestDetails.available_inventory.quantity_kg} kg
                                   {!requestDetails.has_enough && (
@@ -959,6 +1133,16 @@ const DobavljacMaterijalaPage = () => {
                       {selectedRequest.status === 'in_progress' && (
                         <div>
                           <h3 style={{ marginBottom: '20px', color: 'var(--color-olive-dark)' }}>Pošalji proizvođaču</h3>
+                          {currentGroup && currentGroup.requests.length > 1 && (
+                            <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '8px', fontSize: '0.9rem' }}>
+                              <strong>Grupna pošiljka (ugovor na blockchainu):</strong>
+                              <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
+                                {currentGroup.requests.map((r) => (
+                                  <li key={r.id}>{r.material} / {r.color} / {r.quantity_kg} kg</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                             <div>
                               <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
@@ -973,11 +1157,12 @@ const DobavljacMaterijalaPage = () => {
                                 <option value="">Izaberi proizvođača...</option>
                                 {manufacturers.map((mfr) => (
                                   <option key={mfr.user_id} value={mfr.user_id}>
-                                    {mfr.full_name}
+                                    {mfr.full_name}{!mfr.wallet_address ? ' (nema wallet)' : ''}
                                   </option>
                                 ))}
                               </select>
                             </div>
+                            {(!currentGroup || currentGroup.requests.length <= 1) && (
                             <div>
                               <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
                                 Količina koju šaljem (kg)
@@ -991,6 +1176,7 @@ const DobavljacMaterijalaPage = () => {
                                 style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
                               />
                             </div>
+                            )}
                             <div>
                               <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
                                 Datum slanja

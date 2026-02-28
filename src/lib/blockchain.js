@@ -693,6 +693,272 @@ export const getMaterialRequestOnBlockchain = async (contractAddress, bundleId) 
   }
 }
 
+// ----- SupplierManufacturerContract (pošiljka dobavljač -> proizvođač) -----
+
+const SUPPLIER_MANUFACTURER_GAS_MULTIPLIER = 2n
+const SUPPLIER_MANUFACTURER_FALLBACK_GAS = 600000n
+
+const SUPPLIER_MANUFACTURER_ABI = [
+  {
+    inputs: [
+      { internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' },
+      { internalType: 'address', name: 'manufacturer', type: 'address' },
+      { internalType: 'bytes32', name: 'productModelId', type: 'bytes32' },
+      { internalType: 'bytes32[]', name: 'expectedMaterialHashes_', type: 'bytes32[]' },
+      {
+        components: [
+          { internalType: 'string', name: 'material', type: 'string' },
+          { internalType: 'string', name: 'color', type: 'string' },
+          { internalType: 'uint256', name: 'quantityKg', type: 'uint256' }
+        ],
+        internalType: 'struct SupplierManufacturerContract.ShipmentLine[]',
+        name: 'lines',
+        type: 'tuple[]'
+      }
+    ],
+    name: 'createShipment',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' }],
+    name: 'acceptShipment',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' },
+      { internalType: 'string', name: 'reason', type: 'string' }
+    ],
+    name: 'rejectShipment',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' }],
+    name: 'getShipment',
+    outputs: [
+      { internalType: 'address', name: 'supplier', type: 'address' },
+      { internalType: 'address', name: 'manufacturer', type: 'address' },
+      { internalType: 'bytes32', name: 'productModelId', type: 'bytes32' },
+      { internalType: 'uint8', name: 'status', type: 'uint8' },
+      { internalType: 'uint256', name: 'createdAt', type: 'uint256' },
+      { internalType: 'uint256', name: 'updatedAt', type: 'uint256' }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' }],
+    name: 'getShipmentLines',
+    outputs: [
+      {
+        components: [
+          { internalType: 'string', name: 'material', type: 'string' },
+          { internalType: 'string', name: 'color', type: 'string' },
+          { internalType: 'uint256', name: 'quantityKg', type: 'uint256' }
+        ],
+        internalType: 'struct SupplierManufacturerContract.ShipmentLine[]',
+        name: '',
+        type: 'tuple[]'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'string', name: 'materialName', type: 'string' }],
+    name: 'hashMaterialName',
+    outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
+    stateMutability: 'pure',
+    type: 'function'
+  }
+]
+
+/**
+ * shipmentId za ugovor = keccak256(bundleId) – isti princip kao za DesignerSupplier.
+ */
+export const shipmentIdFromBundleId = (bundleId) => {
+  return ethers.keccak256(ethers.toUtf8Bytes(bundleId))
+}
+
+/**
+ * productModelId (bytes32) za ugovor = keccak256(product_model UUID).
+ */
+export const productModelIdHash = (productModelUuid) => {
+  return ethers.keccak256(ethers.toUtf8Bytes(productModelUuid))
+}
+
+/**
+ * Kreira pošiljku na SupplierManufacturerContract (poziva dobavljač).
+ * @param {string} contractAddress Adresa SupplierManufacturerContract
+ * @param {string} bundleId UUID bundle-a (shipment_bundle_id)
+ * @param {string} manufacturerWallet Ethereum adresa proizvođača
+ * @param {string} productModelUuid UUID modela proizvoda
+ * @param {string[]} expectedMaterialHashes Niz bytes32 (hex) hashova imena materijala iz skice
+ * @param {Array<{ material: string, color: string, quantityKg: number }>} lines Linije pošiljke
+ */
+export const createShipmentOnBlockchain = async (
+  contractAddress,
+  bundleId,
+  manufacturerWallet,
+  productModelUuid,
+  expectedMaterialHashes,
+  lines
+) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`SupplierManufacturerContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, SUPPLIER_MANUFACTURER_ABI, signer)
+  const shipmentIdBytes32 = shipmentIdFromBundleId(bundleId)
+  const productModelIdBytes32 = productModelIdHash(productModelUuid)
+  const linesStruct = (lines || []).map((l) => ({
+    material: l.material || '',
+    color: l.color || '',
+    quantityKg: BigInt(l.quantityKg ?? l.quantity_kg ?? 0)
+  }))
+  const expectedHashes = (expectedMaterialHashes || []).map((h) => (typeof h === 'string' && h.startsWith('0x') ? h : ethers.keccak256(ethers.toUtf8Bytes(String(h)))))
+
+  let gasLimit
+  try {
+    const estimated = await contract.createShipment.estimateGas(
+      shipmentIdBytes32,
+      manufacturerWallet,
+      productModelIdBytes32,
+      expectedHashes,
+      linesStruct
+    )
+    gasLimit = estimated * SUPPLIER_MANUFACTURER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for createShipment, using fallback.', err)
+    gasLimit = SUPPLIER_MANUFACTURER_FALLBACK_GAS
+  }
+
+  const tx = await contract.createShipment(
+    shipmentIdBytes32,
+    manufacturerWallet,
+    productModelIdBytes32,
+    expectedHashes,
+    linesStruct,
+    { gasLimit }
+  )
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber, shipmentIdHex: shipmentIdBytes32 }
+}
+
+/**
+ * Proizvođač prihvata pošiljku; ugovor proverava da svi očekivani materijali iz skice postoje u pošiljci.
+ */
+export const acceptShipmentOnBlockchain = async (contractAddress, bundleId) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`SupplierManufacturerContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, SUPPLIER_MANUFACTURER_ABI, signer)
+  const shipmentIdBytes32 = typeof bundleId === 'string' && bundleId.startsWith('0x') ? bundleId : shipmentIdFromBundleId(bundleId)
+
+  let gasLimit
+  try {
+    const estimated = await contract.acceptShipment.estimateGas(shipmentIdBytes32)
+    gasLimit = estimated * SUPPLIER_MANUFACTURER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for acceptShipment, using fallback.', err)
+    gasLimit = SUPPLIER_MANUFACTURER_FALLBACK_GAS
+  }
+
+  const tx = await contract.acceptShipment(shipmentIdBytes32, { gasLimit })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
+}
+
+/**
+ * Proizvođač odbija pošiljku.
+ */
+export const rejectShipmentOnBlockchain = async (contractAddress, bundleId, reason) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('MetaMask nije instaliran')
+  }
+  await switchToSepolia()
+  await getCurrentMetaMaskAccount()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const signer = await provider.getSigner()
+
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') {
+    throw new Error(`SupplierManufacturerContract nije deploy-ovan na adresi ${contractAddress}`)
+  }
+
+  const contract = new ethers.Contract(contractAddress, SUPPLIER_MANUFACTURER_ABI, signer)
+  const shipmentIdBytes32 = typeof bundleId === 'string' && bundleId.startsWith('0x') ? bundleId : shipmentIdFromBundleId(bundleId)
+
+  let gasLimit
+  try {
+    const estimated = await contract.rejectShipment.estimateGas(shipmentIdBytes32, reason || '')
+    gasLimit = estimated * SUPPLIER_MANUFACTURER_GAS_MULTIPLIER
+  } catch (err) {
+    console.warn('[Blockchain] Gas estimation failed for rejectShipment, using fallback.', err)
+    gasLimit = SUPPLIER_MANUFACTURER_FALLBACK_GAS
+  }
+
+  const tx = await contract.rejectShipment(shipmentIdBytes32, reason || '', { gasLimit })
+  const receipt = await tx.wait()
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
+}
+
+/**
+ * Čita stanje pošiljke sa ugovora (0=None, 1=Created, 2=Accepted, 3=Rejected).
+ */
+export const getShipmentOnBlockchain = async (contractAddress, bundleId) => {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    return null
+  }
+  await switchToSepolia()
+
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const code = await provider.getCode(contractAddress)
+  if (code === '0x' || code === '0x0') return null
+
+  const contract = new ethers.Contract(contractAddress, SUPPLIER_MANUFACTURER_ABI, provider)
+  const shipmentIdBytes32 = typeof bundleId === 'string' && bundleId.startsWith('0x') ? bundleId : shipmentIdFromBundleId(bundleId)
+  const [supplier, manufacturer, productModelId, status, createdAt, updatedAt] = await contract.getShipment(shipmentIdBytes32)
+  const lines = await contract.getShipmentLines(shipmentIdBytes32)
+  return {
+    supplier,
+    manufacturer,
+    productModelId,
+    status: Number(status),
+    createdAt: Number(createdAt),
+    updatedAt: Number(updatedAt),
+    lines: lines.map((l) => ({ material: l.material, color: l.color, quantityKg: Number(l.quantityKg) }))
+  }
+}
+
 
 /**
  * Inventory Contract ABI

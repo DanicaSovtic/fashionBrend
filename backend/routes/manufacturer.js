@@ -146,6 +146,15 @@ router.get('/shipments/:id', requireAuth, requireRole(['proizvodjac']), async (r
       }
     }
 
+    if (data.shipment_bundle_id) {
+      const { data: bundleRows } = await adminSupabase
+        .from('material_shipments')
+        .select('id, material, color, quantity_kg, quantity_sent_kg, status')
+        .eq('shipment_bundle_id', data.shipment_bundle_id)
+        .eq('manufacturer_id', req.user.id)
+      data.bundle_shipments = bundleRows || []
+    }
+
     res.json({
       shipment: data
     })
@@ -181,8 +190,8 @@ router.patch('/shipments/:id/confirm', requireAuth, requireRole(['proizvodjac'])
       throw shipmentError
     }
 
-    // Ažuriraj status shipment-a na 'confirmed'
-    const { data: updatedShipment, error: updateError } = await adminSupabase
+    // Ako je pošiljka iz bundle-a (blockchain ili ručni insert), ažuriraj SVE redove u tom bundle-u
+    let query = adminSupabase
       .from('material_shipments')
       .update({
         status: 'confirmed',
@@ -190,9 +199,27 @@ router.patch('/shipments/:id/confirm', requireAuth, requireRole(['proizvodjac'])
         received_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
+      .eq('manufacturer_id', req.user.id)
+
+    if (shipment.contract_shipment_id_hex) {
+      query = query.eq('contract_shipment_id_hex', shipment.contract_shipment_id_hex)
+    } else if (shipment.shipment_bundle_id) {
+      query = query.eq('shipment_bundle_id', shipment.shipment_bundle_id)
+    } else {
+      query = query.eq('id', id)
+    }
+
+    const { error: updateError } = await query
+
+    if (updateError) {
+      throw updateError
+    }
+
+    const { data: updatedShipment } = await adminSupabase
+      .from('material_shipments')
+      .select('*')
       .eq('id', id)
       .eq('manufacturer_id', req.user.id)
-      .select()
       .single()
 
     if (updateError) {

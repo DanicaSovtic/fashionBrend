@@ -5,6 +5,7 @@
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { createAdminClient } from '../services/supabaseClient.js'
+import { parseMaterials } from '../utils/materialParser.js'
 
 const router = Router()
 const adminSupabase = createAdminClient()
@@ -227,12 +228,17 @@ router.get('/requests', requireAuth, requireRole(['dobavljac_materijala']), asyn
       throw error
     }
 
-    // Izračunaj KPI-ove
+    // Izračunaj KPI-ove: grupisano po bundle-u (jedan grupni zahtev = jedan broj)
+    const countUniqueRequests = (rows, statusFilter) => {
+      const byStatus = (rows || []).filter(r => r.status === statusFilter)
+      const groupKeys = new Set(byStatus.map(r => r.request_bundle_id || r.id))
+      return groupKeys.size
+    }
     const kpis = {
-      new: data?.filter(r => r.status === 'new').length || 0,
-      in_progress: data?.filter(r => r.status === 'in_progress').length || 0,
-      sent: data?.filter(r => r.status === 'sent').length || 0,
-      completed: data?.filter(r => r.status === 'completed').length || 0
+      new: countUniqueRequests(data, 'new'),
+      in_progress: countUniqueRequests(data, 'in_progress'),
+      sent: countUniqueRequests(data, 'sent'),
+      completed: countUniqueRequests(data, 'completed')
     }
 
     res.json({
@@ -242,6 +248,81 @@ router.get('/requests', requireAuth, requireRole(['dobavljac_materijala']), asyn
     })
   } catch (error) {
     console.error('[Supplier] Error fetching requests:', error)
+    next(error)
+  }
+})
+
+/**
+ * GET /api/supplier/requests/bundle/:bundleId
+ * Detalji bundle-a (svi redovi + contract_address za blockchain prihvatanje)
+ */
+router.get('/requests/bundle/:bundleId', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { bundleId } = req.params
+    const { data: rows, error } = await adminSupabase
+      .from('material_requests')
+      .select(`
+        *,
+        requested_by_profile:profiles!material_requests_requested_by_fkey(full_name, role),
+        product_model:product_models(name, sku),
+        collection:collections(name, season)
+      `)
+      .eq('request_bundle_id', bundleId)
+      .eq('supplier_id', req.user.id)
+    if (error || !rows || rows.length === 0) {
+      res.status(404).json({ error: 'Bundle nije pronađen' })
+      return
+    }
+
+    // Za svaki red u bundle-u: dostupna količina (zbir zaliha − poslato) i da li ima dovoljno
+    const requestsWithAvailability = await Promise.all(rows.map(async (r) => {
+      const { data: inventoryRows } = await adminSupabase
+        .from('inventory_items')
+        .select('quantity_kg, price_per_kg')
+        .eq('supplier_id', req.user.id)
+        .eq('status', 'active')
+        .ilike('material', `%${String(r.material || '').toLowerCase()}%`)
+        .ilike('color', `%${String(r.color || '').toLowerCase()}%`)
+
+      const totalInInventory = (inventoryRows || []).reduce((sum, row) => sum + (Number(row.quantity_kg) || 0), 0)
+
+      const { data: shipments } = await adminSupabase
+        .from('material_shipments')
+        .select('quantity_sent_kg')
+        .eq('supplier_id', req.user.id)
+        .ilike('material', `%${String(r.material || '').toLowerCase()}%`)
+        .ilike('color', `%${String(r.color || '').toLowerCase()}%`)
+
+      const totalSent = (shipments || []).reduce((sum, row) => sum + (Number(row.quantity_sent_kg) || 0), 0)
+      const totalAvailable = Math.max(0, totalInInventory - totalSent)
+      const available_inventory = totalAvailable >= 0
+        ? { quantity_kg: totalAvailable, price_per_kg: inventoryRows?.[0]?.price_per_kg }
+        : null
+      const has_enough = totalAvailable >= (r.quantity_kg || 0)
+      return { ...r, available_inventory, has_enough }
+    }))
+
+    const bundle_has_enough = requestsWithAvailability.every(r => r.has_enough)
+    const first = requestsWithAvailability[0]
+    const request = first ? {
+      ...first,
+      model_name: first.product_model?.name || first.model_name,
+      model_sku: first.product_model?.sku || first.model_sku
+    } : null
+
+    res.json({
+      bundle_id: bundleId,
+      requests: requestsWithAvailability,
+      request,
+      contract_address: first?.contract_address || null,
+      contract_request_id_hex: first?.contract_request_id_hex || null,
+      fund_tx_hash: first?.fund_tx_hash || null,
+      available_inventory: first?.available_inventory ?? null,
+      has_enough: bundle_has_enough,
+      bundle_has_enough
+    })
+  } catch (error) {
+    console.error('[Supplier] Error fetching bundle:', error)
     next(error)
   }
 })
@@ -279,9 +360,9 @@ router.get('/requests/:id', requireAuth, requireRole(['dobavljac_materijala']), 
       .from('inventory_items')
       .select('quantity_kg, price_per_kg')
       .eq('supplier_id', req.user.id)
-      .eq('material', data.material)
-      .eq('color', data.color)
       .eq('status', 'active')
+      .ilike('material', `%${String(data.material || '').toLowerCase()}%`)
+      .ilike('color', `%${String(data.color || '').toLowerCase()}%`)
 
     const totalInInventory = (inventoryRows || []).reduce((sum, row) => sum + (Number(row.quantity_kg) || 0), 0)
 
@@ -289,8 +370,8 @@ router.get('/requests/:id', requireAuth, requireRole(['dobavljac_materijala']), 
       .from('material_shipments')
       .select('quantity_sent_kg')
       .eq('supplier_id', req.user.id)
-      .eq('material', data.material)
-      .eq('color', data.color)
+      .ilike('material', `%${String(data.material || '').toLowerCase()}%`)
+      .ilike('color', `%${String(data.color || '').toLowerCase()}%`)
 
     const totalSent = (shipments || []).reduce((sum, row) => sum + (Number(row.quantity_sent_kg) || 0), 0)
     const totalAvailable = Math.max(0, totalInInventory - totalSent)
@@ -305,6 +386,108 @@ router.get('/requests/:id', requireAuth, requireRole(['dobavljac_materijala']), 
     })
   } catch (error) {
     console.error('[Supplier] Error fetching request details:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/supplier/requests/bundle/:bundleId/confirm-accepted
+ * Nakon acceptRequest na blockchainu: provera zaliha, umanjenje, status in_progress.
+ * Body: { tx_hash }
+ */
+router.post('/requests/bundle/:bundleId/confirm-accepted', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { bundleId } = req.params
+    const { tx_hash } = req.body
+
+    if (!bundleId) {
+      res.status(400).json({ error: 'bundleId je obavezan' })
+      return
+    }
+
+    const { data: bundleRows, error: fetchErr } = await adminSupabase
+      .from('material_requests')
+      .select('id, material, color, quantity_kg')
+      .eq('request_bundle_id', bundleId)
+      .eq('supplier_id', req.user.id)
+
+    if (fetchErr || !bundleRows || bundleRows.length === 0) {
+      res.status(404).json({ error: 'Bundle nije pronađen ili vam ne pripada' })
+      return
+    }
+
+    const byKey = {}
+    for (const r of bundleRows) {
+      const key = `${r.material}|${r.color}`
+      byKey[key] = (byKey[key] || 0) + (parseFloat(r.quantity_kg) || 0)
+    }
+
+    for (const key of Object.keys(byKey)) {
+      const [material, color] = key.split('|')
+      const matNorm = String(material || '').toLowerCase()
+      const colorNorm = String(color || '').toLowerCase()
+      const required = byKey[key]
+      const { data: invRows } = await adminSupabase
+        .from('inventory_items')
+        .select('id, quantity_kg')
+        .eq('supplier_id', req.user.id)
+        .eq('status', 'active')
+        .ilike('material', `%${matNorm}%`)
+        .ilike('color', `%${colorNorm}%`)
+        .order('created_at', { ascending: true })
+      const totalAvailable = (invRows || []).reduce((s, row) => s + (parseFloat(row.quantity_kg) || 0), 0)
+      if (totalAvailable < required) {
+        res.status(400).json({
+          error: `Nedovoljno zaliha za ${material} / ${color}. Potrebno: ${required} kg, dostupno: ${totalAvailable} kg`
+        })
+        return
+      }
+    }
+
+    for (const key of Object.keys(byKey)) {
+      const [material, color] = key.split('|')
+      const matNorm = String(material || '').toLowerCase()
+      const colorNorm = String(color || '').toLowerCase()
+      let remaining = byKey[key]
+      const { data: invRows } = await adminSupabase
+        .from('inventory_items')
+        .select('id, quantity_kg')
+        .eq('supplier_id', req.user.id)
+        .eq('status', 'active')
+        .ilike('material', `%${matNorm}%`)
+        .ilike('color', `%${colorNorm}%`)
+        .order('created_at', { ascending: true })
+      for (const row of invRows || []) {
+        if (remaining <= 0) break
+        const qty = parseFloat(row.quantity_kg) || 0
+        const subtract = Math.min(qty, remaining)
+        const newQty = Math.max(0, qty - subtract)
+        remaining -= subtract
+        await adminSupabase
+          .from('inventory_items')
+          .update({ quantity_kg: newQty, updated_at: new Date().toISOString() })
+          .eq('id', row.id)
+      }
+    }
+
+    const { error: updateErr } = await adminSupabase
+      .from('material_requests')
+      .update({
+        status: 'in_progress',
+        updated_at: new Date().toISOString()
+      })
+      .eq('request_bundle_id', bundleId)
+      .eq('supplier_id', req.user.id)
+
+    if (updateErr) throw updateErr
+
+    res.json({
+      success: true,
+      message: 'Zahtev je prihvaćen i zalihe su umanjene.',
+      tx_hash: tx_hash || null
+    })
+  } catch (error) {
+    console.error('[Supplier] Error confirm-accepted:', error)
     next(error)
   }
 })
@@ -726,6 +909,164 @@ router.post('/requests/:id/send-to-manufacturer', requireAuth, requireRole(['dob
 })
 
 /**
+ * POST /api/supplier/requests/bundle/:bundleId/send-to-manufacturer
+ * Priprema podatke za createShipment na blockchainu (bundle = više materijala u jednoj pošiljci).
+ * Body: { manufacturer_id, shipping_date, tracking_number }
+ * Vraća: shipmentId (za frontend = bundleId), manufacturer_wallet, product_model_id, expectedMaterialNames, lines.
+ */
+router.post('/requests/bundle/:bundleId/send-to-manufacturer', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { bundleId } = req.params
+    const { manufacturer_id, shipping_date, tracking_number } = req.body
+
+    if (!manufacturer_id) {
+      res.status(400).json({ error: 'manufacturer_id je obavezan' })
+      return
+    }
+
+    const { data: rows, error: bundleError } = await adminSupabase
+      .from('material_requests')
+      .select('*')
+      .eq('request_bundle_id', bundleId)
+      .eq('supplier_id', req.user.id)
+      .eq('status', 'in_progress')
+
+    if (bundleError || !rows || rows.length === 0) {
+      res.status(404).json({ error: 'Bundle nije pronađen ili nije u statusu U toku' })
+      return
+    }
+
+    const { data: manufacturer } = await adminSupabase
+      .from('profiles')
+      .select('user_id, full_name, wallet_address')
+      .eq('user_id', manufacturer_id)
+      .eq('role', 'proizvodjac')
+      .single()
+
+    if (!manufacturer || !manufacturer.wallet_address) {
+      res.status(400).json({ error: 'Proizvođač nije pronađen ili nema podešen wallet (wallet_address u profilu)' })
+      return
+    }
+
+    const productModelId = rows[0].product_model_id
+    const { data: model } = await adminSupabase
+      .from('product_models')
+      .select('materials')
+      .eq('id', productModelId)
+      .single()
+
+    const expectedMaterialNames = (parseMaterials(model?.materials || '') || []).map((m) => (m.name || '').trim()).filter(Boolean)
+    if (expectedMaterialNames.length === 0) {
+      res.status(400).json({ error: 'Model proizvoda nema definisane materijale u skici (product_models.materials)' })
+      return
+    }
+
+    const lines = rows.map((r) => ({
+      material: r.material || '',
+      color: r.color || '',
+      quantityKg: Number(r.quantity_kg) || 0
+    }))
+
+    res.json({
+      bundle_id: bundleId,
+      manufacturer_wallet: manufacturer.wallet_address,
+      product_model_id: productModelId,
+      expectedMaterialNames,
+      lines,
+      shipping_date: shipping_date || new Date().toISOString().split('T')[0],
+      tracking_number: tracking_number || null
+    })
+  } catch (error) {
+    console.error('[Supplier] Error preparing send-to-manufacturer:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/supplier/requests/bundle/:bundleId/confirm-shipment-sent
+ * Nakon uspešnog createShipment na blockchainu: upis u material_shipments i status sent.
+ * Body: { tx_hash, shipment_id_hex, manufacturer_id, shipping_date?, tracking_number? }
+ */
+router.post('/requests/bundle/:bundleId/confirm-shipment-sent', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { bundleId } = req.params
+    const { tx_hash, shipment_id_hex, manufacturer_id, shipping_date, tracking_number } = req.body
+    const contractAddress = process.env.SUPPLIER_MANUFACTURER_CONTRACT
+
+    if (!contractAddress) {
+      res.status(500).json({ error: 'SUPPLIER_MANUFACTURER_CONTRACT nije podešen u .env' })
+      return
+    }
+
+    const { data: rows, error: bundleError } = await adminSupabase
+      .from('material_requests')
+      .select('*')
+      .eq('request_bundle_id', bundleId)
+      .eq('supplier_id', req.user.id)
+      .eq('status', 'in_progress')
+
+    if (bundleError || !rows || rows.length === 0) {
+      res.status(404).json({ error: 'Bundle nije pronađen ili nije u statusu U toku' })
+      return
+    }
+
+    if (!manufacturer_id) {
+      res.status(400).json({ error: 'manufacturer_id je obavezan u body' })
+      return
+    }
+
+    const shippingDate = shipping_date || new Date().toISOString().split('T')[0]
+
+    const inserted = []
+    for (const r of rows) {
+      const { data: one, error: insertErr } = await adminSupabase.from('material_shipments').insert({
+        material_request_id: r.id,
+        product_model_id: r.product_model_id,
+        collection_id: r.collection_id,
+        supplier_id: req.user.id,
+        manufacturer_id: manufacturer_id,
+        model_name: r.model_name,
+        model_sku: r.model_sku,
+        material: r.material,
+        color: r.color,
+        quantity_kg: r.quantity_kg,
+        quantity_sent_kg: r.quantity_kg,
+        shipping_date: shippingDate,
+        tracking_number: tracking_number || null,
+        status: 'sent_to_manufacturer',
+        contract_address: contractAddress,
+        contract_shipment_id_hex: shipment_id_hex || null,
+        shipment_bundle_id: bundleId
+      }).select('id').single()
+
+      if (insertErr) {
+        console.error('[Supplier] confirm-shipment-sent insert error:', insertErr)
+        res.status(500).json({
+          error: 'Greška pri upisu pošiljke u bazu. Proveri da li je migracija add_supplier_manufacturer_contract_fields.sql pokrenuta i da li manufacturer_id postoji u profiles.',
+          details: insertErr.message
+        })
+        return
+      }
+      inserted.push(one)
+    }
+
+    await adminSupabase
+      .from('material_requests')
+      .update({ status: 'sent', updated_at: new Date().toISOString() })
+      .eq('request_bundle_id', bundleId)
+      .eq('supplier_id', req.user.id)
+
+    res.json({
+      success: true,
+      message: 'Pošiljka je zabeležena. Proizvođač može da prihvati na blockchainu.'
+    })
+  } catch (error) {
+    console.error('[Supplier] Error confirming shipment sent:', error)
+    next(error)
+  }
+})
+
+/**
  * GET /api/supplier/manufacturers
  * Dobija listu proizvođača
  */
@@ -747,7 +1088,7 @@ router.get('/manufacturers', requireAuth, requireRole(['dobavljac_materijala']),
     // Pokušaj sa različitim varijantama role-a
     const { data: data1, error: error1 } = await adminSupabase
       .from('profiles')
-      .select('user_id, full_name, role')
+      .select('user_id, full_name, role, wallet_address')
       .eq('role', 'proizvodjac')
       .order('full_name', { ascending: true })
     
@@ -759,7 +1100,7 @@ router.get('/manufacturers', requireAuth, requireRole(['dobavljac_materijala']),
       console.log('[Supplier] No results with exact match, trying case-insensitive...')
       const { data: data2, error: error2 } = await adminSupabase
         .from('profiles')
-        .select('user_id, full_name, role')
+        .select('user_id, full_name, role, wallet_address')
         .order('full_name', { ascending: true })
       
       if (!error2 && data2) {

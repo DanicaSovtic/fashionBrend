@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Navbar from './Navbar'
 import { formatMaterialsForDisplay } from '../utils/materialParser'
+import { acceptShipmentOnBlockchain } from '../lib/blockchain'
 import './DesignerCollectionsPage.css'
 
 const ProizvodnjaPage = () => {
@@ -49,7 +50,14 @@ const ProizvodnjaPage = () => {
     completed_orders: 0
   })
 
-  // Učitaj kolekcije
+  const [blockchainConfig, setBlockchainConfig] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/config/blockchain')
+      .then((res) => res.json())
+      .then(setBlockchainConfig)
+      .catch(() => setBlockchainConfig({}))
+  }, [])
   useEffect(() => {
     const fetchCollections = async () => {
       try {
@@ -231,6 +239,15 @@ const ProizvodnjaPage = () => {
 
     try {
       const token = localStorage.getItem('auth_access_token')
+
+      // Ako je pošiljka vezana za blockchain ugovor, prvo prihvati na lancu (ugovor poredi skicu i materijale)
+      if (shipmentDetails?.contract_address && shipmentDetails?.shipment_bundle_id && blockchainConfig?.supplierManufacturerContract) {
+        await acceptShipmentOnBlockchain(
+          shipmentDetails.contract_address,
+          shipmentDetails.shipment_bundle_id
+        )
+      }
+
       const res = await fetch(`/api/manufacturer/shipments/${selectedShipment.id}/confirm`, {
         method: 'PATCH',
         headers: {
@@ -359,6 +376,7 @@ const ProizvodnjaPage = () => {
         alert('URL dokaza (slika/dokument) je obavezan da biste završili šivenje.')
         return
       }
+
       const token = localStorage.getItem('auth_access_token')
       const res = await fetch(`/api/manufacturer/sewing-orders/${orderId}/complete`, {
         method: 'PATCH',
@@ -453,6 +471,20 @@ const ProizvodnjaPage = () => {
     }
     return colors[status] || '#6b7280'
   }
+
+  const groupedShipments = useMemo(() => {
+    if (!shipments || shipments.length === 0) return []
+    const byBundle = {}
+    for (const s of shipments) {
+      const key = s.shipment_bundle_id || s.id
+      if (!byBundle[key]) {
+        byBundle[key] = { representative: s, all: [s] }
+      } else {
+        byBundle[key].all.push(s)
+      }
+    }
+    return Object.values(byBundle)
+  }, [shipments])
 
   if (loading || isLoadingShipments) {
     return (
@@ -606,39 +638,41 @@ const ProizvodnjaPage = () => {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {shipments.map((shipment) => (
+                    {groupedShipments.map((group) => (
                       <button
-                        key={shipment.id}
-                        onClick={() => setSelectedShipment(shipment)}
+                        key={group.representative.id}
+                        onClick={() => setSelectedShipment(group.representative)}
                         style={{
                           padding: '12px',
-                          border: selectedShipment?.id === shipment.id ? '2px solid var(--color-olive)' : '1px solid #ddd',
+                          border: selectedShipment?.id === group.representative.id ? '2px solid var(--color-olive)' : '1px solid #ddd',
                           borderRadius: '8px',
-                          background: selectedShipment?.id === shipment.id ? '#f5f7f0' : 'white',
+                          background: selectedShipment?.id === group.representative.id ? '#f5f7f0' : 'white',
                           cursor: 'pointer',
                           textAlign: 'left'
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '4px' }}>
-                          <strong>{shipment.model_name || shipment.model_sku || 'Bez naziva'}</strong>
+                          <strong>{group.representative.model_name || group.representative.model_sku || 'Bez naziva'}</strong>
                           <span
                             style={{
                               padding: '2px 8px',
                               borderRadius: '999px',
                               fontSize: '0.75rem',
                               fontWeight: '600',
-                              backgroundColor: getStatusColor(shipment.status) + '20',
-                              color: getStatusColor(shipment.status)
+                              backgroundColor: getStatusColor(group.representative.status) + '20',
+                              color: getStatusColor(group.representative.status)
                             }}
                           >
-                            {getStatusLabel(shipment.status)}
+                            {getStatusLabel(group.representative.status)}
                           </span>
                         </div>
                         <div className="designer-muted" style={{ fontSize: '0.85rem' }}>
-                          {shipment.material} / {shipment.color} / {shipment.quantity_sent_kg} kg
+                          {group.all.length > 1
+                            ? group.all.map((s) => `${s.material} / ${s.color} / ${s.quantity_sent_kg} kg`).join(' • ')
+                            : `${group.representative.material} / ${group.representative.color} / ${group.representative.quantity_sent_kg} kg`}
                         </div>
                         <div className="designer-muted" style={{ fontSize: '0.8rem', marginTop: '4px' }}>
-                          Od: {shipment.supplier_profile?.full_name || 'Dobavljač'}
+                          Od: {group.representative.supplier_profile?.full_name || 'Dobavljač'}
                         </div>
                       </button>
                     ))}
@@ -728,15 +762,20 @@ const ProizvodnjaPage = () => {
                     )}
 
                     <h3 style={{ marginBottom: '20px' }}>Detalji pošiljke</h3>
+                    {shipmentDetails.contract_address && (
+                      <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', borderRadius: '8px', fontSize: '0.9rem' }}>
+                        Ova pošiljka je vezana za pametni ugovor. Pri potvrdi prijema potpisujete transakciju u MetaMask-u; ugovor proverava da svi materijali iz skice zaista pristižu.
+                      </div>
+                    )}
                     <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
                       <div style={{ marginBottom: '12px' }}>
                         <strong>Model/SKU:</strong> {shipmentDetails.model_name} ({shipmentDetails.model_sku})
                       </div>
                       <div style={{ marginBottom: '12px' }}>
-                        <strong>Materijal:</strong> {shipmentDetails.material} / {shipmentDetails.color} / {shipmentDetails.quantity_sent_kg} kg
-                      </div>
-                      <div style={{ marginBottom: '12px' }}>
-                        <strong>Traženo:</strong> {shipmentDetails.quantity_kg} kg
+                        <strong>Materijal{shipmentDetails.bundle_shipments?.length > 1 ? 'i' : ''}:</strong>{' '}
+                        {shipmentDetails.bundle_shipments?.length > 1
+                          ? shipmentDetails.bundle_shipments.map((s) => `${s.material} / ${s.color} / ${s.quantity_sent_kg} kg`).join(' • ')
+                          : `${shipmentDetails.material} / ${shipmentDetails.color} / ${shipmentDetails.quantity_sent_kg} kg`}
                       </div>
                       <div style={{ marginBottom: '12px' }}>
                         <strong>Dobavljač:</strong> {shipmentDetails.supplier_profile?.full_name}
