@@ -36,6 +36,7 @@ import ProizvodnjaPage from './components/ProizvodnjaPage'
 import RacunovodjaPage from './components/RacunovodjaPage'
 import LoyaltyClubPage from './components/LoyaltyClubPage'
 import MarketingLoyaltyPage from './components/MarketingLoyaltyPage'
+import ProcessDiagramsPage from './components/ProcessDiagramsPage'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/AuthContext'
 
@@ -380,6 +381,10 @@ const AppRoutes = () => {
                 <Navigate to="/" replace />
               )
             }
+          />
+          <Route
+            path="/procesi"
+            element={<ProcessDiagramsPage />}
           />
           <Route
             path="/marketing/loyalty"

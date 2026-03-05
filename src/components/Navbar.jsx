@@ -230,6 +230,14 @@ const Navbar = ({ activePath }) => {
                       Analitika
                     </Link>
                   </li>
+                  <li className="navbar-item">
+                    <Link
+                      to="/procesi"
+                      className={`navbar-link ${isActive('/procesi') ? 'active' : ''}`}
+                    >
+                      Procesi
+                    </Link>
+                  </li>
                   <li className="navbar-item navbar-dropdown">
                     <span
                       className={`navbar-link navbar-dropdown-toggle ${isUsersActive ? 'active' : ''}`}
