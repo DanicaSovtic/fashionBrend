@@ -14,6 +14,115 @@ import {
 } from '../lib/blockchain'
 import { parseMaterials } from '../utils/materialParser'
 
+// Jednostavan katalog materijala na frontendu – koristi se samo za prikaz
+// Grupisan je u 5 grupa, a sastavi su tekstualni i NE menjaju postojeći format u bazi / smart ugovorima.
+const MATERIAL_GROUPS = [
+  {
+    code: 'POLYESTER',
+    name: 'Poliester i mešavine sa poliesterom',
+    items: [
+      { name: 'Barbi', composition: '95% poliester / 5% elastan' },
+      { name: 'Barbie crepe', composition: '95% poliester / 5% elastan' },
+      { name: 'Puntoroma', composition: '60% poliester / 35% viskoza / 5% elastan' },
+      { name: 'Ponte Roma', composition: '60% poliester / 35% viskoza / 5% elastan' },
+      { name: 'Somot', composition: '100% poliester' },
+      { name: 'Saten', composition: '100% poliester' },
+      { name: 'Šifon', composition: '100% poliester' },
+      { name: 'Krep', composition: '95% poliester / 5% elastan' },
+      { name: 'Krep saten', composition: '95% poliester / 5% elastan' },
+      { name: 'Mikado', composition: '100% poliester' },
+      { name: 'Til', composition: '100% poliester' },
+      { name: 'Mreža', composition: '100% poliester' },
+      { name: 'Scuba', composition: '95% poliester / 5% elastan' },
+      { name: 'Gabardin', composition: '65% poliester / 35% viskoza' },
+      { name: 'Keper', composition: '70% poliester / 30% viskoza' },
+      { name: 'Twill', composition: '70% poliester / 30% viskoza' },
+      { name: 'Taft', composition: '100% poliester' },
+      { name: 'Plisirana sintetika', composition: '100% poliester' }
+    ]
+  },
+  {
+    code: 'COTTON',
+    name: 'Pamuk i pamučne mešavine',
+    items: [
+      { name: 'Pamučni keper', composition: '98% pamuk / 2% elastan' },
+      { name: 'Pamučni saten', composition: '97% pamuk / 3% elastan' },
+      { name: 'Sateen', composition: '97% pamuk / 3% elastan' },
+      { name: 'Poplin', composition: '100% pamuk' },
+      { name: 'Batist', composition: '100% pamuk' },
+      { name: 'Muslin', composition: '100% pamuk' },
+      { name: 'Gaz', composition: '100% pamuk' },
+      { name: 'Pamučni somot', composition: '100% pamuk' },
+      { name: 'Denim', composition: '98% pamuk / 2% elastan' },
+      { name: 'Broderie anglaise', composition: '100% pamuk' },
+      { name: 'Vez na pamuku', composition: '100% pamuk' },
+      { name: 'Rebrasti pamuk', composition: '95% pamuk / 5% elastan' },
+      { name: 'Single jersey pamuk', composition: '95% pamuk / 5% elastan' },
+      { name: 'Cotton lycra', composition: '95% pamuk / 5% elastan' }
+    ]
+  },
+  {
+    code: 'VISCOSE',
+    name: 'Viskoza / rayon i njihove mešavine',
+    items: [
+      { name: 'Viskozni keper', composition: '100% viskoza' },
+      { name: 'Viskozni krep', composition: '100% viskoza' },
+      { name: 'Viskozni saten', composition: '100% viskoza' },
+      { name: 'Viskozni jersey', composition: '95% viskoza / 5% elastan' },
+      { name: 'Viskoza + elastan', composition: '95% viskoza / 5% elastan' },
+      { name: 'Viskoza + poliester', composition: '70% viskoza / 30% poliester' },
+      { name: 'Puntoroma', composition: '60% poliester / 35% viskoza / 5% elastan' }
+    ]
+  },
+  {
+    code: 'ELASTANE',
+    name: 'Elastan / likra grupe',
+    items: [
+      { name: 'Vodena likra', composition: '80% poliamid / 20% elastan' },
+      { name: 'Mat likra', composition: '90% poliester / 10% elastan' },
+      { name: 'Sjajna likra', composition: '85% poliester / 15% elastan' },
+      { name: 'Mrežica sa elastanom', composition: '90% poliester / 10% elastan' },
+      { name: 'Pamuk likra', composition: '95% pamuk / 5% elastan' },
+      { name: 'Poliester likra', composition: '92% poliester / 8% elastan' },
+      { name: 'Viskoza likra', composition: '95% viskoza / 5% elastan' },
+      { name: 'Scuba sa elastanom', composition: '95% poliester / 5% elastan' }
+    ]
+  },
+  {
+    code: 'SATIN',
+    name: 'Sateni',
+    items: [
+      { name: 'Poliesterski saten', composition: '100% poliester' },
+      { name: 'Svilen saten', composition: '100% svila' },
+      { name: 'Viskozni saten', composition: '100% viskoza' },
+      { name: 'Pamučni saten', composition: '97% pamuk / 3% elastan' },
+      { name: 'Elastični saten', composition: '95% poliester / 5% elastan' },
+      { name: 'Duchess saten', composition: '100% poliester' },
+      { name: 'Krep saten', composition: '95% poliester / 5% elastan' },
+      { name: 'Ruski saten', composition: '100% poliester' },
+      { name: 'Američki saten', composition: '95% poliester / 5% elastan' }
+    ]
+  }
+]
+
+const findMaterialInfo = (rawName) => {
+  if (!rawName) return null
+  const name = rawName.toLowerCase().trim()
+  for (const group of MATERIAL_GROUPS) {
+    for (const item of group.items) {
+      if (item.name.toLowerCase() === name || name.includes(item.name.toLowerCase()) || item.name.toLowerCase().includes(name)) {
+        return {
+          groupCode: group.code,
+          groupName: group.name,
+          materialName: item.name,
+          composition: item.composition
+        }
+      }
+    }
+  }
+  return null
+}
+
 const RazvojModelaPage = () => {
   const navigate = useNavigate()
   const { user, profile, loading } = useAuth()
@@ -45,7 +154,7 @@ const RazvojModelaPage = () => {
   })
   // Lista materijala u jednom zahtevu (bundle)
   const [requestMaterials, setRequestMaterials] = useState([
-    { material: '', color: '', quantity_kg: '' }
+    { material: '', color: '', quantity_kg: '', quantity_unit: 'kg', materialGroupCode: '', materialComposition: '', useCustomMaterial: false }
   ])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -337,17 +446,33 @@ const RazvojModelaPage = () => {
       const parsed = parseMaterials(String(model.materials))
       if (parsed.length > 0) {
         setRequestMaterials(
-          parsed.map((m) => ({
-            material: m.name, // npr. "Lan", "Pamuk"
-            color: '',
-            quantity_kg: ''
-          }))
+          parsed.map((m) => {
+            const rawName = m.name || ''
+            const info = findMaterialInfo(rawName)
+            const normalizedRaw = rawName.toLowerCase().trim()
+
+            const exactCatalogItem = info
+              ? MATERIAL_GROUPS.find((g) => g.code === info.groupCode)?.items?.find(
+                  (it) => it.name.toLowerCase() === normalizedRaw
+                ) || null
+              : null
+
+            return {
+              material: rawName, // ostavljamo originalni naziv iz skice (ne menjamo ga ako nije 1:1)
+              color: '',
+              quantity_kg: '',
+              quantity_unit: 'kg',
+              materialGroupCode: info?.groupCode || '',
+              materialComposition: exactCatalogItem?.composition || '',
+              useCustomMaterial: exactCatalogItem ? false : true
+            }
+          })
         )
       } else {
-        setRequestMaterials([{ material: '', color: '', quantity_kg: '' }])
+        setRequestMaterials([{ material: '', color: '', quantity_kg: '', quantity_unit: 'kg', materialGroupCode: '', materialComposition: '', useCustomMaterial: false }])
       }
     } else {
-      setRequestMaterials([{ material: '', color: '', quantity_kg: '' }])
+      setRequestMaterials([{ material: '', color: '', quantity_kg: '', quantity_unit: 'kg', materialGroupCode: '', materialComposition: '', useCustomMaterial: false }])
     }
     setRequestForm({
       deadline: '',
@@ -364,7 +489,8 @@ const RazvojModelaPage = () => {
       .map((m) => ({
         material: m.material.trim(),
         color: m.color.trim(),
-        quantity_kg: m.quantity_kg
+        quantity_kg: m.quantity_kg,
+        quantity_unit: m.quantity_unit || 'kg'
       }))
       .filter((m) => m.material || m.color || m.quantity_kg)
 
@@ -375,12 +501,12 @@ const RazvojModelaPage = () => {
 
     for (const m of filledMaterials) {
       if (!m.material || !m.color || !m.quantity_kg) {
-        alert('Za svaki materijal morate uneti naziv, boju i količinu (kg).')
+        alert('Za svaki materijal morate uneti naziv, boju i količinu.')
         return
       }
       const qty = parseFloat(m.quantity_kg)
       if (Number.isNaN(qty) || qty <= 0) {
-        alert('Količina (kg) mora biti pozitivan broj.')
+        alert('Količina mora biti pozitivan broj.')
         return
       }
     }
@@ -408,7 +534,12 @@ const RazvojModelaPage = () => {
           materials: filledMaterials.map((m) => ({
             material: m.material,
             color: m.color,
-            quantity_kg: parseFloat(m.quantity_kg)
+            // Backend trenutno računa samo preko quantity_kg.
+            // Za prvu fazu broj koji korisnik unese koristimo i kao kg i kao m,
+            // a dodatno šaljemo unit i quantity_m da backend može kasnije da ih koristi.
+            quantity_kg: parseFloat(m.quantity_kg),
+            quantity_unit: m.quantity_unit || 'kg',
+            quantity_m: (m.quantity_unit || 'kg') === 'm' ? parseFloat(m.quantity_kg) : null
           }))
         })
       })
@@ -468,7 +599,9 @@ const RazvojModelaPage = () => {
       alert('Zahtev je uspešno poslat i zabeležen na blockchainu!')
       setShowRequestModal(false)
       setSelectedModel(null)
-      setRequestMaterials([{ material: '', color: '', quantity_kg: '' }])
+      setRequestMaterials([
+        { material: '', color: '', quantity_kg: '', quantity_unit: 'kg', materialGroupCode: '', materialComposition: '', useCustomMaterial: false }
+      ])
       await fetchModels()
       await fetchRequests()
     } catch (error) {
@@ -769,7 +902,10 @@ const RazvojModelaPage = () => {
                         )}
                       </td>
                       <td style={{ padding: '10px' }}>
-                        {req.material} / {req.color} / {req.quantity_kg} kg
+                        {req.material} / {req.color}{' '}
+                        {req.quantity_kg != null && (
+                          <>/ {req.quantity_kg} {req.quantity_unit || 'kg'}</>
+                        )}
                       </td>
                       <td style={{ padding: '10px' }}>
                         {req.supplier_profile?.full_name || 'Nije dodeljen'}
@@ -1095,68 +1231,181 @@ const RazvojModelaPage = () => {
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {requestMaterials.map((row, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '2fr 2fr 1fr auto',
-                          gap: '8px',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <input
-                          type="text"
-                          value={row.material}
-                          onChange={(e) => {
-                            const next = [...requestMaterials]
-                            next[idx] = { ...next[idx], material: e.target.value }
-                            setRequestMaterials(next)
-                          }}
-                          placeholder="Materijal (npr. Lan 280g)"
-                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                        />
-                        <input
-                          type="text"
-                          value={row.color}
-                          onChange={(e) => {
-                            const next = [...requestMaterials]
-                            next[idx] = { ...next[idx], color: e.target.value }
-                            setRequestMaterials(next)
-                          }}
-                          placeholder="Boja (npr. bela)"
-                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                        />
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={row.quantity_kg}
-                          onChange={(e) => {
-                            const next = [...requestMaterials]
-                            next[idx] = { ...next[idx], quantity_kg: e.target.value }
-                            setRequestMaterials(next)
-                          }}
-                          placeholder="Kg"
-                          style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (requestMaterials.length === 1) return
-                            setRequestMaterials(requestMaterials.filter((_, i) => i !== idx))
-                          }}
-                          style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: '#ef4444',
-                            cursor: requestMaterials.length === 1 ? 'not-allowed' : 'pointer',
-                            fontSize: '1.2rem',
-                            padding: 0
-                          }}
-                          disabled={requestMaterials.length === 1}
-                          title="Ukloni red"
-                        >
-                          ×
-                        </button>
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '2fr 2.2fr auto',
+                              gap: '8px',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <select
+                              value={row.materialGroupCode || ''}
+                              onChange={(e) => {
+                                const groupCode = e.target.value
+                                const next = [...requestMaterials]
+                                next[idx] = {
+                                  ...next[idx],
+                                  materialGroupCode: groupCode,
+                                  // resetujemo izbor materijala kad se promeni grupa
+                                  useCustomMaterial: false,
+                                  material: '',
+                                  materialComposition: ''
+                                }
+                                setRequestMaterials(next)
+                              }}
+                              style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                            >
+                              <option value="">Izaberi grupu...</option>
+                              {MATERIAL_GROUPS.map((group) => (
+                                <option key={group.code} value={group.code}>
+                                  {group.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <select
+                              value={row.useCustomMaterial ? '__custom__' : row.material}
+                              onChange={(e) => {
+                                const chosenName = e.target.value
+                                const next = [...requestMaterials]
+
+                                if (chosenName === '__custom__') {
+                                  next[idx] = {
+                                    ...next[idx],
+                                    useCustomMaterial: true,
+                                    material: '',
+                                    materialComposition: ''
+                                  }
+                                  setRequestMaterials(next)
+                                  return
+                                }
+
+                                const group = MATERIAL_GROUPS.find((g) => g.code === row.materialGroupCode)
+                                const chosen = group?.items?.find((it) => it.name === chosenName)
+                                next[idx] = {
+                                  ...next[idx],
+                                  useCustomMaterial: false,
+                                  material: chosenName,
+                                  materialComposition: chosen?.composition || ''
+                                }
+                                setRequestMaterials(next)
+                              }}
+                              disabled={!row.materialGroupCode}
+                              style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                            >
+                              <option value="">{row.materialGroupCode ? 'Izaberi materijal...' : 'Najpre izaberi grupu'}</option>
+                              {(MATERIAL_GROUPS.find((g) => g.code === row.materialGroupCode)?.items || []).map((it) => (
+                                <option key={it.name} value={it.name}>
+                                  {it.name} ({it.composition})
+                                </option>
+                              ))}
+                              <option value="__custom__">Upiši ručno</option>
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (requestMaterials.length === 1) return
+                                setRequestMaterials(requestMaterials.filter((_, i) => i !== idx))
+                              }}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#ef4444',
+                                cursor: requestMaterials.length === 1 ? 'not-allowed' : 'pointer',
+                                fontSize: '1.2rem',
+                                padding: 0
+                              }}
+                              disabled={requestMaterials.length === 1}
+                              title="Ukloni red"
+                            >
+                              ×
+                            </button>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '2fr 1fr 1fr',
+                              gap: '8px',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <input
+                              type="text"
+                              value={row.color}
+                              onChange={(e) => {
+                                const next = [...requestMaterials]
+                                next[idx] = { ...next[idx], color: e.target.value }
+                                setRequestMaterials(next)
+                              }}
+                              placeholder="Boja (npr. crna)"
+                              style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                            />
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={row.quantity_kg}
+                              onChange={(e) => {
+                                const next = [...requestMaterials]
+                                next[idx] = { ...next[idx], quantity_kg: e.target.value }
+                                setRequestMaterials(next)
+                              }}
+                              placeholder={row.quantity_unit === 'm' ? 'm' : 'kg'}
+                              style={{ width: '100%', minWidth: '90px', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                            />
+                            <select
+                              value={row.quantity_unit || 'kg'}
+                              onChange={(e) => {
+                                const next = [...requestMaterials]
+                                next[idx] = { ...next[idx], quantity_unit: e.target.value }
+                                setRequestMaterials(next)
+                              }}
+                              style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                            >
+                              <option value="kg">kg</option>
+                              <option value="m">m</option>
+                            </select>
+                          </div>
+                        </div>
+                        {row.useCustomMaterial && (
+                          <div style={{ paddingLeft: '4px' }}>
+                            <input
+                              type="text"
+                              value={row.material}
+                              onChange={(e) => {
+                                const next = [...requestMaterials]
+                                next[idx] = { ...next[idx], material: e.target.value }
+                                setRequestMaterials(next)
+                              }}
+                              placeholder="Upiši tačan naziv materijala (npr. Pamuk)"
+                              style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                            />
+                          </div>
+                        )}
+                        {!row.useCustomMaterial && row.materialComposition && (
+                          (() => {
+                            return (
+                              <div
+                                style={{
+                                  fontSize: '0.8rem',
+                                  color: '#4b5563',
+                                  paddingLeft: '4px'
+                                }}
+                              >
+                                <div style={{ fontWeight: 500 }}>
+                                  {(MATERIAL_GROUPS.find((g) => g.code === row.materialGroupCode)?.name) || ''}
+                                </div>
+                                <div className="designer-muted">
+                                  {row.material} — {row.materialComposition}
+                                </div>
+                              </div>
+                            )
+                          })()
+                        )}
                       </div>
                     ))}
                     <button
@@ -1164,7 +1413,15 @@ const RazvojModelaPage = () => {
                       onClick={() =>
                         setRequestMaterials([
                           ...requestMaterials,
-                          { material: '', color: '', quantity_kg: '' }
+                          {
+                            material: '',
+                            color: '',
+                            quantity_kg: '',
+                            quantity_unit: 'kg',
+                            materialGroupCode: '',
+                            materialComposition: '',
+                            useCustomMaterial: false
+                          }
                         ])
                       }
                       style={{

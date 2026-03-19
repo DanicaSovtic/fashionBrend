@@ -184,6 +184,98 @@ router.patch('/inventory/:id', requireAuth, requireRole(['dobavljac_materijala']
 })
 
 /**
+ * DELETE /api/supplier/inventory/:id
+ * Briše stavku zalihe dobavljača
+ */
+router.delete('/inventory/:id', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    const { data: existingItem, error: fetchError } = await adminSupabase
+      .from('inventory_items')
+      .select('id')
+      .eq('id', id)
+      .eq('supplier_id', req.user.id)
+      .single()
+
+    if (fetchError || !existingItem) {
+      res.status(404).json({ error: 'Zaliha nije pronađena' })
+      return
+    }
+
+    // Primarno pokušaj kroz user kontekst (RLS).
+    // Ako projekat nema aktivnu DELETE policy za inventory_items, fallback je admin klijent.
+    const { error } = await req.supabase
+      .from('inventory_items')
+      .delete()
+      .eq('id', id)
+      .eq('supplier_id', req.user.id)
+
+    if (error && (error.code === '42501' || error.status === 403)) {
+      const { error: adminDeleteError } = await adminSupabase
+        .from('inventory_items')
+        .delete()
+        .eq('id', id)
+        .eq('supplier_id', req.user.id)
+
+      if (adminDeleteError) {
+        throw adminDeleteError
+      }
+    } else if (error) {
+      throw error
+    }
+
+    res.json({
+      success: true,
+      message: 'Zaliha je uspešno obrisana'
+    })
+  } catch (error) {
+    console.error('[Supplier] Error deleting inventory item:', error)
+    next(error)
+  }
+})
+
+/**
+ * POST /api/supplier/inventory/:id/delete
+ * Alternativno brisanje (fallback kada je DELETE blokiran/proxy ograničen)
+ */
+router.post('/inventory/:id/delete', requireAuth, requireRole(['dobavljac_materijala']), async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    const { data: existingItem, error: fetchError } = await adminSupabase
+      .from('inventory_items')
+      .select('id')
+      .eq('id', id)
+      .eq('supplier_id', req.user.id)
+      .single()
+
+    if (fetchError || !existingItem) {
+      res.status(404).json({ error: 'Zaliha nije pronađena' })
+      return
+    }
+
+    const { error } = await adminSupabase
+      .from('inventory_items')
+      .delete()
+      .eq('id', id)
+      .eq('supplier_id', req.user.id)
+
+    if (error) {
+      throw error
+    }
+
+    res.json({
+      success: true,
+      message: 'Zaliha je uspešno obrisana'
+    })
+  } catch (error) {
+    console.error('[Supplier] Error deleting inventory item via POST fallback:', error)
+    next(error)
+  }
+})
+
+/**
  * GET /api/supplier/requests
  * Dobija listu zahteva za dobavljača
  * Query params: status, collection_id, search

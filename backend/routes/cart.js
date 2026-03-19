@@ -13,20 +13,20 @@ const router = Router()
 
 // All routes require authentication and krajnji_korisnik role
 router.use((req, res, next) => {
-  // Ne presreći blog, tester, designer, marketing rute – one imaju svoje rute
-  if (req.path.startsWith('/blog') || req.path.startsWith('/tester') || req.path.startsWith('/designer') || req.path.startsWith('/marketing')) {
+  // Cart auth middleware treba da važi samo za /cart rute
+  if (!req.path.startsWith('/cart')) {
     return next()
   }
   next()
 })
 router.use((req, res, next) => {
-  if (req.path.startsWith('/blog') || req.path.startsWith('/tester') || req.path.startsWith('/designer') || req.path.startsWith('/marketing')) {
+  if (!req.path.startsWith('/cart')) {
     return next()
   }
   requireAuth(req, res, next)
 })
 router.use((req, res, next) => {
-  if (req.path.startsWith('/blog') || req.path.startsWith('/tester') || req.path.startsWith('/designer') || req.path.startsWith('/marketing')) {
+  if (!req.path.startsWith('/cart')) {
     return next()
   }
   requireRole(['krajnji_korisnik'])(req, res, next)

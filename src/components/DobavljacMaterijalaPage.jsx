@@ -12,6 +12,118 @@ import {
   createShipmentOnBlockchain
 } from '../lib/blockchain'
 
+// Isti katalog materijala kao kod dizajnera – koristi se samo za prikaz (UI),
+// ne menja podatke u bazi niti format koji koriste smart ugovori.
+const MATERIAL_GROUPS = [
+  {
+    code: 'POLYESTER',
+    name: 'Poliester i mešavine sa poliesterom',
+    items: [
+      { name: 'Barbi', composition: '95% poliester / 5% elastan' },
+      { name: 'Barbie crepe', composition: '95% poliester / 5% elastan' },
+      { name: 'Puntoroma', composition: '60% poliester / 35% viskoza / 5% elastan' },
+      { name: 'Ponte Roma', composition: '60% poliester / 35% viskoza / 5% elastan' },
+      { name: 'Somot', composition: '100% poliester' },
+      { name: 'Saten', composition: '100% poliester' },
+      { name: 'Šifon', composition: '100% poliester' },
+      { name: 'Krep', composition: '95% poliester / 5% elastan' },
+      { name: 'Krep saten', composition: '95% poliester / 5% elastan' },
+      { name: 'Mikado', composition: '100% poliester' },
+      { name: 'Til', composition: '100% poliester' },
+      { name: 'Mreža', composition: '100% poliester' },
+      { name: 'Scuba', composition: '95% poliester / 5% elastan' },
+      { name: 'Gabardin', composition: '65% poliester / 35% viskoza' },
+      { name: 'Keper', composition: '70% poliester / 30% viskoza' },
+      { name: 'Twill', composition: '70% poliester / 30% viskoza' },
+      { name: 'Taft', composition: '100% poliester' },
+      { name: 'Plisirana sintetika', composition: '100% poliester' }
+    ]
+  },
+  {
+    code: 'COTTON',
+    name: 'Pamuk i pamučne mešavine',
+    items: [
+      { name: 'Pamučni keper', composition: '98% pamuk / 2% elastan' },
+      { name: 'Pamučni saten', composition: '97% pamuk / 3% elastan' },
+      { name: 'Sateen', composition: '97% pamuk / 3% elastan' },
+      { name: 'Poplin', composition: '100% pamuk' },
+      { name: 'Batist', composition: '100% pamuk' },
+      { name: 'Muslin', composition: '100% pamuk' },
+      { name: 'Gaz', composition: '100% pamuk' },
+      { name: 'Pamučni somot', composition: '100% pamuk' },
+      { name: 'Denim', composition: '98% pamuk / 2% elastan' },
+      { name: 'Broderie anglaise', composition: '100% pamuk' },
+      { name: 'Vez na pamuku', composition: '100% pamuk' },
+      { name: 'Rebrasti pamuk', composition: '95% pamuk / 5% elastan' },
+      { name: 'Single jersey pamuk', composition: '95% pamuk / 5% elastan' },
+      { name: 'Cotton lycra', composition: '95% pamuk / 5% elastan' }
+    ]
+  },
+  {
+    code: 'VISCOSE',
+    name: 'Viskoza / rayon i njihove mešavine',
+    items: [
+      { name: 'Viskozni keper', composition: '100% viskoza' },
+      { name: 'Viskozni krep', composition: '100% viskoza' },
+      { name: 'Viskozni saten', composition: '100% viskoza' },
+      { name: 'Viskozni jersey', composition: '95% viskoza / 5% elastan' },
+      { name: 'Viskoza + elastan', composition: '95% viskoza / 5% elastan' },
+      { name: 'Viskoza + poliester', composition: '70% viskoza / 30% poliester' },
+      { name: 'Puntoroma', composition: '60% poliester / 35% viskoza / 5% elastan' }
+    ]
+  },
+  {
+    code: 'ELASTANE',
+    name: 'Elastan / likra grupe',
+    items: [
+      { name: 'Vodena likra', composition: '80% poliamid / 20% elastan' },
+      { name: 'Mat likra', composition: '90% poliester / 10% elastan' },
+      { name: 'Sjajna likra', composition: '85% poliester / 15% elastan' },
+      { name: 'Mrežica sa elastanom', composition: '90% poliester / 10% elastan' },
+      { name: 'Pamuk likra', composition: '95% pamuk / 5% elastan' },
+      { name: 'Poliester likra', composition: '92% poliester / 8% elastan' },
+      { name: 'Viskoza likra', composition: '95% viskoza / 5% elastan' },
+      { name: 'Scuba sa elastanom', composition: '95% poliester / 5% elastan' }
+    ]
+  },
+  {
+    code: 'SATIN',
+    name: 'Sateni',
+    items: [
+      { name: 'Poliesterski saten', composition: '100% poliester' },
+      { name: 'Svilen saten', composition: '100% svila' },
+      { name: 'Viskozni saten', composition: '100% viskoza' },
+      { name: 'Pamučni saten', composition: '97% pamuk / 3% elastan' },
+      { name: 'Elastični saten', composition: '95% poliester / 5% elastan' },
+      { name: 'Duchess saten', composition: '100% poliester' },
+      { name: 'Krep saten', composition: '95% poliester / 5% elastan' },
+      { name: 'Ruski saten', composition: '100% poliester' },
+      { name: 'Američki saten', composition: '95% poliester / 5% elastan' }
+    ]
+  }
+]
+
+const findMaterialInfo = (rawName) => {
+  if (!rawName) return null
+  const name = rawName.toLowerCase().trim()
+  for (const group of MATERIAL_GROUPS) {
+    for (const item of group.items) {
+      if (
+        item.name.toLowerCase() === name ||
+        name.includes(item.name.toLowerCase()) ||
+        item.name.toLowerCase().includes(name)
+      ) {
+        return {
+          groupName: group.name,
+          materialName: item.name,
+          composition: item.composition
+        }
+      }
+    }
+  }
+  return null
+}
+
 const DobavljacMaterijalaPage = () => {
   const navigate = useNavigate()
   const { user, profile, loading } = useAuth()
@@ -23,9 +135,12 @@ const DobavljacMaterijalaPage = () => {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [newItem, setNewItem] = useState({
+    materialGroupCode: '',
     material: '',
     color: '',
     quantity_kg: '',
+    materialComposition: '',
+    useCustomMaterial: false,
     price_per_kg: ''
   })
   const [blockchainConfig, setBlockchainConfig] = useState(null)
@@ -74,6 +189,13 @@ const DobavljacMaterijalaPage = () => {
   const groupedRequests = useMemo(() => {
     if (!requests || requests.length === 0) return []
     const groups = {}
+
+    const materialLineForLabel = (r) => {
+      const info = r?.material ? findMaterialInfo(r.material) : null
+      const compositionSuffix = info?.composition ? ` (${info.composition})` : ''
+      return `${r.material}${compositionSuffix} / ${r.color} / ${r.quantity_kg} ${r.quantity_unit || 'kg'}`
+    }
+
     for (const req of requests) {
       const key = req.request_bundle_id || req.id
       if (!groups[key]) {
@@ -89,9 +211,9 @@ const DobavljacMaterijalaPage = () => {
       const first = group.requests[0]
       const materialsLabel =
         group.requests.length === 1
-          ? `${first.material} / ${first.color} / ${first.quantity_kg} kg`
+          ? materialLineForLabel(first)
           : group.requests
-              .map((r) => `${r.material} / ${r.color} / ${r.quantity_kg} kg`)
+              .map((r) => materialLineForLabel(r))
               .join(' + ')
       return {
         ...group,
@@ -329,9 +451,12 @@ const DobavljacMaterijalaPage = () => {
       await fetchInventory()
       setShowAddModal(false)
       setNewItem({
+        materialGroupCode: '',
         material: '',
         color: '',
         quantity_kg: '',
+        materialComposition: '',
+        useCustomMaterial: false,
         price_per_kg: ''
       })
       if (blockchainTxHash) {
@@ -417,6 +542,35 @@ const DobavljacMaterijalaPage = () => {
       })
     } catch (error) {
       alert(error.message || 'Greška pri promeni statusa')
+    }
+  }
+
+  const handleDeleteItem = async (item) => {
+    const confirmed = window.confirm(
+      `Da li ste sigurni da želite da obrišete zalihu "${item.material}" (${item.color})?`
+    )
+    if (!confirmed) return
+
+    try {
+      const token = localStorage.getItem('auth_access_token')
+      const res = await fetch(`/api/supplier/inventory/${item.id}/delete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error(error.error || 'Greška pri brisanju zalihe')
+      }
+
+      if (editingItem?.id === item.id) {
+        setEditingItem(null)
+      }
+      await fetchInventory()
+    } catch (error) {
+      alert(error.message || 'Greška pri brisanju zalihe')
     }
   }
 
@@ -832,7 +986,14 @@ const DobavljacMaterijalaPage = () => {
                     <tbody>
                       {inventory.map((item) => (
                         <tr key={item.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                          <td style={{ padding: '12px' }}>{item.material}</td>
+                          <td style={{ padding: '12px' }}>
+                            <div>
+                              {(() => {
+                                const info = item.material ? findMaterialInfo(item.material) : null
+                                return info?.composition ? `${item.material} (${info.composition})` : item.material
+                              })()}
+                            </div>
+                          </td>
                           <td style={{ padding: '12px' }}>{item.color}</td>
                           <td style={{ padding: '12px', textAlign: 'right' }}>
                             {editingItem?.id === item.id ? (
@@ -911,6 +1072,20 @@ const DobavljacMaterijalaPage = () => {
                                 }}
                               >
                                 {item.status === 'active' ? 'Pauziraj' : 'Aktiviraj'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteItem(item)}
+                                style={{
+                                  padding: '4px 12px',
+                                  border: '1px solid #ef4444',
+                                  borderRadius: '6px',
+                                  background: 'white',
+                                  color: '#ef4444',
+                                  cursor: 'pointer',
+                                  fontSize: '0.85rem'
+                                }}
+                              >
+                                Obriši
                               </button>
                             </div>
                           </td>
@@ -1034,13 +1209,32 @@ const DobavljacMaterijalaPage = () => {
                               {currentGroup && currentGroup.requests.length > 1 ? (
                                 <div style={{ marginTop: '4px' }}>
                                   {currentGroup.requests.map((r) => (
-                                    <div key={r.id}>
-                                      - {r.material} / {r.color} / {r.quantity_kg} kg
+                                    <div key={r.id} style={{ marginBottom: '4px' }}>
+                                      {(() => {
+                                        const info = r.material ? findMaterialInfo(r.material) : null
+                                        const materialText = info?.composition ? `${r.material} (${info.composition})` : r.material
+                                        return (
+                                          <div>
+                                            - {materialText} / {r.color} / {r.quantity_kg}{' '}
+                                            {r.quantity_unit || 'kg'}
+                                          </div>
+                                        )
+                                      })()}
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <span> {requestDetails.request.material} / {requestDetails.request.color} / {requestDetails.request.quantity_kg} kg</span>
+                                <span>
+                                  {' '}
+                                  {(() => {
+                                    const info = requestDetails?.request?.material
+                                      ? findMaterialInfo(requestDetails.request.material)
+                                      : null
+                                    const materialText = info?.composition ? `${requestDetails.request.material} (${info.composition})` : requestDetails.request.material
+                                    return materialText
+                                  })()} / {requestDetails.request.color} / {requestDetails.request.quantity_kg}{' '}
+                                  {requestDetails.request.quantity_unit || 'kg'}
+                                </span>
                               )}
                             </div>
                             {requestDetails.request.deadline && (
@@ -1059,7 +1253,11 @@ const DobavljacMaterijalaPage = () => {
                                 <div style={{ marginTop: '6px' }}>
                                   {requestDetails.requests.map((r) => (
                                     <div key={r.id}>
-                                      {r.material} / {r.color}:{' '}
+                                      {(() => {
+                                        const info = r.material ? findMaterialInfo(r.material) : null
+                                        const materialText = info?.composition ? `${r.material} (${info.composition})` : r.material
+                                        return materialText
+                                      })()} / {r.color}:{' '}
                                       {r.available_inventory
                                         ? `${r.available_inventory.quantity_kg} kg`
                                         : '0 kg'}
@@ -1076,7 +1274,15 @@ const DobavljacMaterijalaPage = () => {
                                 </div>
                               ) : requestDetails.available_inventory ? (
                                 <div>
-                                  {requestDetails.request.material} / {requestDetails.request.color}: {requestDetails.available_inventory.quantity_kg} kg
+                                  {(() => {
+                                    const info = requestDetails?.request?.material
+                                      ? findMaterialInfo(requestDetails.request.material)
+                                      : null
+                                    const materialText = info?.composition
+                                      ? `${requestDetails.request.material} (${info.composition})`
+                                      : requestDetails.request.material
+                                    return materialText
+                                  })()} / {requestDetails.request.color}: {requestDetails.available_inventory.quantity_kg} kg
                                   {!requestDetails.has_enough && (
                                     <div style={{ color: '#ef4444', marginTop: '8px' }}>
                                       Nema dovoljno na stanju. Predloži izmenu količine ili rok.
@@ -1138,7 +1344,13 @@ const DobavljacMaterijalaPage = () => {
                               <strong>Grupna pošiljka (ugovor na blockchainu):</strong>
                               <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
                                 {currentGroup.requests.map((r) => (
-                                  <li key={r.id}>{r.material} / {r.color} / {r.quantity_kg} kg</li>
+                                  <li key={r.id}>
+                                    {(() => {
+                                      const info = r.material ? findMaterialInfo(r.material) : null
+                                      const materialText = info?.composition ? `${r.material} (${info.composition})` : r.material
+                                      return materialText
+                                    })()} / {r.color} / {r.quantity_kg} {r.quantity_unit || 'kg'}
+                                  </li>
                                 ))}
                               </ul>
                             </div>
@@ -1281,16 +1493,90 @@ const DobavljacMaterijalaPage = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Materijal *
+                    Grupa materijala *
                   </label>
-                  <input
-                    type="text"
-                    value={newItem.material}
-                    onChange={(e) => setNewItem({ ...newItem, material: e.target.value })}
+                  <select
+                    value={newItem.materialGroupCode}
+                    onChange={(e) => {
+                      const groupCode = e.target.value
+                      setNewItem({
+                        ...newItem,
+                        materialGroupCode: groupCode,
+                        material: '',
+                        materialComposition: '',
+                        useCustomMaterial: false,
+                        // biramo materijal tek kad grupa bude izabrana
+                      })
+                    }}
                     required
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
-                    placeholder="npr. Likra"
-                  />
+                  >
+                    <option value="">Izaberi grupu...</option>
+                    {MATERIAL_GROUPS.map((group) => (
+                      <option key={group.code} value={group.code}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
+                    Materijal *
+                  </label>
+                  <select
+                    value={newItem.useCustomMaterial ? '__custom__' : newItem.material}
+                    onChange={(e) => {
+                      const chosenName = e.target.value
+                      if (chosenName === '__custom__') {
+                        setNewItem({
+                          ...newItem,
+                          useCustomMaterial: true,
+                          material: '',
+                          materialComposition: ''
+                        })
+                        return
+                      }
+
+                      const group = MATERIAL_GROUPS.find((g) => g.code === newItem.materialGroupCode)
+                      const chosen = group?.items?.find((i) => i.name === chosenName)
+                      setNewItem({
+                        ...newItem,
+                        useCustomMaterial: false,
+                        material: chosenName,
+                        materialComposition: chosen?.composition || ''
+                      })
+                    }}
+                    disabled={!newItem.materialGroupCode}
+                    required
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                  >
+                    <option value="">{newItem.materialGroupCode ? 'Izaberi materijal...' : 'Najpre izaberi grupu'}</option>
+                    {(MATERIAL_GROUPS.find((g) => g.code === newItem.materialGroupCode)?.items || []).map((it) => (
+                      <option key={it.name} value={it.name}>
+                        {it.name} ({it.composition})
+                      </option>
+                    ))}
+                    <option value="__custom__">Upiši ručno</option>
+                  </select>
+
+                  {!newItem.useCustomMaterial && newItem.materialComposition && (
+                    <div className="designer-muted" style={{ marginTop: '6px', fontSize: '0.85rem' }}>
+                      {newItem.material} — {newItem.materialComposition}
+                    </div>
+                  )}
+                  {newItem.useCustomMaterial && (
+                    <div style={{ marginTop: '8px' }}>
+                      <input
+                        type="text"
+                        value={newItem.material}
+                        onChange={(e) => setNewItem({ ...newItem, material: e.target.value })}
+                        required
+                        placeholder="Upiši tačan naziv materijala (npr. Poliester)"
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '8px' }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>

@@ -5,6 +5,165 @@ import Navbar from './Navbar'
 import './DesignerCollectionsPage.css'
 import { formatMaterialsForDisplay, formatMaterialsDetailed, parseMaterials } from '../utils/materialParser'
 
+const TEST_METHODS_BY_ORG = {
+  ISO: [
+    {
+      id: 'material-composition',
+      test: 'Provera sastava materijala',
+      method: 'ISO 1833',
+      description: 'Kvantitativna analiza vlaknastog sastava laboratorijskim postupcima razdvajanja i merenja.',
+      procedure: 'Uzorak se priprema i hemijski/mehanicki obradi prema proceduri kako bi se odredio procenat vlakana.'
+    },
+    {
+      id: 'abrasion-resistance',
+      test: 'Otpornost na habanje (Martindale)',
+      method: 'ISO 12947',
+      description: 'Martindale metoda za ispitivanje otpornosti tkanine na habanje.',
+      procedure: 'Uzorak se izlaze kontrolisanom trljanju pod definisanim pritiskom, a rezultat je broj ciklusa do ostecenja.'
+    },
+    {
+      id: 'pilling-resistance',
+      test: 'Otpornost na piling',
+      method: 'ISO 12945',
+      description: 'Procena pojave kuglica, paperja i matiranja pri simuliranom nosenju.',
+      procedure: 'Uzorak prolazi kroz kontrolisano trenje/tumbanje, zatim se vizuelno ocenjuje stepen pilinga.'
+    },
+    {
+      id: 'colorfastness-wash',
+      test: 'Postojanost boje pri pranju',
+      method: 'ISO 105-C06',
+      description: 'Ispitivanje otpornosti boje na kucno i komercijalno pranje.',
+      procedure: 'Uzorak se pere u kontrolisanim uslovima i ocenjuje se promena boje i prenos boje na pratecu tkaninu.'
+    },
+    {
+      id: 'shrinkage-wash',
+      test: 'Skupljanje pri pranju',
+      method: 'ISO 5077',
+      description: 'Odredjivanje promene dimenzija nakon pranja i susenja.',
+      procedure: 'Pre i posle definisanog ciklusa pranja/susenja mere se duzina i sirina uzorka i racuna procenat promene.'
+    },
+    {
+      id: 'seam-strength',
+      test: 'Cvrstoca savova',
+      method: 'ISO 13935',
+      description: 'Odredjivanje maksimalne sile koju sav moze da izdrzi pre pucanja.',
+      procedure: 'Uzorak sa savom se opterecuje na zateznoj masini do pucanja sava ili razdvajanja materijala.'
+    },
+    {
+      id: 'tear-resistance',
+      test: 'Otpornost na kidanje materijala',
+      method: 'ISO 13937',
+      description: 'Serija metoda za merenje sile potrebne za nastavak kidanja.',
+      procedure: 'Uzorak sa pocetnim prorezom se opterecuje definisanom metodom (npr. trouser/tongue) i meri sila kidanja.'
+    }
+  ],
+  ASTM: [
+    {
+      id: 'abrasion-resistance',
+      test: 'Otpornost na habanje (Martindale)',
+      method: 'ASTM D4966',
+      description: 'Martindale ispitivanje otpornosti materijala na habanje.',
+      procedure: 'Uzorak se izlaze kontrolisanom trljanju i prati broj ciklusa do vidljivog ostecenja ili znacajnog gubitka mase.'
+    },
+    {
+      id: 'pilling-resistance',
+      test: 'Otpornost na piling',
+      method: 'ASTM D4970',
+      description: 'Procena sklonosti materijala ka stvaranju kuglica na povrsini.',
+      procedure: 'Uzorak se ispituje kroz kontrolisano mehanicko delovanje, zatim se vrsi vizuelna ocena stepena pilinga.'
+    },
+    {
+      id: 'seam-strength',
+      test: 'Cvrstoca savova',
+      method: 'ASTM D1683',
+      description: 'Merenje otpornosti sava na razdvajanje pod opterecenjem.',
+      procedure: 'Uzorak sa savom se opterecuje na zateznoj masini dok ne dodje do pucanja ili razmicanja sava.'
+    },
+    {
+      id: 'tear-resistance',
+      test: 'Otpornost na kidanje materijala',
+      method: 'ASTM D1424 / D2261 / D5587',
+      description: 'Odredjivanje sile potrebne da se kidanje nastavi kroz materijal.',
+      procedure: 'Koriste se odgovarajuce ASTM metode i geometrije uzorka za merenje sile kidanja.'
+    }
+  ],
+  AATCC: [
+    {
+      id: 'material-composition-qualitative',
+      test: 'Provera sastava materijala (kvalitativno)',
+      method: 'AATCC TM20',
+      description: 'Kvalitativna identifikacija vrsta vlakana u tekstilu.',
+      procedure: 'Uzorak se analizira prema AATCC smernicama za identifikaciju prisutnih vlakana.'
+    },
+    {
+      id: 'material-composition-quantitative',
+      test: 'Provera sastava materijala (kvantitativno)',
+      method: 'AATCC TM20A',
+      description: 'Kvantitativna procena udelа vlakana u mesavinama.',
+      procedure: 'Primenjuju se laboratorijske procedure za izdvajanje i merenje vlakana radi procentualne raspodele.'
+    },
+    {
+      id: 'colorfastness-wash',
+      test: 'Postojanost boje pri pranju',
+      method: 'AATCC TM61',
+      description: 'Ubrzani laboratorijski test za procenu colorfastness to laundering.',
+      procedure: 'Uzorak se pere pod kontrolisanim uslovima i ocenjuje se promena boje i moguce bojenje pratece tkanine.'
+    },
+    {
+      id: 'shrinkage-wash',
+      test: 'Skupljanje pri pranju',
+      method: 'AATCC TM135',
+      description: 'Odredjivanje dimenzione promene tkanine nakon domaceg pranja.',
+      procedure: 'Mere se dimenzije pre i posle pranja/susenja i iskazuje procenat skupljanja ili sirenja.'
+    }
+  ]
+}
+
+const MATERIAL_COMPOSITION_TEST_IDS = [
+  'material-composition',
+  'material-composition-qualitative',
+  'material-composition-quantitative'
+]
+
+const MINI_TEST_RULES = {
+  'abrasion-resistance': {
+    metricLabel: 'Broj ciklusa do ostecenja',
+    unit: 'ciklusa',
+    thresholdLabel: 'Minimalno 20000 ciklusa',
+    evaluate: (value) => value >= 20000
+  },
+  'pilling-resistance': {
+    metricLabel: 'Ocena pilinga (1-5)',
+    unit: 'ocena',
+    thresholdLabel: 'Minimalna ocena 4.0',
+    evaluate: (value) => value >= 4
+  },
+  'colorfastness-wash': {
+    metricLabel: 'Ocena postojanosti boje (1-5)',
+    unit: 'ocena',
+    thresholdLabel: 'Minimalna ocena 4.0',
+    evaluate: (value) => value >= 4
+  },
+  'shrinkage-wash': {
+    metricLabel: 'Promena dimenzija (%)',
+    unit: '%',
+    thresholdLabel: 'Dozvoljeno odstupanje +/- 3.0%',
+    evaluate: (value) => Math.abs(value) <= 3
+  },
+  'seam-strength': {
+    metricLabel: 'Maksimalna sila do pucanja',
+    unit: 'N',
+    thresholdLabel: 'Minimalno 180 N',
+    evaluate: (value) => value >= 180
+  },
+  'tear-resistance': {
+    metricLabel: 'Sila kidanja',
+    unit: 'N',
+    thresholdLabel: 'Minimalno 40 N',
+    evaluate: (value) => value >= 40
+  }
+}
+
 const LabDashboard = () => {
   const navigate = useNavigate()
   const { user, profile, loading } = useAuth()
@@ -20,6 +179,21 @@ const LabDashboard = () => {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState(null)
+  const [selectedOrganization, setSelectedOrganization] = useState('ISO')
+  const [selectedTestId, setSelectedTestId] = useState('material-composition')
+  const [miniTestValue, setMiniTestValue] = useState('')
+
+  useEffect(() => {
+    const firstTestId = TEST_METHODS_BY_ORG[selectedOrganization]?.[0]?.id || ''
+    setSelectedTestId(firstTestId)
+    setMiniTestValue('')
+  }, [selectedOrganization])
+
+  useEffect(() => {
+    setMiniTestValue('')
+  }, [selectedTestId])
+
+  const isMaterialCompositionTest = MATERIAL_COMPOSITION_TEST_IDS.includes(selectedTestId)
 
   useEffect(() => {
     const fetchPendingTests = async () => {
@@ -69,6 +243,24 @@ const LabDashboard = () => {
     e.preventDefault()
     if (!selectedProduct) {
       alert('Molimo izaberite proizvod')
+      return
+    }
+
+    if (!isMaterialCompositionTest) {
+      const rule = MINI_TEST_RULES[selectedTestId]
+      const parsedValue = parseFloat(miniTestValue)
+      if (!rule) {
+        alert('Za izabrani test trenutno nema mini logike.')
+        return
+      }
+      if (isNaN(parsedValue)) {
+        alert('Unesite merenu vrednost testa.')
+        return
+      }
+      const passed = rule.evaluate(parsedValue)
+      setSuccessMessage(
+        `Interna procena testa je zabelezena. Rezultat: ${passed ? 'PROSAO' : 'NIJE PROSAO'} (${parsedValue} ${rule.unit}).`
+      )
       return
     }
 
@@ -231,6 +423,76 @@ const LabDashboard = () => {
 
           <div className="designer-card">
             <h3>Unos rezultata testa</h3>
+            <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f9f6ff', border: '1px solid #e2d6ff', borderRadius: '8px' }}>
+              <label
+                htmlFor="standardOrganization"
+                style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}
+              >
+                Organizacija standarda i metoda
+              </label>
+              <select
+                id="standardOrganization"
+                value={selectedOrganization}
+                onChange={(e) => setSelectedOrganization(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: '15px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  marginBottom: '12px',
+                  backgroundColor: '#fff'
+                }}
+              >
+                <option value="ISO">ISO (International Organization for Standardization)</option>
+                <option value="ASTM">ASTM (American Society for Testing and Materials)</option>
+                <option value="AATCC">AATCC (American Association of Textile Chemists and Colorists)</option>
+              </select>
+
+              <div>
+                <strong style={{ display: 'block', marginBottom: '8px' }}>
+                  Vrste testova za izabrani proizvod {selectedOrganization}
+                </strong>
+                <div className="designer-muted" style={{ marginBottom: '10px', fontSize: '13px' }}>
+                  Kliknite na test iz liste da izaberete vrstu testa za proizvod.
+                </div>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {TEST_METHODS_BY_ORG[selectedOrganization].map((item) => (
+                    <div
+                      key={`${selectedOrganization}-${item.id}`}
+                      onClick={() => setSelectedTestId(item.id)}
+                      style={{
+                        padding: '10px',
+                        border: selectedTestId === item.id ? '2px solid #8B5CF6' : '1px solid #ebe5ff',
+                        borderRadius: '8px',
+                        backgroundColor: selectedTestId === item.id ? '#f5f3ff' : '#fff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ fontWeight: '500' }}>{item.test}</div>
+                      <div className="designer-muted" style={{ fontSize: '14px' }}>{item.method}</div>
+                    </div>
+                  ))}
+                </div>
+                {selectedOrganization === 'ASTM' && (
+                  <div
+                    className="designer-muted"
+                    style={{
+                      marginTop: '10px',
+                      fontSize: '13px',
+                      padding: '8px 10px',
+                      backgroundColor: '#fff',
+                      borderRadius: '6px',
+                      border: '1px dashed #d1d5db'
+                    }}
+                  >
+                    Napomena: raniji ASTM standardi za identifikaciju i kvantitativnu analizu sastava
+                    materijala (D276 i D629) su oznaceni kao withdrawn i nisu prikazani kao primarne
+                    aktivne metode.
+                  </div>
+                )}
+              </div>
+            </div>
             {selectedProduct ? (
               <div>
                 <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
@@ -253,49 +515,78 @@ const LabDashboard = () => {
                 </div>
 
                 <form onSubmit={handleSubmitTestResult}>
-                  <div style={{ marginBottom: '16px' }}>
-                    <label htmlFor="materialName" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                      Ime materijala *
-                    </label>
-                    <input
-                      id="materialName"
-                      type="text"
-                      value={testResult.materialName}
-                      onChange={(e) => setTestResult({ ...testResult, materialName: e.target.value })}
-                      placeholder="npr. Vuna, Viskoza, Lan"
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        fontSize: '16px',
-                        border: '1px solid #ddd',
-                        borderRadius: '8px'
-                      }}
-                    />
-                  </div>
+                  {isMaterialCompositionTest ? (
+                    <>
+                      <div style={{ marginBottom: '16px' }}>
+                        <label htmlFor="materialName" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                          Ime materijala *
+                        </label>
+                        <input
+                          id="materialName"
+                          type="text"
+                          value={testResult.materialName}
+                          onChange={(e) => setTestResult({ ...testResult, materialName: e.target.value })}
+                          placeholder="npr. Vuna, Viskoza, Lan"
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            fontSize: '16px',
+                            border: '1px solid #ddd',
+                            borderRadius: '8px'
+                          }}
+                        />
+                      </div>
 
-                  <div style={{ marginBottom: '16px' }}>
-                    <label htmlFor="percentage" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                      Procenat (0-100) *
-                    </label>
-                    <input
-                      id="percentage"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={testResult.percentage}
-                      onChange={(e) => setTestResult({ ...testResult, percentage: e.target.value })}
-                      placeholder="npr. 100"
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        fontSize: '16px',
-                        border: '1px solid #ddd',
-                        borderRadius: '8px'
-                      }}
-                    />
-                  </div>
+                      <div style={{ marginBottom: '16px' }}>
+                        <label htmlFor="percentage" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                          Procenat (0-100) *
+                        </label>
+                        <input
+                          id="percentage"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={testResult.percentage}
+                          onChange={(e) => setTestResult({ ...testResult, percentage: e.target.value })}
+                          placeholder="npr. 100"
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            fontSize: '16px',
+                            border: '1px solid #ddd',
+                            borderRadius: '8px'
+                          }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ marginBottom: '16px' }}>
+                      <label htmlFor="miniTestValue" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                        {MINI_TEST_RULES[selectedTestId]?.metricLabel || 'Merena vrednost'} *
+                      </label>
+                      <input
+                        id="miniTestValue"
+                        type="number"
+                        step="0.1"
+                        value={miniTestValue}
+                        onChange={(e) => setMiniTestValue(e.target.value)}
+                        placeholder={`Unesite vrednost (${MINI_TEST_RULES[selectedTestId]?.unit || ''})`}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          fontSize: '16px',
+                          border: '1px solid #ddd',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <div className="designer-muted" style={{ marginTop: '6px', fontSize: '13px' }}>
+                        {MINI_TEST_RULES[selectedTestId]?.thresholdLabel}
+                      </div>
+                    </div>
+                  )}
 
                   <div style={{ marginBottom: '16px' }}>
                     <label htmlFor="certificateHash" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
@@ -355,9 +646,36 @@ const LabDashboard = () => {
                       transition: 'background-color 0.2s'
                     }}
                   >
-                    {isSubmitting ? 'Slanje...' : 'Pošalji rezultat testa'}
+                    {isSubmitting
+                      ? 'Slanje...'
+                      : isMaterialCompositionTest
+                        ? 'Pošalji rezultat testa'
+                        : 'Sačuvaj internu procenu testa'}
                   </button>
                 </form>
+                {selectedTestId && (
+                  <div style={{ marginTop: '20px', padding: '14px', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
+                    <strong style={{ display: 'block', marginBottom: '10px' }}>Detalji izabranog testa</strong>
+                    {TEST_METHODS_BY_ORG[selectedOrganization]
+                      .filter((item) => item.id === selectedTestId)
+                      .map((item) => (
+                        <div key={`details-${selectedOrganization}-${item.id}`}>
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong>Naziv testa:</strong> {item.test}
+                          </div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong>Standard/metoda:</strong> {item.method}
+                          </div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong>Opis:</strong> {item.description}
+                          </div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong>Nacin ispitivanja:</strong> {item.procedure}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="designer-muted" style={{ padding: '1rem', textAlign: 'center' }}>

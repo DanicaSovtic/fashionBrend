@@ -23,7 +23,9 @@ import marketingLoyaltyRouter from './routes/marketingLoyalty.js'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 5000
+// Port 5000 je zauzet drugim serverom (vidjeno kroz 302/redirect).
+// Express backend prebacujemo na 5001 da bismo imali čist JSON API.
+const PORT = process.env.PORT || 5001
 
 app.use(cors())
 app.use(express.json())

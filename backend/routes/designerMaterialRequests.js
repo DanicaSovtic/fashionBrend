@@ -222,7 +222,8 @@ function rsdToWeiBackend (totalRsd) {
 /**
  * POST /api/designer/material-requests/bundle
  * Kreira jedan logički zahtev (bundle) sa više materijala – jedan requestId za ugovor.
- * Body: { product_model_id, supplier_id, deadline, notes, materials: [{ material, color, quantity_kg }] }
+ * Body: { product_model_id, supplier_id, deadline, notes,
+ *          materials: [{ material, color, quantity_kg, quantity_unit?, quantity_m? }] }
  */
 router.post('/bundle', requireAuth, requireRole(['modni_dizajner']), async (req, res, next) => {
   try {
@@ -280,7 +281,18 @@ router.post('/bundle', requireAuth, requireRole(['modni_dizajner']), async (req,
 
     let totalPriceRsd = 0
     const materialsWithPrice = []
-    for (const m of materials) {
+    const normalizedMaterials = materials.map((m) => {
+      const unit = (m.quantity_unit && String(m.quantity_unit).toLowerCase().trim()) === 'm' ? 'm' : 'kg'
+      const qtyNumber = parseFloat(m.quantity_kg)
+      return {
+        ...m,
+        quantity_kg: qtyNumber,
+        quantity_unit: unit,
+        quantity_m: unit === 'm' ? qtyNumber : (m.quantity_m != null ? parseFloat(m.quantity_m) : null)
+      }
+    })
+
+    for (const m of normalizedMaterials) {
       const materialName = (m.material || '').trim()
       const colorName = (m.color || '').trim()
       const normMaterial = normalizeMaterialName(materialName)
@@ -296,7 +308,7 @@ router.post('/bundle', requireAuth, requireRole(['modni_dizajner']), async (req,
         .ilike('color', `%${normColor}%`)
 
       const totalAvailable = (invRows || []).reduce((s, r) => s + (Number(r.quantity_kg) || 0), 0)
-      const qty = parseFloat(m.quantity_kg)
+      const qty = m.quantity_kg
       if (totalAvailable < qty) {
         res.status(400).json({
           error: `Nedovoljno zaliha kod dobavljača za ${materialName} / ${colorName}. Dostupno: ${totalAvailable} kg, traženo: ${qty} kg`
@@ -310,6 +322,8 @@ router.post('/bundle', requireAuth, requireRole(['modni_dizajner']), async (req,
         material: materialName,
         color: colorName,
         quantity_kg: qty,
+        quantity_unit: m.quantity_unit,
+        quantity_m: m.quantity_m,
         price_per_kg: pricePerKg,
         line_total_rsd: lineTotal
       })
@@ -328,6 +342,8 @@ router.post('/bundle', requireAuth, requireRole(['modni_dizajner']), async (req,
       material: m.material,
       color: m.color,
       quantity_kg: m.quantity_kg,
+      quantity_unit: m.quantity_unit || 'kg',
+      quantity_m: m.quantity_m ?? null,
       deadline: deadline || null,
       notes: notes || null,
       status: 'new',
