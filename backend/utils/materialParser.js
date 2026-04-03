@@ -9,34 +9,121 @@
  * @param {string} materialsText - Format: "Vuna 95%, Viskoza 5%"
  * @returns {Array} Niz objekata sa materijalima
  */
+/**
+ * Normalizuje ime materijala nakon parsiranja "pre procenata".
+ * Npr. "Šifon - 100% poliester" → substring do "100" daje "Šifon - " → ovde "Šifon".
+ * Bez ovoga smart contract (keccak256) ne poklapa skicu sa linijom pošiljke ("Šifon").
+ */
+const normalizeParsedMaterialName = (name) => {
+  if (!name) return ''
+  return String(name)
+    .trim()
+    .replace(/\s*-\s*$/, '')
+    .trim()
+}
+
 export const parseMaterials = (materialsText) => {
-  if (!materialsText || !materialsText.trim()) {
+  if (!materialsText || !String(materialsText).trim()) {
     return []
+  }
+
+  const raw = String(materialsText).trim()
+
+  // JSON niz (noviji format skice): [{ "material": "Šifon", "percentage": 100 }, ...]
+  if (raw.startsWith('[')) {
+    try {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) {
+        const out = []
+        for (const entry of arr) {
+          if (typeof entry === 'string') {
+            const n = entry.trim()
+            if (n) out.push({ name: n, percentage: null })
+            continue
+          }
+          if (entry && typeof entry === 'object') {
+            const name = normalizeParsedMaterialName(
+              entry.material || entry.name || entry.label || ''
+            )
+            const pct =
+              entry.percentage != null && entry.percentage !== ''
+                ? parseInt(String(entry.percentage), 10)
+                : null
+            if (name) out.push({ name, percentage: Number.isFinite(pct) ? pct : null })
+          }
+        }
+        if (out.length > 0) return out
+      }
+    } catch {
+      /* nastavi kao običan tekst */
+    }
   }
 
   const materials = []
   // Podeli po zarezu ili tački-zarezu
-  const parts = materialsText.split(/[,;]/).map(p => p.trim()).filter(Boolean)
+  const parts = raw.split(/[,;]/).map((p) => p.trim()).filter(Boolean)
 
   for (const part of parts) {
+    // Prvo: "Naziv - XX% ..." (čest format posle grupe / sastava)
+    const dashPct = part.match(/^(.+?)\s*-\s*(\d+)\s*%/)
+    if (dashPct) {
+      const name = normalizeParsedMaterialName(dashPct[1])
+      if (name) {
+        materials.push({
+          name,
+          percentage: parseInt(dashPct[2], 10)
+        })
+      }
+      continue
+    }
+
     // Proveri da li ima procenat (npr. "Vuna 95%" ili "Vuna 95")
     const percentageMatch = part.match(/(\d+)\s*%?/)
-    const percentage = percentageMatch ? parseInt(percentageMatch[1]) : null
-    
-    // Izdvoji ime materijala (sve pre broja)
-    const name = percentageMatch 
+    const percentage = percentageMatch ? parseInt(percentageMatch[1], 10) : null
+
+    // Izdvoji ime materijala (sve pre broja), pa ukloni završnu crticu (greška za "Šifon - 100%...")
+    let name = percentageMatch
       ? part.substring(0, percentageMatch.index).trim()
       : part.trim()
+    name = normalizeParsedMaterialName(name)
 
     if (name) {
       materials.push({
-        name: name,
+        name,
         percentage: percentage
       })
     }
   }
 
   return materials
+}
+
+/**
+ * Ključ za SupplierManufacturerContract (createShipment / acceptShipment):
+ * - samo jezgro imena materijala (bez procenata, bez "poliester" iza %, bez boje/kg iz prikaza)
+ * - š/s i ostali dijakritici → ASCII (Unicode NFD)
+ * Procenti i pun sastav ostaju u skici za laboratoriju; ugovor ih ne poredi.
+ */
+export function normalizeMaterialNameForContract(raw) {
+  if (raw == null || raw === undefined) return ''
+  let s = String(raw).trim()
+  if (!s) return ''
+
+  // "Šifon / Roze / 5 kg" u jednom polju → samo materijal
+  s = s.split('/')[0].trim()
+  // "Sifon - 100% poliester" → samo deo pre crtice (procenti kasnije ignorišu)
+  s = s.split(/\s*-\s*/)[0].trim()
+  // "Sifon 100% ..." bez crtice
+  s = s.replace(/\d+\s*%.*/i, '').trim()
+
+  s = s.toLowerCase()
+  try {
+    s = s.normalize('NFD').replace(/\p{M}+/gu, '')
+  } catch {
+    s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  }
+
+  return s.replace(/\s+/g, ' ').trim()
 }
 
 /**

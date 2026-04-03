@@ -9,28 +9,109 @@
  * @param {string} materialsText - Format: "Vuna 95%, Viskoza 5%"
  * @returns {Array} Niz objekata sa materijalima
  */
+const normalizeParsedMaterialName = (name) => {
+  if (!name) return ''
+  return String(name)
+    .trim()
+    .replace(/\s*-\s*$/, '')
+    .trim()
+}
+
+/**
+ * Isto kao backend – ime za ProductApproval (ASCII, bez dijakritika).
+ * Laborant i skica mogu imati "Šifon" / "Sifon - 100%"; ugovor poredi stringove strogo.
+ */
+export function normalizeMaterialNameForContract(raw) {
+  if (raw == null || raw === undefined) return ''
+  let s = String(raw).trim()
+  if (!s) return ''
+
+  s = s.split('/')[0].trim()
+  s = s.split(/\s*-\s*/)[0].trim()
+  s = s.replace(/\d+\s*%.*/i, '').trim()
+
+  s = s.toLowerCase()
+  try {
+    s = s.normalize('NFD').replace(/\p{M}+/gu, '')
+  } catch {
+    s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  }
+
+  return s.replace(/\s+/g, ' ').trim()
+}
+
 export const parseMaterials = (materialsText) => {
-  if (!materialsText || !materialsText.trim()) {
+  if (!materialsText || !String(materialsText).trim()) {
     return []
   }
 
+  const raw = String(materialsText).trim()
+
+  if (raw.startsWith('[')) {
+    try {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) {
+        const out = []
+        for (const entry of arr) {
+          if (typeof entry === 'string') {
+            const n = entry.trim()
+            if (n) out.push({ name: n, percentage: null, type: 'unknown', description: '' })
+            continue
+          }
+          if (entry && typeof entry === 'object') {
+            const name = normalizeParsedMaterialName(
+              entry.material || entry.name || entry.label || ''
+            )
+            const pct =
+              entry.percentage != null && entry.percentage !== ''
+                ? parseInt(String(entry.percentage), 10)
+                : null
+            if (name) {
+              out.push({
+                name,
+                percentage: Number.isFinite(pct) ? pct : null,
+                type: entry.type || 'unknown',
+                description: entry.description || ''
+              })
+            }
+          }
+        }
+        if (out.length > 0) return out
+      }
+    } catch {
+      /* nastavi kao tekst */
+    }
+  }
+
   const materials = []
-  // Podeli po zarezu ili tački-zarezu
-  const parts = materialsText.split(/[,;]/).map(p => p.trim()).filter(Boolean)
+  const parts = raw.split(/[,;]/).map((p) => p.trim()).filter(Boolean)
 
   for (const part of parts) {
-    // Proveri da li ima procenat (npr. "Vuna 95%" ili "Vuna 95")
+    const dashPct = part.match(/^(.+?)\s*-\s*(\d+)\s*%/)
+    if (dashPct) {
+      const name = normalizeParsedMaterialName(dashPct[1])
+      if (name) {
+        materials.push({
+          name,
+          percentage: parseInt(dashPct[2], 10),
+          type: 'unknown',
+          description: ''
+        })
+      }
+      continue
+    }
+
     const percentageMatch = part.match(/(\d+)\s*%?/)
-    const percentage = percentageMatch ? parseInt(percentageMatch[1]) : null
-    
-    // Izdvoji ime materijala (sve pre broja)
-    const name = percentageMatch 
+    const percentage = percentageMatch ? parseInt(percentageMatch[1], 10) : null
+
+    let name = percentageMatch
       ? part.substring(0, percentageMatch.index).trim()
       : part.trim()
+    name = normalizeParsedMaterialName(name)
 
     if (name) {
       materials.push({
-        name: name,
+        name,
         percentage: percentage,
         type: 'unknown',
         description: ''

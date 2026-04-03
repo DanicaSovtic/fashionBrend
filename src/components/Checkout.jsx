@@ -623,9 +623,6 @@ const Checkout = () => {
                 <h1>Odaberi način plaćanja</h1>
 
                 <div className="payment-info">
-                  <p>
-                    Prikupljanje broja Lične karte/Pasoša je novi zahtev od Poreske Uprave, te se eventualno obrađuje jedino u svrhu moguće zamene, i/ili povrata.
-                  </p>
                   {paymentMethod === 'metamask' && (
                     <p className="payment-info-testnet">
                       Plaćanje preko Sepolia testneta. Besplatan test ETH:{' '}

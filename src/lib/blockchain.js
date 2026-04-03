@@ -4,6 +4,7 @@
  */
 
 import { ethers } from 'ethers'
+import { parseMaterials, normalizeMaterialNameForContract } from '../utils/materialParser.js'
 
 // Sepolia testnet
 export const SEPOLIA_CHAIN_ID = 11155111
@@ -405,26 +406,75 @@ export const approveProductOnBlockchain = async (
   // Konvertujemo UUID u bytes32
   const productIdBytes32 = ethers.keccak256(ethers.toUtf8Bytes(productId))
 
-  // Konvertujemo rezultate testova u format koji smart contract očekuje
-  const testResultsStruct = testResults.map(tr => ({
-    materialName: tr.material_name || tr.materialName,
-    percentage: tr.percentage
-  }))
+  // ProductApproval.sol parsira "Ime XX%" tako što uzima ime kao sve PRE broja – npr.
+  // "Sifon - 100% poliester" postaje ime "Sifon - " na lancu, pa se ne poklapa sa "Sifon" iz laba.
+  // Zato gradimo kanonski string i imena preko istog normalizatora kao SupplierManufacturer.
+  const parsedRequired = parseMaterials(requiredMaterials || '')
+  if (parsedRequired.length === 0) {
+    throw new Error(
+      'Nije moguće parsirati zahtevane materijale iz skice. Koristi format npr. "Vuna 95%, Šifon 5%" ili JSON niz sa percentage.'
+    )
+  }
+
+  const requiredForContract = parsedRequired
+    .map((m) => {
+      if (m.percentage == null || !Number.isFinite(Number(m.percentage))) {
+        throw new Error(
+          `Materijal "${m.name || '?'}" u skici nema procenat – dopuni skicu (npr. "Ime 95%") da bi ugovor mogao da proveri rezultate.`
+        )
+      }
+      const pct = Math.min(100, Math.max(0, Math.round(Number(m.percentage))))
+      const nm = normalizeMaterialNameForContract(m.name)
+      if (!nm) {
+        throw new Error('Jedan od materijala u skici nema validno ime nakon normalizacije.')
+      }
+      return `${nm} ${pct}%`
+    })
+    .join(', ')
+
+  const testResultsStruct = testResults
+    .map((tr) => {
+      const rawName = tr.material_name ?? tr.materialName ?? ''
+      const pct = Number(tr.percentage)
+      return {
+        materialName: normalizeMaterialNameForContract(rawName),
+        percentage: Math.min(255, Math.max(0, Math.round(Number.isFinite(pct) ? pct : 0)))
+      }
+    })
+    .filter((tr) => tr.materialName && tr.materialName.length > 0)
+
+  if (testResultsStruct.length === 0) {
+    throw new Error('Nema validnih rezultata testova (ime materijala posle normalizacije je prazno).')
+  }
 
   console.log('[Blockchain] Calling approveProduct with:', {
     productId: productId,
     productIdBytes32: productIdBytes32,
     testResults: testResultsStruct,
-    requiredMaterials: requiredMaterials,
+    requiredMaterialsOriginal: requiredMaterials,
+    requiredMaterialsForContract: requiredForContract,
     currentStage: currentStage,
     contractAddress: contractAddress
   })
+
+  // Simulacija pre slanja (jasnija poruka od estimateGas)
+  try {
+    await contract.approveProduct.staticCall(
+      productIdBytes32,
+      testResultsStruct,
+      requiredForContract,
+      currentStage
+    )
+  } catch (simErr) {
+    const msg = simErr?.shortMessage || simErr?.message || String(simErr)
+    throw new Error(`Greška od smart contracta: ${msg}`)
+  }
 
   // Pozivamo smart contract - on će proveriti da li rezultati testova odgovaraju zahtevima
   const tx = await contract.approveProduct(
     productIdBytes32,
     testResultsStruct,
-    requiredMaterials,
+    requiredForContract,
     currentStage
   )
 
@@ -698,7 +748,20 @@ export const getMaterialRequestOnBlockchain = async (contractAddress, bundleId) 
 const SUPPLIER_MANUFACTURER_GAS_MULTIPLIER = 2n
 const SUPPLIER_MANUFACTURER_FALLBACK_GAS = 600000n
 
+/** Custom errors iz SupplierManufacturerContract.sol – da ethers dekodira revert (ne "unknown custom error"). */
+const SUPPLIER_MANUFACTURER_ERRORS = [
+  { type: 'error', name: 'ShipmentDoesNotExist', inputs: [] },
+  { type: 'error', name: 'OnlyManufacturer', inputs: [] },
+  { type: 'error', name: 'InvalidStatus', inputs: [] },
+  {
+    type: 'error',
+    name: 'MissingExpectedMaterial',
+    inputs: [{ internalType: 'bytes32', name: 'materialHash', type: 'bytes32' }]
+  }
+]
+
 const SUPPLIER_MANUFACTURER_ABI = [
+  ...SUPPLIER_MANUFACTURER_ERRORS,
   {
     inputs: [
       { internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' },
@@ -775,6 +838,13 @@ const SUPPLIER_MANUFACTURER_ABI = [
     name: 'hashMaterialName',
     outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
     stateMutability: 'pure',
+    type: 'function'
+  },
+  {
+    inputs: [{ internalType: 'bytes32', name: 'shipmentId', type: 'bytes32' }],
+    name: 'getExpectedMaterialHashes',
+    outputs: [{ internalType: 'bytes32[]', name: '', type: 'bytes32[]' }],
+    stateMutability: 'view',
     type: 'function'
   }
 ]
@@ -862,7 +932,39 @@ export const createShipmentOnBlockchain = async (
 }
 
 /**
+ * Čitljiva poruka ako acceptShipment revert-uje (nije problem sa gasom – ugovor odbija).
+ */
+const explainAcceptShipmentRevert = (err) => {
+  const data = err?.data ?? err?.error?.data ?? err?.info?.error?.data
+  if (data && typeof data === 'string' && data.startsWith('0x') && data.length > 10) {
+    try {
+      const iface = new ethers.Interface(SUPPLIER_MANUFACTURER_ABI)
+      const parsed = iface.parseError(data)
+      if (parsed) {
+        if (parsed.name === 'MissingExpectedMaterial') {
+          const h = parsed.args?.materialHash
+          return `Ugovor: nedostaje očekivani materijal (hash iz skice: ${h}). Na lancu se linije pošiljke ne poklapaju sa hash-evima sa createShipment – obično zbog drugačijeg teksta materijala ili stare pošiljke pre normalizacije. Uradi novi createShipment sa novim bundle-om ili proveri šta je tačno upisano u linijama.`
+        }
+        if (parsed.name === 'OnlyManufacturer') {
+          return 'Ugovor: samo adresa proizvođača sačuvana u pošiljci može da prihvati. Proveri da MetaMask koristi isti wallet kao manufacturer u profilu.'
+        }
+        if (parsed.name === 'InvalidStatus') {
+          return 'Ugovor: pošiljka nije u statusu Created (već prihvaćena/odbijena ili nikad kreirana za ovaj shipmentId).'
+        }
+        if (parsed.name === 'ShipmentDoesNotExist') {
+          return 'Ugovor: ne postoji pošiljka za ovaj shipmentId (pogrešan bundle_id ili pogrešan ugovor).'
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return null
+}
+
+/**
  * Proizvođač prihvata pošiljku; ugovor proverava da svi očekivani materijali iz skice postoje u pošiljci.
+ * Napomena: ako estimateGas padne sa "execution reverted", uzrok je logika ugovora, ne "malo gasa".
  */
 export const acceptShipmentOnBlockchain = async (contractAddress, bundleId) => {
   if (typeof window === 'undefined' || !window.ethereum) {
@@ -882,6 +984,17 @@ export const acceptShipmentOnBlockchain = async (contractAddress, bundleId) => {
   const contract = new ethers.Contract(contractAddress, SUPPLIER_MANUFACTURER_ABI, signer)
   const shipmentIdBytes32 = typeof bundleId === 'string' && bundleId.startsWith('0x') ? bundleId : shipmentIdFromBundleId(bundleId)
 
+  // Simulacija pre slanja – isti revert kao estimateGas, ali sa boljim porukama ako ima error u ABI
+  try {
+    await contract.acceptShipment.staticCall(shipmentIdBytes32)
+  } catch (staticErr) {
+    const hint = explainAcceptShipmentRevert(staticErr)
+    if (hint) {
+      throw new Error(hint)
+    }
+    throw staticErr
+  }
+
   let gasLimit
   try {
     const estimated = await contract.acceptShipment.estimateGas(shipmentIdBytes32)
@@ -893,6 +1006,9 @@ export const acceptShipmentOnBlockchain = async (contractAddress, bundleId) => {
 
   const tx = await contract.acceptShipment(shipmentIdBytes32, { gasLimit })
   const receipt = await tx.wait()
+  if (receipt.status === 0) {
+    throw new Error('Transakcija je revert-ovana na lancu (status 0). Proveri Etherscan i da li je wallet proizvođač i status pošiljke Created.')
+  }
   return { txHash: receipt.hash, blockNumber: receipt.blockNumber }
 }
 

@@ -106,11 +106,24 @@ export const getProducts = async () => {
 
   // U prodavnici prikazuj samo proizvode čiji je model odobren (development_stage === 'approved')
   // ili proizvode bez povezanog modela (stari/seed podaci)
-  return (data || []).filter(
+  const approved = (data || []).filter(
     (p) =>
       !p.product_model_id ||
       (p.product_model && p.product_model.development_stage === 'approved')
   )
+
+  // Po modelu prikaži samo jedan proizvod (najstariji po created_at), da ne bi isti model imao više listinga
+  const byModel = new Map()
+  for (const p of approved) {
+    const key = p.product_model_id || p.id
+    const existing = byModel.get(key)
+    if (!existing || new Date(p.created_at) < new Date(existing.created_at)) {
+      byModel.set(key, p)
+    }
+  }
+  const unique = Array.from(byModel.values())
+  unique.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  return unique
 }
 
 export const getProductById = async (id) => {

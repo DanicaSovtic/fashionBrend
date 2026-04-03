@@ -1,5 +1,7 @@
 import { supabase, createAdminClient } from './supabaseClient.js'
 
+const BLOCKCHAIN_EXPLORER_URL = process.env.BLOCKCHAIN_EXPLORER_URL || 'https://sepolia.etherscan.io'
+
 const STEP_LABELS = {
   idea: 'Kreiranje ideje i modela',
   development: 'Razvoj i odobrenje za proizvodnju',
@@ -97,9 +99,9 @@ async function buildRichLifecycle(product) {
     admin.from('collections').select('created_by').eq('id', product.product_model?.collection_id).maybeSingle(),
     admin.from('product_model_versions').select('created_by, created_at, change_summary, version_number').eq('model_id', modelId).order('created_at', { ascending: true }),
     admin.from('product_model_approvals').select('approved_by, approval_item, status, updated_at, note').eq('model_id', modelId).order('updated_at', { ascending: true }),
-    admin.from('material_requests').select('requested_by, supplier_id, created_at, updated_at, material, color, quantity_kg').eq('product_model_id', modelId).order('created_at', { ascending: true }),
-    admin.from('material_shipments').select('supplier_id, manufacturer_id, confirmed_at, received_at, material, color').eq('product_model_id', modelId).order('confirmed_at', { ascending: false }),
-    admin.from('sewing_orders').select('manufacturer_id, started_at, completed_at, notes, quantity_pieces').eq('product_model_id', modelId).order('completed_at', { ascending: false }),
+    admin.from('material_requests').select('requested_by, supplier_id, created_at, updated_at, material, color, quantity_kg, contract_request_id_hex, fund_tx_hash').eq('product_model_id', modelId).order('created_at', { ascending: true }),
+    admin.from('material_shipments').select('supplier_id, manufacturer_id, confirmed_at, received_at, material, color, contract_shipment_id_hex').eq('product_model_id', modelId).order('confirmed_at', { ascending: false }),
+    admin.from('sewing_orders').select('manufacturer_id, started_at, completed_at, notes, quantity_pieces, contract_completion_id_hex').eq('product_model_id', modelId).order('completed_at', { ascending: false }),
     admin.from('lab_test_results').select('tested_by, lab_name, created_at, material_name, percentage').eq('product_model_id', modelId).order('created_at', { ascending: true })
   ])
 
@@ -186,6 +188,9 @@ async function buildRichLifecycle(product) {
 
   approvals.filter((a) => a.status === 'approved' && a.updated_at).forEach((a) => {
     const p = profileMap[a.approved_by]
+    const isTesterApproval = a.approval_item === 'Final Quality Approval'
+    const productApprovalContract = process.env.PRODUCT_APPROVAL_CONTRACT || ''
+    const hasContract = isTesterApproval && !!productApprovalContract
     events.push({
       id: `rich-approval-${a.approval_item}-${modelId}`,
       stepKey: 'approval',
@@ -196,13 +201,22 @@ async function buildRichLifecycle(product) {
       actorName: p?.name || null,
       extraDetail: a.note || null,
       details: { approvalItem: a.approval_item, note: a.note },
-      verifiedOnBlockchain: false
+      verifiedOnBlockchain: hasContract,
+      ...(hasContract && {
+        blockchainContractAddress: productApprovalContract,
+        blockchainContractName: 'Ugovor za odobrenje proizvoda (Tester kvaliteta)',
+        blockchainTxHash: null,
+        blockchainContractUrl: `${BLOCKCHAIN_EXPLORER_URL}/address/${productApprovalContract}`,
+        blockchainTxUrl: null
+      })
     })
   })
 
   matReqs.forEach((r) => {
     const designer = profileMap[r.requested_by]
     const supplier = profileMap[r.supplier_id]
+    const hasContract = !!(r.contract_request_id_hex || r.fund_tx_hash)
+    const contractAddress = process.env.DESIGNER_SUPPLIER_CONTRACT || ''
     events.push({
       id: `rich-matreq-${r.created_at}-${modelId}`,
       stepKey: 'material_request',
@@ -213,7 +227,14 @@ async function buildRichLifecycle(product) {
       actorName: designer?.name || null,
       extraDetail: supplier?.name ? `Dobavljač: ${supplier.name}` : null,
       details: { material: r.material, color: r.color, quantityKg: r.quantity_kg, supplier: supplier?.name },
-      verifiedOnBlockchain: false
+      verifiedOnBlockchain: hasContract,
+      ...(hasContract && contractAddress && {
+        blockchainContractAddress: contractAddress,
+        blockchainContractName: 'Ugovor Dizajner–Dobavljač',
+        blockchainTxHash: r.fund_tx_hash || null,
+        blockchainContractUrl: `${BLOCKCHAIN_EXPLORER_URL}/address/${contractAddress}`,
+        blockchainTxUrl: r.fund_tx_hash ? `${BLOCKCHAIN_EXPLORER_URL}/tx/${r.fund_tx_hash}` : null
+      })
     })
   })
 
@@ -222,6 +243,8 @@ async function buildRichLifecycle(product) {
     const manufacturer = profileMap[s.manufacturer_id]
     const at = s.confirmed_at || s.received_at
     if (!at) return
+    const hasContract = !!s.contract_shipment_id_hex
+    const contractAddress = process.env.SUPPLIER_MANUFACTURER_CONTRACT || ''
     events.push({
       id: `rich-matship-${s.confirmed_at || s.received_at}-${modelId}`,
       stepKey: 'material_confirmed',
@@ -232,7 +255,14 @@ async function buildRichLifecycle(product) {
       actorName: supplier?.name || null,
       extraDetail: manufacturer?.name ? `Proizvođač (primalac): ${manufacturer.name}` : null,
       details: { material: s.material, color: s.color, supplier: supplier?.name, manufacturerReceiver: manufacturer?.name },
-      verifiedOnBlockchain: false
+      verifiedOnBlockchain: hasContract,
+      ...(hasContract && contractAddress && {
+        blockchainContractAddress: contractAddress,
+        blockchainContractName: 'Ugovor Dobavljač–Proizvođač',
+        blockchainTxHash: null,
+        blockchainContractUrl: `${BLOCKCHAIN_EXPLORER_URL}/address/${contractAddress}`,
+        blockchainTxUrl: null
+      })
     })
   })
 
@@ -253,6 +283,8 @@ async function buildRichLifecycle(product) {
       })
     }
     if (s.completed_at) {
+      const hasContract = !!s.contract_completion_id_hex
+      const contractAddress = process.env.DESIGNER_MANUFACTURER_CONTRACT || ''
       events.push({
         id: `rich-sew-done-${modelId}`,
         stepKey: 'production_completed',
@@ -263,7 +295,14 @@ async function buildRichLifecycle(product) {
         actorName: manufacturer?.name || null,
         extraDetail: null,
         details: { manufacturer: manufacturer?.name },
-        verifiedOnBlockchain: false
+        verifiedOnBlockchain: hasContract,
+        ...(hasContract && contractAddress && {
+          blockchainContractAddress: contractAddress,
+          blockchainContractName: 'Ugovor Dizajner–Proizvođač',
+          blockchainTxHash: null,
+          blockchainContractUrl: `${BLOCKCHAIN_EXPLORER_URL}/address/${contractAddress}`,
+          blockchainTxUrl: null
+        })
       })
     }
   })

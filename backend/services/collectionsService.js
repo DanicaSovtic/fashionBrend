@@ -263,14 +263,15 @@ export const createProductFromModel = async (modelId) => {
   try {
     console.log('[CollectionsService] createProductFromModel called for modelId:', modelId)
     
-    // Proveri da li proizvod već postoji
-    const { data: existingProduct, error: checkError } = await dbClient
+    // Proveri da li proizvod već postoji (limit(1) da ne pukne maybeSingle kada ima više redova za isti model)
+    const { data: existingRows, error: checkError } = await dbClient
       .from('products')
       .select('id, title, product_model_id')
       .eq('product_model_id', modelId)
-      .maybeSingle()
+      .order('created_at', { ascending: true })
+      .limit(1)
 
-    if (checkError && checkError.code !== 'PGRST116') {
+    if (checkError) {
       console.error('[CollectionsService] Error checking existing product:', {
         error: checkError,
         code: checkError.code,
@@ -278,6 +279,8 @@ export const createProductFromModel = async (modelId) => {
       })
       throw checkError
     }
+
+    const existingProduct = existingRows?.[0]
 
     if (existingProduct) {
       console.log('[CollectionsService] Product already exists for model:', {

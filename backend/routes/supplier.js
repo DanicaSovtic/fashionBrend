@@ -5,7 +5,7 @@
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { createAdminClient } from '../services/supabaseClient.js'
-import { parseMaterials } from '../utils/materialParser.js'
+import { normalizeMaterialNameForContract } from '../utils/materialParser.js'
 
 const router = Router()
 const adminSupabase = createAdminClient()
@@ -1041,23 +1041,32 @@ router.post('/requests/bundle/:bundleId/send-to-manufacturer', requireAuth, requ
     }
 
     const productModelId = rows[0].product_model_id
-    const { data: model } = await adminSupabase
-      .from('product_models')
-      .select('materials')
-      .eq('id', productModelId)
-      .single()
 
-    const expectedMaterialNames = (parseMaterials(model?.materials || '') || []).map((m) => (m.name || '').trim()).filter(Boolean)
-    if (expectedMaterialNames.length === 0) {
-      res.status(400).json({ error: 'Model proizvoda nema definisane materijale u skici (product_models.materials)' })
-      return
-    }
-
+    // Linije pošiljke = materijali iz ISTOG bundle-a (šta je dizajner zaista tražio).
     const lines = rows.map((r) => ({
-      material: r.material || '',
+      material: normalizeMaterialNameForContract(r.material || ''),
       color: r.color || '',
       quantityKg: Number(r.quantity_kg) || 0
     }))
+
+    if (lines.some((l) => !l.material)) {
+      res.status(400).json({
+        error:
+          'Nakon normalizacije ime materijala je prazno u jednom od redova zahteva. Proveri polje materijal (npr. Šifon / Sifon).'
+      })
+      return
+    }
+
+    // Očekivani hash-evi na ugovoru MORAJU biti iz istog skupa kao linije pošiljke.
+    // Ako bi uzimali celu skicu (product_models.materials), često ima više materijala
+    // nego redova u bundle-u → acceptShipment uvek revert-uje (MissingExpectedMaterial).
+    // Puna skica ostaje u bazi za laborantu / prikaz; lanac proverava samo „šta je naručeno u ovom zahtevu“.
+    const expectedMaterialNames = [...new Set(lines.map((l) => l.material))]
+
+    if (expectedMaterialNames.length === 0) {
+      res.status(400).json({ error: 'Bundle nema materijale za upis na ugovor.' })
+      return
+    }
 
     res.json({
       bundle_id: bundleId,

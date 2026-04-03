@@ -433,7 +433,29 @@ const Product = () => {
                               )}
                               {renderEventDetails(event.details)}
                               {event.verifiedOnBlockchain && (
-                                <span className="product-lifecycle-badge">Verifikovano na blockchain-u</span>
+                                <div className="product-lifecycle-blockchain">
+                                  <span className="product-lifecycle-badge">Verifikovano na blockchain-u</span>
+                                  {event.blockchainContractUrl && (
+                                    <a
+                                      href={event.blockchainContractUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="product-lifecycle-blockchain-link"
+                                    >
+                                      {event.blockchainContractName || 'Pametni ugovor'} (Etherscan)
+                                    </a>
+                                  )}
+                                  {event.blockchainTxUrl && (
+                                    <a
+                                      href={event.blockchainTxUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="product-lifecycle-blockchain-link"
+                                    >
+                                      Transakcija (Etherscan)
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </li>
